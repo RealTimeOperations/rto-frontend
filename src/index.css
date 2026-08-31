@@ -1,1 +1,48 @@
 @import "tailwindcss";
+
+/* Keep dark input style when browser autofills credentials */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #ffffff;
+  -webkit-box-shadow: 0 0 0 1000px rgba(255, 255, 255, 0.05) inset;
+  box-shadow: 0 0 0 1000px rgba(255, 255, 255, 0.05) inset;
+  caret-color: #ffffff;
+  transition: background-color 9999s ease-out 0s;
+}
+
+/* Rotating border animation */
+@keyframes border-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Eye icon stroke color cycling */
+@keyframes eye-stroke-cycle {
+  0%, 100% { stroke: #047857; }
+  33%      { stroke: #059669; }
+  66%      { stroke: #6ee7b7; }
+}
+
+/* Running gradient text (matches border colors) */
+.running-text {
+  background-image: linear-gradient(90deg, #34d399, #a7f3d0, #6ee7b7, #a7f3d0, #34d399);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: text-flow 6s linear infinite;
+}
+
+@keyframes text-flow {
+  from { background-position: 0% 50%; }
+  to   { background-position: 200% 50%; }
+}
+
+/* Running gradient button background */
+.running-button {
+  background-image: linear-gradient(90deg, #047857, #059669, #10b981, #059669, #047857);
+  background-size: 200% 100%;
+  animation: text-flow 6s linear infinite;
+}

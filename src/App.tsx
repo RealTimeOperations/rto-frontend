@@ -10,23 +10,36 @@ export default function App() {
   const [role, setRole] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
-  // Fetch the logged-in user's role from the database
-  async function loadRole() {
+  // Fetch role with localStorage cache for instant loading
+  async function loadRole(userId: string) {
+    const cached = localStorage.getItem('rto_role_' + userId)
+    if (cached) {
+      // Instant render from cache, verify in background
+      setRole(cached)
+      setLoading(false)
+      const { data } = await supabase.rpc('get_my_role')
+      const fresh = (data as string | null) ?? null
+      localStorage.setItem('rto_role_' + userId, fresh ?? '')
+      setRole(fresh)
+      return
+    }
     const { data } = await supabase.rpc('get_my_role')
-    setRole((data as string | null) ?? null)
+    const fresh = (data as string | null) ?? null
+    localStorage.setItem('rto_role_' + userId, fresh ?? '')
+    setRole(fresh)
     setLoading(false)
   }
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session)
-      if (data.session) loadRole()
+    if (data.session) loadRole(data.session.user.id)
       else setLoading(false)
     })
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, sess) => {
       setSession(sess)
-      if (sess) loadRole()
+      if (sess) loadRole(sess.user.id)
       else {
         setRole(null)
         setLoading(false)
