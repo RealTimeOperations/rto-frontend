@@ -4,6 +4,7 @@ import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
 import Login from './templates/authentication/login/Login'
 import Admin from './templates/admin/Admin'
+import Homepage from './templates/homepage/Homepage'
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null)
@@ -58,13 +59,15 @@ export default function App() {
   }
 
   const isAdmin = Boolean(session) && role === 'admin'
+  const isLoggedIn = Boolean(session)
 
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={isAdmin ? <Navigate to="/admin" replace /> : <Login />} />
+        <Route path="/login" element={isLoggedIn ? <Navigate to="/home" replace /> : <Login />} />
+        <Route path="/home" element={isLoggedIn ? <Homepage role={role} /> : <Navigate to="/login" replace />} />
         <Route path="/admin" element={isAdmin ? <Admin /> : <Navigate to="/login" replace />} />
-        <Route path="*" element={<Navigate to={isAdmin ? '/admin' : '/login'} replace />} />
+        <Route path="*" element={<Navigate to={isLoggedIn ? '/home' : '/login'} replace />} />
       </Routes>
     </BrowserRouter>
   )

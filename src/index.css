@@ -46,3 +46,64 @@ input:-webkit-autofill:focus {
   background-size: 200% 100%;
   animation: text-flow 6s linear infinite;
 }
+
+/* Dark theme for native select dropdowns */
+select {
+  color-scheme: dark;
+  accent-color: #059669;
+}
+
+select option {
+  background-color: #0d372c;
+  color: #ffffff;
+}
+
+/* Large screen scaling (LED / 2K / 4K) */
+@media (min-width: 1920px) {
+  html { font-size: 18px; }
+}
+@media (min-width: 2560px) {
+  html { font-size: 21px; }
+}
+@media (min-width: 3840px) {
+  html { font-size: 28px; }
+}
+
+@keyframes line-run {
+  0% { background-position: -100% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes text-run-diagonal {
+  0% { background-position: 100% 100%; }
+  100% { background-position: 0% 0%; }
+}
+@keyframes text-run-vertical {
+  0% { background-position: 0% 0%; }
+  100% { background-position: 0% -200%; }
+}
+
+@keyframes dot-run {
+  0% { background-position: 0% 0%; }
+  40% { background-position: 100% 100%; }
+  50% { background-position: 100% 0%; }
+  90% { background-position: 0% 100%; }
+  100% { background-position: 0% 0%; }
+}
+
+@keyframes logo-pulse {
+  0%, 55%, 100% { transform: scale(1); filter: brightness(1); }
+  70% { transform: scale(1.1); filter: brightness(1.4); }
+}
+
+@keyframes logo-zoom {
+  0%, 55%, 100% { transform: scale(1); }
+  70% { transform: scale(1.1); }
+}
+
+@keyframes eye-run {
+  0%, 100% { color: #9ca3af; }
+  30% { color: #34d399; }
+  50% { color: #7acba4; }
+  70% { color: #34d399; }
+}
