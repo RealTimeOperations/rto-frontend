@@ -1,7 +1,14 @@
 import { useState, type FormEvent } from 'react'
 import { supabase } from '../../../lib/supabase'
+import LoginAnimation from './LoginAnimation'
 
-export default function Login() {
+type LoginProps = {
+  onLoginStart: () => void
+  onLoginSuccess: () => void
+  onLoginFail: () => void
+}
+
+export default function Login({ onLoginStart, onLoginSuccess, onLoginFail }: LoginProps) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -14,6 +21,7 @@ export default function Login() {
     e.preventDefault()
     setError('')
     setLoading(true)
+    onLoginStart()
 
     const identifier = email.trim().toLowerCase()
     // Admin logs in with email, other users with username
@@ -25,6 +33,7 @@ export default function Login() {
     })
 
     if (error) {
+      onLoginFail()
       setError('Invalid username or password')
       setLoading(false)
       return
@@ -35,14 +44,18 @@ export default function Login() {
 
     if (!role) {
       await supabase.auth.signOut()
+      onLoginFail()
       setError('You do not have access')
       setLoading(false)
       return
     }
 
     localStorage.setItem('rto_role_' + data.user.id, role)
+
+    onLoginSuccess()
+
     setLoading(false)
-  }
+    }
 
   const features = [
     {
@@ -59,8 +72,14 @@ export default function Login() {
         <>
           <path d="M1 5h13v11H1z" />
           <path d="M14 8h4.6L22 11.6V16h-8z" />
-          <circle cx="6" cy="17.5" r="2.2" />
-          <circle cx="17.5" cy="17.5" r="2.2" />
+          {/* Rear wheel: tread + rim + hub */}
+          <circle cx="6" cy="17.5" r="2.5" fill="none" stroke="currentColor" strokeWidth="1.1" strokeDasharray="1.3 0.9" />
+          <circle cx="6" cy="17.5" r="1.5" fill="none" stroke="currentColor" strokeWidth="0.5" />
+          <circle cx="6" cy="17.5" r="0.7" />
+          {/* Front wheel: tread + rim + hub */}
+          <circle cx="17.5" cy="17.5" r="2.5" fill="none" stroke="currentColor" strokeWidth="1.1" strokeDasharray="1.3 0.9" />
+          <circle cx="17.5" cy="17.5" r="1.5" fill="none" stroke="currentColor" strokeWidth="0.5" />
+          <circle cx="17.5" cy="17.5" r="0.7" />
         </>
       ),
       line: 'bg-emerald-400/70 shadow-[0_0_12px_2px_rgba(16,185,129,0.7)]',
@@ -81,15 +100,15 @@ export default function Login() {
   ]
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#071b15]">
+    <div className="relative h-screen min-h-screen overflow-hidden bg-[#071b15]">
       {/* Background image (filhal comment out — coded scene step by step banega) */}
-      {/* <div
+      <div
         className="absolute inset-0 bg-no-repeat pointer-events-none"
-        style={{ backgroundImage: 'url(/loginpage.png)', backgroundSize: '100% 100%' }}
-      /> */}
+        style={{ backgroundImage: 'url(/loginpagebackground.png)', backgroundSize: '100% 100%' }}
+      />
 
       {/* Content */}
-      <div className="relative z-10 flex flex-col min-h-screen px-6 pt-2 pb-6 lg:px-10 lg:pt-3 lg:pb-10">
+      <div className="relative z-10 flex h-full min-h-0 flex-col px-6 pt-2 pb-2 lg:px-10 lg:pt-3 lg:pb-3">
         {/* Header */}
         <header className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
           {/* Left: Zakwan + divider */}
@@ -132,9 +151,9 @@ export default function Login() {
         </header>
 
         {/* Main */}
-        <main className="flex-1 flex flex-col lg:flex-row items-center lg:items-stretch gap-10 lg:gap-14 pt-2 lg:pt-4 pb-40 lg:pb-56">
+        <main className="flex-1 min-h-0 flex flex-col lg:flex-row items-center lg:items-stretch gap-6 lg:gap-8 pt-2 lg:pt-4 pb-0 overflow-hidden login-main">
           {/* Left hero */}
-          <section className="flex-1 w-full flex flex-col">
+          <section className="flex-1 min-h-0 w-full flex flex-col lg:pl-6 xl:pl-10 login-left">
             <h1 className="text-3xl sm:text-4xl xl:text-5xl font-extrabold leading-tight">
               <span className="bg-[linear-gradient(180deg,#64748b,#94a3b8,#cbd5e1,#94a3b8,#64748b)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">REAL TIME</span>
               <br />
@@ -148,7 +167,7 @@ export default function Login() {
               </span>
             </p>
             {/* Feature cards — design match */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-8 max-w-4xl">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-8 max-w-4xl login-features">
               {features.map(f => (
                 <div
                   key={f.title1}
@@ -188,15 +207,18 @@ export default function Login() {
               ))}
             </div>
 
-            {/* Empty container — running border, bottom form ke sath aligned */}
-            <div className="relative w-full max-w-4xl mt-4 flex-1 rounded-[26px] overflow-hidden shadow-[0_0_18px_rgba(16,185,129,0.18)]">
+            {/* Animation container — running border, bottom form ke sath aligned */}
+            <div className="relative w-full max-w-4xl mt-4 flex-1 min-h-0 max-h-[200px] rounded-[26px] overflow-hidden shadow-[0_0_18px_rgba(16,185,129,0.18)] login-animation">
               <div className="absolute left-[calc(50%-600px)] top-[calc(50%-600px)] h-[1200px] w-[1200px] animate-[border-spin_8s_linear_infinite] bg-[conic-gradient(from_0deg,#059669,#34d399,#7acba4,#34d399,#059669)] opacity-60" />  
               <div className="absolute inset-0.5 rounded-3xl bg-[#071b15]" />
+              <div className="absolute inset-0.5 rounded-3xl overflow-hidden">
+                <LoginAnimation />
+              </div>
             </div>
           </section>
 
           {/* Right: login card */}
-          <section className="w-full max-w-sm shrink-0 lg:mr-20 xl:mr-40 lg:flex lg:flex-col lg:justify-end">
+          <section className="w-full max-w-sm shrink-0 lg:flex lg:flex-col lg:justify-start lg:-translate-x-25">
             <div className="relative w-full rounded-[26px] overflow-hidden shadow-[0_0_18px_rgba(16,185,129,0.18)]">
               <div className="absolute -inset-full animate-[border-spin_8s_linear_infinite] bg-[conic-gradient(from_0deg,#059669,#34d399,#7acba4,#34d399,#059669)] opacity-60" />
 

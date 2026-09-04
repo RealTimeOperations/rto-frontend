@@ -107,3 +107,65 @@ select option {
   50% { color: #7acba4; }
   70% { color: #34d399; }
 }
+
+/* Arrow stroke running colors (border colors ke sath match) */
+@keyframes stroke-run {
+  0%, 100% { stroke: #059669; }
+  33%      { stroke: #34d399; }
+  66%      { stroke: #7acba4; }
+}
+
+/* Welcome transition overlay (login ke baad) */
+/* Welcome transition overlay */
+@keyframes welcome-overlay {
+  0% {
+    opacity: 1;
+  }
+  55% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Welcome content entrance */
+@keyframes welcome-item {
+  0% {
+    opacity: 0;
+    transform: translateY(14px) scale(0.94);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Logo breathing/pulse */
+@keyframes logo-pulse {
+  0%,
+  55%,
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+
+  70% {
+    transform: scale(1.08);
+    filter: brightness(1.3);
+  }
+}
+
+/* Goodbye transition overlay (logout ke baad) */
+@keyframes goodbye-overlay {
+  0% {
+    opacity: 1;
+  }
+  55% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
