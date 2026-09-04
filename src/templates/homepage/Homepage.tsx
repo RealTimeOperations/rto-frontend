@@ -104,10 +104,17 @@ export default function Homepage({ role, onCardClick }: HomepageProps) {
         type="button"
         onClick={handleLogout}
         aria-label="Logout"
-        className="fixed bottom-6 right-5 sm:right-8 z-30 flex items-center gap-2 rounded-full border border-white/15 bg-white/4 px-6 py-3 text-sm font-semibold text-white/75 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-md transition-all duration-300 hover:bg-white/8 hover:border-emerald-400/40 hover:text-emerald-200 hover:shadow-[0_0_25px_rgba(0,255,170,0.15)]"
+        className="group fixed bottom-6 right-5 sm:right-8 z-30 flex items-center gap-2 overflow-hidden rounded-full border border-white/15 bg-white/4 px-6 py-3 text-sm font-semibold text-white/75 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-md transition-all duration-300 hover:scale-105 hover:border-emerald-400/70 hover:text-white hover:shadow-[0_0_30px_rgba(0,255,170,0.4)]"
       >
-        <LogoutIcon />
-        Logout
+        {/* Green fill — bottom se slide hota hua */}
+        <span
+          aria-hidden="true"
+          className="absolute inset-0 translate-y-full rounded-full bg-emerald-500 transition-transform duration-300 ease-out group-hover:translate-y-0"
+        />
+        <span className="relative flex items-center gap-2">
+          <LogoutIcon />
+          Logout
+        </span>
       </button>
 
       {/* Admin button (admin only) */}
