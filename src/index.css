@@ -169,3 +169,85 @@ select option {
     opacity: 0;
   }
 }
+
+/* ===== Modern thin scrollbar (tables) ===== */
+.rto-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(16, 185, 129, 0.55) rgba(255, 255, 255, 0.05);
+}
+.rto-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.rto-scroll::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 999px;
+}
+.rto-scroll::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #34d399, #059669);
+  border-radius: 999px;
+  border: 2px solid rgba(2, 27, 22, 0.85);
+}
+.rto-scroll::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #6ee7b7, #10b981);
+}
+.rto-scroll::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* ===== Running Colors Border (navbar + buttons) ===== */
+@property --rto-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+@keyframes rto-angle-spin {
+  to { --rto-angle: 360deg; }
+}
+.rto-run-border::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 2px;
+  background: conic-gradient(from var(--rto-angle), #059669, #34d399, #7acba4, #34d399, #059669);
+  opacity: 0.6;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  animation: rto-angle-spin 8s linear infinite;
+  pointer-events: none;
+}
+
+.rto-scroll::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+/* ===== Headings: 1 line, chhoti size — words KABHI nahi tootay ===== */
+.rto-table th {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 9px;
+  letter-spacing: 0.03em;
+}
+@media (min-width: 640px) {
+  .rto-table th {
+    font-size: 10px;
+  }
+}
+
+/* ===== Body cells: sirf spaces par wrap (words nahi tootay) ===== */
+.rto-table td {
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+/* ===== Scrollbar arrows hidden ===== */
+.rto-scroll::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
