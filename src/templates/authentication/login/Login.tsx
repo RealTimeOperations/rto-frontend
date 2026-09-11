@@ -3,12 +3,14 @@ import { supabase } from '../../../lib/supabase'
 import LoginAnimation from './LoginAnimation'
 
 type LoginProps = {
+  kickReason?: 'inactive' | 'password' | null
+  onKicked?: (reason: 'inactive' | 'password') => void
   onLoginStart: () => void
   onLoginSuccess: () => void
   onLoginFail: () => void
 }
 
-export default function Login({ onLoginStart, onLoginSuccess, onLoginFail }: LoginProps) {
+export default function Login({ kickReason, onKicked, onLoginStart, onLoginSuccess, onLoginFail }: LoginProps) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -50,8 +52,21 @@ export default function Login({ onLoginStart, onLoginSuccess, onLoginFail }: Log
       return
     }
 
+    // Block inactive users at login (admin excepted)
+    const { data: prof } = await supabase
+      .from('profiles')
+      .select('status')
+      .eq('id', data.user.id)
+      .maybeSingle()
+    if (prof?.status === 'inactive' && role !== 'admin') {
+      await supabase.auth.signOut()
+      onLoginFail()
+      // Single banner: App kick state use karo, duplicate error banner nahi
+      onKicked?.('inactive')
+      setLoading(false)
+      return
+    }
     localStorage.setItem('rto_role_' + data.user.id, role)
-
     onLoginSuccess()
 
     setLoading(false)
@@ -238,11 +253,21 @@ export default function Login({ onLoginStart, onLoginSuccess, onLoginFail }: Log
                 <h2 className="text-center text-2xl font-bold mb-1 bg-linear-to-b from-white via-slate-200 to-slate-500 bg-clip-text text-transparent">Welcome Back!</h2>
                 <p className="text-center text-xs text-white/55 mb-7">Login to continue to Real Time Operations</p>
 
-                {error && (
-                  <div className="bg-red-500/10 border border-red-500/40 text-red-300 text-sm p-3 rounded-xl mb-4 text-center">
-                    {error}
-                  </div>
-                )}
+            {kickReason === 'inactive' && (
+              <div className="bg-red-500/10 border border-red-500/40 text-red-300 text-sm p-3 rounded-xl mb-4 text-center">
+                You are inactive. Please contact administrator.
+              </div>
+            )}
+            {kickReason === 'password' && (
+              <div className="bg-amber-500/10 border border-amber-500/40 text-amber-300 text-sm p-3 rounded-xl mb-4 text-center">
+                Your session ended because your password was changed by administrator. Please login again.
+              </div>
+            )}
+            {error && (
+              <div className="bg-red-500/10 border border-red-500/40 text-red-300 text-sm p-3 rounded-xl mb-4 text-center">
+                {error}
+              </div>
+            )}
 
                 <div className="mb-4">
                   <label className="block text-xs font-semibold mb-1.5 bg-linear-to-b from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">Username / Email</label>

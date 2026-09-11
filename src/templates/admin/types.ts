@@ -4,6 +4,17 @@ export type Profile = {
   role: string
   status: string
   created_at: string
+  cnic?: string | null
+  can_attendance?: boolean
+  can_vehicles?: boolean
+  can_containers?: boolean
+}
+
+// Permission set for the currently logged-in user
+export type Permissions = {
+  attendance: boolean
+  vehicles: boolean
+  containers: boolean
 }
 
 export type ModalState =

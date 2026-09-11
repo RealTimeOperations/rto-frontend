@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import AttendanceLogs from './AttendanceLogs'
@@ -14,11 +14,30 @@ type View = 'dashboard' | 'attendance' | 'hr' | 'report'
 
 export default function AttendanceDashboard({ onHomeClick }: Props) {
   const navigate = useNavigate()
-  const [view, setView] = useState<View>('dashboard')
+  // ✅ Tab persistence: refresh ke baad wahi tab khule jo pehle open tha
+  const [view, setView] = useState<View>(() => {
+    const saved = localStorage.getItem('rto_attendance_tab') as View | null
+    if (saved && ['dashboard', 'attendance', 'hr', 'report'].includes(saved)) return saved
+    return 'dashboard'
+  })
+  
+  // ✅ Save tab to localStorage on every change
+  useEffect(() => {
+    localStorage.setItem('rto_attendance_tab', view)
+  }, [view])
   const [attendance, setAttendance] = useState<Row[]>([])
   const [employees, setEmployees] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
+  const navRef = useRef<HTMLDivElement>(null)
+  const [slider, setSlider] = useState({ left: 0, width: 0 })
 
+  useEffect(() => {
+    if (!navRef.current) return
+    const activeBtn = navRef.current.querySelector('[data-active="true"]') as HTMLElement
+    if (activeBtn) {
+      setSlider({ left: activeBtn.offsetLeft, width: activeBtn.offsetWidth })
+    }
+  }, [view])
   useEffect(() => {
     let alive = true
 
@@ -76,8 +95,8 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
 
   const tabs: { key: View; label: string }[] = [
     { key: 'dashboard', label: 'Dashboard' },
+    { key: 'hr', label: 'Assigned HR' }, // ✅ Naam badal kar 2nd position par
     { key: 'attendance', label: 'Attendance' },
-    { key: 'hr', label: 'Total HR' },
     { key: 'report', label: 'Report' },
   ]
 
@@ -102,15 +121,22 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
           </div>
 
           {/* Center: 3 tabs */}
-          <nav className="rto-run-border relative pointer-events-auto flex items-center gap-1.5 sm:gap-2 rounded-full border border-transparent bg-[#071b15]/90 backdrop-blur-md px-2 py-1.5 shadow-[0_10px_30px_rgba(0,0,0,0.35)]">
+          <nav
+            ref={navRef}
+              className="relative pointer-events-auto flex items-center gap-1.5 sm:gap-2 rounded-full border border-transparent bg-[#071b15]/90 backdrop-blur-md px-2 py-1.5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12),0_12px_35px_rgba(0,0,0,0.6)]">
+            {/* ✅ Sliding green pill */}
+            <div
+              className="absolute top-1.5 bottom-1.5 rounded-full bg-linear-to-r from-[#00764c] to-[#058962] shadow-[0_0_15px_rgba(0,255,170,0.15)] transition-all duration-300 ease-out pointer-events-none"
+              style={{ left: slider.left, width: slider.width }}
+            />
+
             {tabs.map(t => (
               <button
                 key={t.key}
+                data-active={view === t.key}
                 onClick={() => setView(t.key)}
-                className={`rto-run-border relative px-2.5 sm:px-5 py-2 rounded-full text-[11px] sm:text-sm font-bold tracking-wide border border-transparent transition-all duration-300 whitespace-nowrap ${
-                  view === t.key
-                    ? 'bg-linear-to-r from-[#00764c] to-[#058962] text-white/95 shadow-[0_0_15px_rgba(0,255,170,0.15)]'
-                    : 'bg-[#071b15]/80 text-white/60 hover:text-emerald-200'
+                className={`relative z-10 px-2.5 sm:px-5 py-2 rounded-full text-[11px] sm:text-sm font-bold tracking-wide transition-colors duration-300 whitespace-nowrap ${
+                  view === t.key ? 'text-white' : 'text-white/60 hover:text-emerald-200'
                 }`}
               >
                 {t.label}
@@ -124,7 +150,7 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
       </header>
 
       {/* ===== Content ===== */}
-      <main className="pt-24 pb-4 px-4 sm:px-6 max-w-[1600px] mx-auto flex flex-col min-h-screen">
+      <main className="pt-24 pb-4 px-4 sm:px-6 max-w-[1750px] mx-auto flex flex-col min-h-screen">
         {view === 'dashboard' && <StatsView attendance={attendance} employees={employees} loading={loading} />}
         {view === 'attendance' && <AttendanceLogs rows={attendance} loading={loading} />}
         {view === 'hr' && <TotalHR rows={employees} loading={loading} />}
@@ -186,8 +212,8 @@ function StatsView({ attendance, employees, loading }: { attendance: Row[]; empl
   const RED_NUM = 'bg-[linear-gradient(180deg,#ef4444,#f87171,#fca5a5,#f87171,#ef4444)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]'
 
   const cards = [
-    // ✅ FIX 4: TOTAL HR ke liye validEmployees.length use karein
-    { label: 'TOTAL HR', value: validEmployees.length, icon: <PeopleIcon />, num: GREEN_NUM, ring: 'border-emerald-400/30 bg-emerald-500/10 text-emerald-300' },
+    { label: 'TOTAL HR', value: 818, icon: <PeopleIcon />, num: GREEN_NUM, ring: 'border-emerald-400/30 bg-emerald-500/10 text-emerald-300' },
+    { label: 'ASSIGNED HR', value: validEmployees.length, icon: <PeopleIcon />, num: GREEN_NUM, ring: 'border-emerald-400/30 bg-emerald-500/10 text-emerald-300' },
     { label: 'TOTAL CHECK-IN', value: checkins, icon: <CheckInIcon />, num: GREEN_NUM, ring: 'border-emerald-400/40 bg-emerald-500/15 text-emerald-300' },
     { label: 'TOTAL CHECK-OUT', value: checkouts, icon: <CheckOutIcon />, num: GREEN_NUM, ring: 'border-sky-400/40 bg-sky-500/15 text-sky-300' },
     { label: 'TOTAL IN + OUT', value: checkins + checkouts, icon: <TotalIcon />, num: GREEN_NUM, ring: 'border-teal-400/40 bg-teal-500/15 text-teal-300' },

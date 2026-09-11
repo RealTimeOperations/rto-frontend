@@ -232,17 +232,29 @@ select option {
   text-overflow: ellipsis;
   font-size: 9px;
   letter-spacing: 0.03em;
+  padding: 8px 6px;
 }
 @media (min-width: 640px) {
   .rto-table th {
     font-size: 10px;
+    padding: 10px 8px;
   }
 }
 
-/* ===== Body cells: sirf spaces par wrap (words nahi tootay) ===== */
+/* ===== Body cells: words pura rahein, sirf spaces par wrap ===== */
 .rto-table td {
   white-space: normal;
-  overflow-wrap: break-word;
+  word-break: keep-all;
+  overflow-wrap: normal;
+  font-size: 11px;
+  line-height: 1.4;
+  padding: 8px 6px;
+}
+@media (min-width: 640px) {
+  .rto-table td {
+    font-size: 12px;
+    padding: 10px 8px;
+  }
 }
 
 /* ===== Scrollbar arrows hidden ===== */
