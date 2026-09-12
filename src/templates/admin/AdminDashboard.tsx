@@ -16,12 +16,14 @@ export default function AdminDashboard() {
     load()
   }, [])
 
-  const count = (fn: (u: Profile) => boolean) => users.filter(fn).length
+  // ✅ Sirf Employees + Supervisors stats — admin exclude
+  const visibleUsers = users.filter(u => u.role === 'employee' || u.role === 'supervisor')
+  const count = (fn: (u: Profile) => boolean) => visibleUsers.filter(fn).length
 
   const cards = [
-    { label: 'Total Users', value: users.length, icon: '👥' },
-    { label: 'Active Users', value: count(u => u.status === 'active'), icon: '✅' },
-    { label: 'Inactive Users', value: count(u => u.status === 'inactive'), icon: '⛔' },
+    { label: 'Total Accounts', value: visibleUsers.length, icon: '👥' },
+    { label: 'Active', value: count(u => u.status === 'active'), icon: '✅' },
+    { label: 'Inactive', value: count(u => u.status === 'inactive'), icon: '⛔' },
     { label: 'Employees', value: count(u => u.role === 'employee'), icon: '🧑‍💼' },
     { label: 'Supervisors', value: count(u => u.role === 'supervisor'), icon: '📋' },
   ]

@@ -10,6 +10,101 @@ type LoginProps = {
   onLoginFail: () => void
 }
 
+// ✅ Device fingerprint — sirf hardware/OS level traits (sab browsers mein SAME rehta hai)
+function deviceFingerprint(): string {
+  const s = window.screen
+  const traits = [
+    s.width, s.height, s.availWidth, s.availHeight, s.colorDepth, s.pixelDepth,
+    window.devicePixelRatio || 1,
+    navigator.platform || 'na',
+    navigator.hardwareConcurrency || 0,
+    Intl.DateTimeFormat().resolvedOptions().timeZone || 'na',
+  ]
+  const raw = traits.join('|')
+  let h = 5381
+  for (let i = 0; i < raw.length; i++) h = ((h << 5) + h + raw.charCodeAt(i)) >>> 0
+  return 'dev-' + h.toString(16)
+}
+
+// ✅ Device label for display (browser + OS)
+function deviceLabel(): string {
+  const ua = navigator.userAgent
+  let browser = 'Unknown Browser'
+  if (/Edg\//.test(ua)) browser = 'Edge'
+  else if (/OPR\//.test(ua)) browser = 'Opera'
+  else if (/Chrome\//.test(ua)) browser = 'Chrome'
+  else if (/Firefox\//.test(ua)) browser = 'Firefox'
+  else if (/Safari\//.test(ua)) browser = 'Safari'
+  let os = 'Unknown OS'
+  if (/Windows NT 10/.test(ua)) os = 'Windows 10/11'
+  else if (/Windows/.test(ua)) os = 'Windows'
+  else if (/Android/.test(ua)) os = 'Android'
+  else if (/iPhone|iPad|iPod/.test(ua)) os = 'iOS'
+  else if (/Mac OS X/.test(ua)) os = 'macOS'
+  else if (/Linux/.test(ua)) os = 'Linux'
+  return `${browser} on ${os}`
+}
+
+// ✅ Best-effort private/incognito detection
+async function detectPrivateMode(): Promise<boolean> {
+  try {
+    try {
+      localStorage.setItem('__rto_test', '1')
+      localStorage.removeItem('__rto_test')
+    } catch {
+      return true
+    }
+    if (navigator.storage && typeof navigator.storage.estimate === 'function') {
+      const est = await navigator.storage.estimate()
+      const quota = est.quota ?? 0
+      if (quota > 0 && quota < 150 * 1024 * 1024) return true
+    }
+    return false
+  } catch {
+    return false
+  }
+}
+
+// ✅ Location from IP (best effort)
+async function fetchLocation(): Promise<string> {
+  try {
+    const res = await fetch('https://ipapi.co/json/')
+    if (!res.ok) return 'Unknown'
+    const j = await res.json()
+    return [j.city, j.region, j.country_name].filter(Boolean).join(', ') || 'Unknown'
+  } catch {
+    return 'Unknown'
+  }
+}
+
+// ✅ GPS location — supervisor ke liye MANDATORY (deny = no login)
+function getGpsLocation(): Promise<{ lat: number; lon: number }> {
+  return new Promise((resolve, reject) => {
+    if (!('geolocation' in navigator)) {
+      reject(new Error('unsupported'))
+      return
+    }
+    navigator.geolocation.getCurrentPosition(
+      pos => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+      err => reject(err),
+      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
+    )
+  })
+}
+
+// ✅ GPS coordinates ko human-readable address mein badlo
+async function reverseGeocode(lat: number, lon: number): Promise<string> {
+  try {
+    const res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`)
+    if (!res.ok) return 'Unknown area'
+    const j = await res.json()
+    const parts = [j.city || j.locality, j.principalSubdivision, j.countryName].filter(Boolean)
+    return parts.length ? parts.join(', ') : 'Unknown area'
+  } catch {
+    return 'Unknown area'
+  }
+}
+
 export default function Login({ kickReason, onKicked, onLoginStart, onLoginSuccess, onLoginFail }: LoginProps) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -18,16 +113,71 @@ export default function Login({ kickReason, onKicked, onLoginStart, onLoginSucce
   const [showPassword, setShowPassword] = useState(false)
   const [remember, setRemember] = useState(true)
 
-  // Handle login: Supabase Auth + role verification
+  // ✅ Detect CNIC format (13 digits or 5-7-1 format)
+  function isCnicFormat(s: string): boolean {
+    const clean = s.replace(/-/g, '')
+    if (/^\d{13}$/.test(clean)) return true
+    if (/^\d{5}-\d{7}-\d{1}$/.test(s)) return true
+    return false
+  }
+
+  // Handle login: Email+Password (admin/employee) OR CNIC+Password (supervisor)
   async function handleLogin(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError('')
     setLoading(true)
     onLoginStart()
 
-    const identifier = email.trim().toLowerCase()
-    // Admin logs in with email, other users with username
-    const loginEmail = identifier.includes('@') ? identifier : identifier + '@rto.local'
+    const identifier = email.trim()
+    // Normalize CNIC to 5-7-1 format if 13 digits typed
+    let input = identifier
+    if (isCnicFormat(identifier)) {
+      const cleanCnic = identifier.replace(/-/g, '')
+      input = `${cleanCnic.slice(0,5)}-${cleanCnic.slice(5,12)}-${cleanCnic.slice(12)}`
+    }
+    // ✅ Supervisor device binding check (session banne se PEHLE)
+    const deviceId = deviceFingerprint()
+    const isPrivate = await detectPrivateMode()
+    const { data: devCheck } = await supabase.rpc('check_supervisor_device', {
+      p_identifier: input,
+      p_device_id: deviceId,
+      p_is_private: isPrivate,
+    })
+    if (devCheck === 'blocked_private') {
+      onLoginFail()
+      setError('Private/Incognito mode is not allowed. Please use a normal browser window.')
+      setLoading(false)
+      return
+    }
+    if (devCheck === 'blocked_device') {
+      onLoginFail()
+      setError('This account is bound to another device. Please contact administrator.')
+      setLoading(false)
+      return
+    }
+
+    // ✅ Supervisor ke liye GPS location MANDATORY — deny = login blocked
+    let gps: { lat: number; lon: number } | null = null
+    if (devCheck === 'ok_bind' || devCheck === 'ok_supervisor') {
+      try {
+        gps = await getGpsLocation()
+      } catch {
+        onLoginFail()
+        setError('Location is required for supervisor login. Please enable location permission in your browser/device and try again.')
+        setLoading(false)
+        return
+      }
+    }
+
+    // Resolve identifier (email or CNIC) to auth email — username login disabled
+    const { data: resolved, error: resolveErr } = await supabase.rpc('resolve_login_email', { p_input: input })
+    if (resolveErr || !resolved) {
+      onLoginFail()
+      setError('No active account found for this email or CNIC')
+      setLoading(false)
+      return
+    }
+    const loginEmail = resolved as string
 
     const { data, error } = await supabase.auth.signInWithPassword({
       email: loginEmail,
@@ -65,7 +215,24 @@ export default function Login({ kickReason, onKicked, onLoginStart, onLoginSucce
       onKicked?.('inactive')
       setLoading(false)
       return
+    } 
+    // ✅ Supervisor: device bind + session start + GPS location record
+    if (role === 'supervisor') {
+      let location = 'Unknown'
+      if (gps) {
+        const addr = await reverseGeocode(gps.lat, gps.lon)
+        location = `${addr} (GPS: ${gps.lat.toFixed(4)}, ${gps.lon.toFixed(4)})`
+      } else {
+        location = await fetchLocation()
+      }
+      await supabase.rpc('bind_supervisor_device', {
+        p_device_id: deviceId,
+        p_device_name: deviceLabel(),
+        p_location: location,
+        p_coordinates: gps ? `${gps.lat.toFixed(6)}, ${gps.lon.toFixed(6)}` : null,
+      })
     }
+
     localStorage.setItem('rto_role_' + data.user.id, role)
     onLoginSuccess()
 
@@ -270,25 +437,26 @@ export default function Login({ kickReason, onKicked, onLoginStart, onLoginSucce
             )}
 
                 <div className="mb-4">
-                  <label className="block text-xs font-semibold mb-1.5 bg-linear-to-b from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">Username / Email</label>
+                  <label className="block text-xs font-semibold mb-1.5 bg-linear-to-b from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">Email / CNIC</label>
                   <div className="relative rounded-xl overflow-hidden">
                     <div className="absolute left-[calc(50%-600px)] top-[calc(50%-600px)] h-[1200px] w-[1200px] animate-[border-spin_8s_linear_infinite] bg-[conic-gradient(from_0deg,#10b981,#34d399,#7acba4,#34d399,#10b981)] opacity-60" />
                     <div className="relative m-[1.5px] rounded-[11px] bg-[#071b15]">
                       <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="2" y="4" width="20" height="16" rx="2" />
-                        <path d="m22 7-10 5L2 7" />
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                        <circle cx="12" cy="7" r="4" />
                       </svg>
                       <input
                         type="text"
                         required
-                        autoComplete="username"
-                        placeholder="username ya admin@email.com"
+                        autoComplete="off"
+                        placeholder="admin@email.com or 31104-1234567-8"
                         value={email}
                         onChange={e => setEmail(e.target.value)}
                         className="w-full h-12 pl-10 pr-4 bg-transparent rounded-[11px] text-white text-sm outline-none"
                       />
                     </div>
                   </div>
+                  <p className="text-white/40 text-[10px] mt-1.5">Admin/Employee: Email  •  Supervisor: CNIC</p>
                 </div>
 
                 <div className="mb-5">

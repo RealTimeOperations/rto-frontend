@@ -8,6 +8,7 @@ import Admin from './templates/admin/Admin'
 import Homepage from './templates/homepage/Homepage'
 import AttendanceDashboard from './templates/attandancemonitoring/AttendanceDashboard'
 import SupervisorsHomepage from './templates/SupervisorsMonitoring/SupervisorsHomepage'
+import SupervisorModule from './templates/SupervisorsMonitoring/SupervisorModule'
 import ContainersDashboard from './templates/containersmonitoring/ContainersDashboard'
 import VehiclesDashboard from './templates/vehiclesmonitoring/VehiclesDashboard'
 import WelcomeTransition from './templates/authentication/login/WelcomeTransition'
@@ -34,21 +35,31 @@ export default function App() {
   async function loadRole(userId: string) {
     // Role load (with cache)
     const cached = localStorage.getItem('rto_role_' + userId)
+    let fresh: string | null = null
     if (cached) {
       setRole(cached)
       setLoading(false)
       const { data } = await supabase.rpc('get_my_role')
-      const fresh = (data as string | null) ?? null
+      fresh = (data as string | null) ?? null
       localStorage.setItem('rto_role_' + userId, fresh ?? '')
       setRole(fresh)
     } else {
       const { data } = await supabase.rpc('get_my_role')
-      const fresh = (data as string | null) ?? null
+      fresh = (data as string | null) ?? null
       localStorage.setItem('rto_role_' + userId, fresh ?? '')
       setRole(fresh)
       setLoading(false)
     }
-    // Permissions always fresh from profiles table
+    // ✅ Admin bypass: full access to all dashboards by default
+    if (fresh === 'admin') {
+      setPermissions({
+        attendance: true,
+        vehicles:   true,
+        containers: true,
+      })
+      return
+    }
+    // Other users: permissions from profiles table
     const { data: prof } = await supabase
       .from('profiles')
       .select('can_attendance, can_vehicles, can_containers')
@@ -256,6 +267,9 @@ export default function App() {
             )
           }
         />
+        <Route path="/supervisors/attendance" element={isLoggedIn && role === 'supervisor' ? <SupervisorModule module="attendance" /> : <Navigate to={isLoggedIn ? '/home' : '/login'} replace />} />
+        <Route path="/supervisors/vehicles" element={isLoggedIn && role === 'supervisor' ? <SupervisorModule module="vehicles" /> : <Navigate to={isLoggedIn ? '/home' : '/login'} replace />} />
+        <Route path="/supervisors/containers" element={isLoggedIn && role === 'supervisor' ? <SupervisorModule module="containers" /> : <Navigate to={isLoggedIn ? '/home' : '/login'} replace />} />
         <Route path="/admin" element={isAdmin ? <Admin /> : <Navigate to="/login" replace />} />
           <Route path="*" element={<Navigate to={isLoggedIn ? '/home' : '/login'} replace />} />
         </Routes>
