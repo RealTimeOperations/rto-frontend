@@ -31,7 +31,7 @@ export default function TotalHR({ rows, loading, onRefresh }: Props) {
   const [ucDropdownSearch, setUcDropdownSearch] = useState('')
 
   // ✅ Admin check + Update HR sync states
-  const SYNC_API = 'http://localhost:8000'
+  const SYNC_API = ((import.meta as any).env?.VITE_SYNC_API as string) || 'http://localhost:8000'
   const [isAdmin, setIsAdmin] = useState(false)
   const [hrSync, setHrSync] = useState<
     | null
