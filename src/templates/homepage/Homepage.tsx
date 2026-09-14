@@ -55,10 +55,10 @@ export default function Homepage({ role, permissions, permissionsLoaded = true, 
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#021b16] text-white">
-      {/* Background image */}
+      {/* Background image — mobile par hide */}
       <div
         aria-hidden="true"
-        className="absolute inset-0 bg-no-repeat pointer-events-none"
+        className="hidden sm:block absolute inset-0 bg-no-repeat pointer-events-none"
         style={{ backgroundImage: "url('/homebackground.png')", backgroundSize: '100% 100%' }}
       />
 
@@ -133,7 +133,7 @@ export default function Homepage({ role, permissions, permissionsLoaded = true, 
         {/* ✅ Monitoring cards (filtered by permissions) */}
         {!showWelcome && visibleCards.length > 0 && (
           <div
-            className={`mt-12 sm:mt-14 mx-auto grid w-full items-center gap-5 lg:gap-7 ${
+            className={`mt-8 sm:mt-14 mx-auto grid w-full items-center gap-4 sm:gap-5 lg:gap-7 ${
               visibleCards.length === 1
                 ? 'grid-cols-1 max-w-[400px]'
                 : visibleCards.length === 2
@@ -142,17 +142,27 @@ export default function Homepage({ role, permissions, permissionsLoaded = true, 
             }`}
           >
             {visibleCards.map(card => (
-              <MonitoringCard
+              <div
                 key={card.key}
-                title={card.title}
-                highlight={card.highlight}
-                icon={card.icon}
-                primary={card.primary}
-                onClick={() => {
-                  onCardClick?.(card.key as 'attendance' | 'containers' | 'vehicles')
-                  navigate(`/${card.key}`)
-                }}
-              />
+                className={
+                  card.key === 'attendance'
+                    ? 'order-1 sm:order-2'
+                    : card.key === 'containers'
+                      ? 'order-2 sm:order-1'
+                      : 'order-3 sm:order-3'
+                }
+              >
+                <MonitoringCard
+                  title={card.title}
+                  highlight={card.highlight}
+                  icon={card.icon}
+                  primary={card.primary}
+                  onClick={() => {
+                    onCardClick?.(card.key as 'attendance' | 'containers' | 'vehicles')
+                    navigate(`/${card.key}`)
+                  }}
+                />
+              </div>
             ))}
           </div>
         )}
@@ -165,7 +175,7 @@ export default function Homepage({ role, permissions, permissionsLoaded = true, 
         type="button"
         onClick={handleLogout}
         aria-label="Logout"
-        className="group fixed bottom-6 right-5 sm:right-8 z-30 flex items-center gap-2 overflow-hidden rounded-full border border-white/15 bg-white/4 px-6 py-3 text-sm font-semibold text-white/75 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-md transition-all duration-300 hover:scale-105 hover:border-emerald-400/70 hover:text-white hover:shadow-[0_0_30px_rgba(0,255,170,0.4)]"
+        className="group fixed bottom-6 right-5 sm:right-8 z-30 hidden sm:flex items-center gap-2 overflow-hidden rounded-full border border-white/15 bg-white/4 px-6 py-3 text-sm font-semibold text-white/75 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur-md transition-all duration-300 hover:scale-105 hover:border-emerald-400/70 hover:text-white hover:shadow-[0_0_30px_rgba(0,255,170,0.4)]"
       >
         <span
           aria-hidden="true"
@@ -183,12 +193,34 @@ export default function Homepage({ role, permissions, permissionsLoaded = true, 
           type="button"
           onClick={() => navigate('/admin')}
           aria-label="Open admin portal"
-          className="fixed bottom-6 left-5 sm:left-8 z-30 flex items-center gap-2 rounded-full border border-emerald-300/20 bg-linear-to-r from-[#00945f] to-[#06ab7b] px-7 py-3 text-sm font-bold text-white shadow-[0_10px_35px_rgba(0,220,150,0.12)] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_25px_rgba(0,255,170,0.2)]"
+          className="fixed bottom-6 left-5 sm:left-8 z-30 hidden sm:flex items-center gap-2 rounded-full border border-emerald-300/20 bg-linear-to-r from-[#00945f] to-[#06ab7b] px-7 py-3 text-sm font-bold text-white shadow-[0_10px_35px_rgba(0,220,150,0.12)] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_25px_rgba(0,255,170,0.2)]"
         >
           <ShieldIcon />
           Admin
         </button>
       )}
+
+      {/* ✅ Mobile bottom bar — Admin + Logout hamesha bottom par fixed */}
+      <div className="fixed bottom-0 left-0 right-0 z-30 flex items-center gap-3 px-4 py-3 bg-[#021b16]/90 backdrop-blur-md border-t border-white/10 sm:hidden">
+        {role === 'admin' && (
+          <button
+            type="button"
+            onClick={() => navigate('/admin')}
+            className="flex-1 flex items-center justify-center gap-2 rounded-full border border-emerald-300/20 bg-linear-to-r from-[#00945f] to-[#06ab7b] px-4 py-2.5 text-xs font-bold text-white shadow-[0_6px_20px_rgba(0,220,150,0.15)]"
+          >
+            <ShieldIcon />
+            Admin
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="flex-1 flex items-center justify-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2.5 text-xs font-semibold text-white/75"
+        >
+          <LogoutIcon />
+          Logout
+        </button>
+      </div>
     </div>
   )
 }
@@ -216,8 +248,8 @@ function MonitoringCard({ title, highlight, icon, primary = false, onClick }: Mo
         <div className="absolute left-[calc(50%-600px)] top-[calc(50%-600px)] h-[1200px] w-[1200px] animate-[border-spin_8s_linear_infinite] bg-[conic-gradient(from_0deg,#059669,#34d399,#7acba4,#34d399,#059669)] opacity-60" />
 
         <div
-          className={`relative m-0.5 rounded-[26px] bg-linear-to-b from-[#073b2d] to-[#021d17] flex flex-col items-center justify-center px-5 ${
-            primary ? 'min-h-[350px] md:min-h-[380px]' : 'min-h-[320px] md:min-h-[330px]'
+          className={`relative m-0.5 rounded-[26px] bg-linear-to-b from-[#073b2d] to-[#021d17] flex flex-col items-center justify-center px-5 py-6 sm:py-7 ${
+            primary ? 'min-h-[210px] sm:min-h-[350px] md:min-h-[380px]' : 'min-h-[190px] sm:min-h-[320px] md:min-h-[330px]'
           }`}
         >
           <div
@@ -233,19 +265,19 @@ function MonitoringCard({ title, highlight, icon, primary = false, onClick }: Mo
           )}
 
           <div
-            className={`mb-7 transition-all duration-500 group-hover:scale-110 group-hover:drop-shadow-[0_0_18px_rgba(0,255,170,0.45)] ${primary ? 'scale-110' : ''}`}
+            className={`mb-4 sm:mb-7 transition-all duration-500 group-hover:scale-110 group-hover:drop-shadow-[0_0_18px_rgba(0,255,170,0.45)] [&>svg]:h-14 [&>svg]:w-14 sm:[&>svg]:h-auto sm:[&>svg]:w-auto ${primary ? 'scale-110' : ''}`}
           >
             {icon}
           </div>
 
           <div className="text-center">
-            <div className="text-lg sm:text-xl md:text-[21px] font-bold tracking-wide bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">{title}</div>
-            <div className="mt-1 text-2xl sm:text-3xl font-extrabold tracking-wide bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent drop-shadow-[0_0_12px_rgba(0,255,170,0.18)] animate-[text-run-vertical_2.5s_linear_infinite]">
+            <div className="text-base sm:text-xl md:text-[21px] font-bold tracking-wide bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">{title}</div>
+            <div className="mt-1 text-xl sm:text-3xl font-extrabold tracking-wide bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent drop-shadow-[0_0_12px_rgba(16,185,129,0.18)] animate-[text-run-vertical_2.5s_linear_infinite]">
               {highlight}
             </div>
           </div>
 
-          <div className="relative mt-7 h-11 w-11 overflow-hidden rounded-full transition-all duration-300 group-hover:scale-110 group-hover:shadow-[0_0_25px_rgba(0,255,170,0.4)]">
+          <div className="relative mt-4 sm:mt-7 h-9 w-9 sm:h-11 sm:w-11 overflow-hidden rounded-full transition-all duration-300 group-hover:scale-110 group-hover:shadow-[0_0_25px_rgba(0,255,170,0.4)]">
             <div className="absolute left-[calc(50%-250px)] top-[calc(50%-250px)] h-125 w-125 animate-[border-spin_8s_linear_infinite] bg-[conic-gradient(from_0deg,#059669,#34d399,#7acba4,#34d399,#059669)] opacity-70" />
             <div className="absolute inset-[1.5px] rounded-full bg-[#021d17] flex items-center justify-center">
               <ArrowIcon />

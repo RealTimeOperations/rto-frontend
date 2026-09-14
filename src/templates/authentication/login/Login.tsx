@@ -111,7 +111,6 @@ export default function Login({ kickReason, onKicked, onLoginStart, onLoginSucce
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
-  const [remember, setRemember] = useState(true)
 
   // ✅ Detect CNIC format (13 digits or 5-7-1 format)
   function isCnicFormat(s: string): boolean {
@@ -283,27 +282,27 @@ export default function Login({ kickReason, onKicked, onLoginStart, onLoginSucce
 
   return (
     <div className="relative h-screen min-h-screen overflow-hidden bg-[#071b15]">
-      {/* Background image (filhal comment out — coded scene step by step banega) */}
+      {/* Background image — mobile par hide */}
       <div
-        className="absolute inset-0 bg-no-repeat pointer-events-none"
+        className="hidden sm:block absolute inset-0 bg-no-repeat pointer-events-none"
         style={{ backgroundImage: 'url(/loginpagebackground.png)', backgroundSize: '100% 100%' }}
       />
 
       {/* Content */}
       <div className="relative z-10 flex h-full min-h-0 flex-col px-6 pt-2 pb-2 lg:px-10 lg:pt-3 lg:pb-3">
-        {/* Header */}
-        <header className="grid grid-cols-[1fr_auto_1fr] items-center gap-4">
-          {/* Left: Zakwan + divider */}
-          <div className="flex items-center justify-between gap-4">
+        {/* Header — mobile: 2 logos | desktop: full header */}
+        <header className="flex md:grid grid-cols-[1fr_auto_1fr] items-center justify-between gap-4">
+          {/* Left: Zakwan logo */}
+          <div className="flex items-center gap-4">
             <img
               src="/logos/zakwan-logo.png"
               alt="Zakwan Builders & Developers"
-              className="h-16 sm:h-20 md:h-24 lg:h-28 xl:h-32 w-auto object-contain drop-shadow-[0_5px_12px_rgba(0,0,0,0.45)] animate-[logo-zoom_4s_ease-in-out_infinite]"
+              className="h-14 sm:h-20 md:h-24 lg:h-28 xl:h-32 w-auto object-contain drop-shadow-[0_5px_12px_rgba(0,0,0,0.45)] animate-[logo-zoom_4s_ease-in-out_infinite]"
             />
             <div className="hidden md:block h-12 w-px bg-[linear-gradient(180deg,#059669,#7acba4,#059669)] bg-[length:100%_200%] animate-[text-run-vertical_2.5s_linear_infinite]" />
           </div>
 
-          {/* Center */}
+          {/* Center — desktop only */}
           <div className="hidden md:flex items-center gap-3">
             <img src="/logos/loginform-logo.png" alt="Real Time Operations" className="h-12 xl:h-14 w-auto object-contain animate-[logo-pulse_4s_ease-in-out_infinite]" />
             <div>
@@ -321,21 +320,21 @@ export default function Login({ kickReason, onKicked, onLoginStart, onLoginSucce
             </div>
           </div>
 
-          {/* Right: divider + Suthra */}
-          <div className="flex items-center justify-between gap-4">
+          {/* Right: Suthra logo */}
+          <div className="flex items-center justify-end gap-4">
             <div className="hidden md:block h-12 w-px bg-[linear-gradient(180deg,#059669,#7acba4,#059669)] bg-[length:100%_200%] animate-[text-run-vertical_2.5s_linear_infinite]" />
             <img
               src="/logos/suthra-logo.png"
               alt="Suthra Punjab Authority"
-              className="h-20 sm:h-24 md:h-32 lg:h-36 xl:h-40 w-auto object-contain drop-shadow-[0_5px_12px_rgba(0,0,0,0.45)] animate-[logo-zoom_4s_ease-in-out_infinite]"
+              className="h-16 sm:h-24 md:h-32 lg:h-36 xl:h-40 w-auto object-contain drop-shadow-[0_5px_12px_rgba(0,0,0,0.45)] animate-[logo-zoom_4s_ease-in-out_infinite]"
             />
           </div>
         </header>
 
         {/* Main */}
         <main className="flex-1 min-h-0 flex flex-col lg:flex-row items-center lg:items-stretch gap-6 lg:gap-8 pt-2 lg:pt-4 pb-0 overflow-hidden login-main">
-          {/* Left hero */}
-          <section className="flex-1 min-h-0 w-full flex flex-col lg:pl-6 xl:pl-10 login-left">
+          {/* Left hero — mobile par hide */}
+          <section className="hidden lg:flex flex-1 min-h-0 w-full flex-col lg:pl-6 xl:pl-10 login-left">
             <h1 className="text-3xl sm:text-4xl xl:text-5xl font-extrabold leading-tight">
               <span className="bg-[linear-gradient(180deg,#64748b,#94a3b8,#cbd5e1,#94a3b8,#64748b)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">REAL TIME</span>
               <br />
@@ -399,9 +398,26 @@ export default function Login({ kickReason, onKicked, onLoginStart, onLoginSucce
             </div>
           </section>
 
-          {/* Right: login card */}
+          {/* Mobile: heading + form | Desktop: sirf form */}
           <section className="w-full max-w-sm shrink-0 lg:flex lg:flex-col lg:justify-start lg:-translate-x-25">
-            <div className="relative w-full rounded-[26px] overflow-hidden shadow-[0_0_18px_rgba(16,185,129,0.18)]">
+            {/* Mobile heading — desktop par hide */}
+            <div className="lg:hidden flex flex-col items-center justify-center mb-6">
+              {/* ✅ Circle icon with running border (login form ke top wala icon) */}
+              <div className="relative h-20 w-20 mb-3 rounded-full overflow-hidden shadow-[0_0_20px_rgba(16,185,129,0.15)]">
+                <div className="absolute -inset-full animate-[border-spin_8s_linear_infinite] bg-[conic-gradient(from_0deg,#059669,#34d399,#7acba4,#34d399,#059669)] opacity-60" />
+                <div className="absolute inset-0.5 rounded-full bg-[#071b15] flex items-center justify-center">
+                  <img src="/logos/loginform-logo.png" alt="Real Time Operations" className="h-12 w-12 object-contain animate-[logo-pulse_4s_ease-in-out_infinite]" />
+                </div>
+              </div>
+              <h1 className="text-3xl sm:text-4xl font-extrabold leading-tight text-center">
+                <span className="bg-[linear-gradient(180deg,#64748b,#94a3b8,#cbd5e1,#94a3b8,#64748b)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">REAL TIME</span>
+                <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]"> OPERATIONS</span>
+              </h1>
+              <p className="text-emerald-400 font-semibold text-sm mt-2 pb-2 border-b-2 border-emerald-400">
+                Tehsil Haroonabad
+              </p>
+            </div>
+            <div className="relative w-full rounded-[26px] overflow-hidden shadow-[0_0_18px_rgba(16,185,129,0.18)] mt-4 lg:mt-0">
               <div className="absolute -inset-full animate-[border-spin_8s_linear_infinite] bg-[conic-gradient(from_0deg,#059669,#34d399,#7acba4,#34d399,#059669)] opacity-60" />
 
               <form
@@ -500,22 +516,10 @@ export default function Login({ kickReason, onKicked, onLoginStart, onLoginSucce
                   </div>
                 </div>
 
-                <div className="flex items-center text-xs mb-6">
-                  <label className="flex items-center gap-2 text-slate-300 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={remember}
-                      onChange={e => setRemember(e.target.checked)}
-                      className="h-4 w-4 rounded accent-emerald-500"
-                    />
-                    Remember Me
-                  </label>
-                </div>
-
                 <button
                   type="submit"
                   disabled={loading}
-                  className="running-button w-full h-12 rounded-full text-white text-sm font-bold flex items-center justify-center gap-2 hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_10px_rgba(16,185,129,0.2)]"
+                  className="running-button w-full h-12 mt-2 rounded-full text-white text-sm font-bold flex items-center justify-center gap-2 hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_10px_rgba(16,185,129,0.2)]"
                 >
                   {loading ? 'Logging in…' : 'Login'}
                   {!loading && (
