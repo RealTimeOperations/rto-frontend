@@ -31,6 +31,7 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
   const [loading, setLoading] = useState(true)
   const navRef = useRef<HTMLDivElement>(null)
   const [slider, setSlider] = useState({ left: 0, width: 0 })
+  const [menuOpen, setMenuOpen] = useState(false)
 
   // ✅ Last sync time + notifications system
   const [lastSync, setLastSync] = useState<Date | null>(null)
@@ -289,8 +290,8 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
     <div className="min-h-screen bg-[#021b16] text-white">
       {/* ===== Top Navbar (solid + visible) ===== */}
       <header className="fixed top-0 left-0 right-0 z-40 pointer-events-none">
-        <div className="flex items-center px-3 sm:px-6 py-3">
-          {/* Left: Home button */}
+        <div className="relative flex items-center px-3 sm:px-6 py-3 pointer-events-auto md:pointer-events-none bg-[#021b16] md:bg-transparent border-b border-white/10 md:border-b-0 shadow-[0_6px_24px_rgba(0,0,0,0.45)] md:shadow-none">
+          {/* Left: Home button only */}
           <div className="flex-1 flex justify-start pointer-events-auto">
             <button
               onClick={() => { onHomeClick?.(); navigate('/home') }}
@@ -301,35 +302,64 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
                 <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
                 <polyline points="9 22 9 12 15 12 15 22" />
               </svg>
-              Home
+              <span className="hidden sm:inline">Home</span>
             </button>
           </div>
 
-          {/* Center: 3 tabs */}
-          <nav
-            ref={navRef}
-              className="relative pointer-events-auto flex items-center gap-1.5 sm:gap-2 rounded-full border border-transparent bg-[#071b15]/90 backdrop-blur-md px-2 py-1.5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12),0_12px_35px_rgba(0,0,0,0.6)]">
-            {/* ✅ Sliding green pill */}
-            <div
-              className="absolute top-1.5 bottom-1.5 rounded-full bg-linear-to-r from-[#00764c] to-[#058962] shadow-[0_0_15px_rgba(0,255,170,0.15)] transition-all duration-300 ease-out pointer-events-none"
-              style={{ left: slider.left, width: slider.width }}
-            />
+          {/* Center: Mobile LIVE pill (center aligned) + Desktop tabs */}
+          <div className="relative pointer-events-auto">
+            {/* ✅ Mobile: Dropdown menu (hamburger se trigger hota hai) */}
+            {menuOpen && (
+              <>
+                <div className="fixed inset-0 z-30" onClick={() => setMenuOpen(false)} />
+                <div className="fixed right-3 top-16 z-40 w-56 rounded-2xl border border-white/10 bg-[#071b15] shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden">
+                  <div className="px-4 py-2.5 border-b border-white/10 text-xs font-bold tracking-widest text-white/70">NAVIGATION</div>
+                  {tabs.map(t => (
+                    <button
+                      key={t.key}
+                      onClick={() => {
+                        setView(t.key)
+                        setMenuOpen(false)
+                      }}
+                      className={`w-full text-left px-4 py-3 text-sm font-semibold transition-colors ${
+                        view === t.key
+                          ? 'bg-emerald-500/15 text-emerald-300'
+                          : 'text-white/70 hover:bg-white/5 hover:text-white'
+                      }`}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
 
-            {tabs.map(t => (
-              <button
-                key={t.key}
-                data-active={view === t.key}
-                onClick={() => setView(t.key)}
-                className={`relative z-10 px-2.5 sm:px-5 py-2 rounded-full text-[11px] sm:text-sm font-bold tracking-wide transition-colors duration-300 whitespace-nowrap ${
-                  view === t.key ? 'text-white' : 'text-white/60 hover:text-emerald-200'
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </nav>
+            {/* ✅ Desktop: Original tabs nav */}
+            <nav
+              ref={navRef}
+              className="hidden md:flex relative items-center gap-1.5 sm:gap-2 rounded-full border border-transparent bg-[#071b15]/90 backdrop-blur-md px-2 py-1.5 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.12),0_12px_35px_rgba(0,0,0,0.6)]">
+              {/* ✅ Sliding green pill */}
+              <div
+                className="absolute top-1.5 bottom-1.5 rounded-full bg-linear-to-r from-[#00764c] to-[#058962] shadow-[0_0_15px_rgba(0,255,170,0.15)] transition-all duration-300 ease-out pointer-events-none"
+                style={{ left: slider.left, width: slider.width }}
+              />
 
-          {/* Right: Last Sync pill + Notification bell (top par) */}
+              {tabs.map(t => (
+                <button
+                  key={t.key}
+                  data-active={view === t.key}
+                  onClick={() => setView(t.key)}
+                  className={`relative z-10 px-2.5 sm:px-5 py-2 rounded-full text-[11px] sm:text-sm font-bold tracking-wide transition-colors duration-300 whitespace-nowrap ${
+                    view === t.key ? 'text-white' : 'text-white/60 hover:text-emerald-200'
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </nav>
+          </div>
+
+          {/* Right: Last Sync pill + Notification bell + Hamburger (top par) */}
           <div className="flex-1 flex justify-end items-center gap-2.5 pr-1 sm:pr-3 pointer-events-auto">
 
                 {/* ✅ Update HR modal: confirm → loading → result */}
@@ -383,7 +413,7 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
                 )}
 
                 {lastSync && (
-                  <div className="rto-run-border relative hidden sm:flex items-center gap-2 rounded-full border border-transparent bg-[#071b15]/80 px-4 py-2">
+                  <div className="rto-run-border relative hidden lg:flex items-center gap-2 rounded-full border border-transparent bg-[#071b15]/80 px-4 py-2">
                     {serverStatus === 'live' ? (
                       <span className="relative flex h-2.5 w-2.5" title="Server live — data fetching OK">
                         <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60 animate-ping" />
@@ -405,13 +435,12 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
                   </div>
                 )}
 
-                {/* Notification bell */}
+                {/* ✅ Notification bell — mobile + desktop dono par top-right */}
                 <div className="relative">
                   <button
                     onClick={() => {
                       setNotifOpen(v => !v)
                       setUnread(0)
-                      // ✅ Seen mark karo — localStorage mein bhi update (refresh par red dot wapis na aaye)
                       try {
                         const saved = localStorage.getItem('rto_latest_notification')
                         if (saved) {
@@ -444,7 +473,7 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
                     </div>
                   )}
 
-                  {/* Notifications dropdown — sirf latest */}
+                  {/* Notifications dropdown */}
                   {notifOpen && (
                     <>
                       <div className="fixed inset-0 z-40" onClick={() => setNotifOpen(false)} />
@@ -487,7 +516,55 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
                     </>
                   )}
                 </div>
+
+                {/* ✅ Hamburger button — mobile only, top-right */}
+                <button
+                  onClick={() => setMenuOpen(!menuOpen)}
+                  aria-label="Menu"
+                  className="md:hidden relative flex items-center justify-center rounded-full border border-transparent bg-[#071b15]/80 p-2.5 text-white/70 hover:text-white transition"
+                >
+                  {menuOpen ? (
+                    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  ) : (
+                    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="3" y1="12" x2="21" y2="12" />
+                      <line x1="3" y1="6" x2="21" y2="6" />
+                      <line x1="3" y1="18" x2="21" y2="18" />
+                    </svg>
+                  )}
+                </button>
+
           </div>
+
+          {/* ✅ Mobile: LIVE pill — header ke EXACT center mein (absolute, flex par depend nahi) */}
+          {lastSync && (
+            <div className="rto-run-border absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 lg:hidden flex items-center gap-1.5 rounded-full border border-transparent bg-[#071b15]/80 px-2.5 py-1.5 pointer-events-none">
+              {serverStatus === 'live' ? (
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60 animate-ping" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
+                </span>
+              ) : (
+                <span className="relative flex h-2 w-2">
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.9)] animate-pulse" />
+                </span>
+              )}
+              <span className={`text-[8px] font-bold tracking-[0.14em] ${serverStatus === 'live' ? 'text-emerald-300' : 'text-red-300'}`}>
+                {serverStatus === 'live' ? 'LIVE' : 'ERROR'}
+              </span>
+              <div className="h-2.5 w-px bg-white/15" />
+              <span className={`text-[9px] font-bold bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite] whitespace-nowrap ${
+                serverStatus === 'live'
+                  ? 'bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)]'
+                  : 'bg-[linear-gradient(180deg,#ef4444,#f87171,#fca5a5,#f87171,#ef4444)]'
+              }`}>
+                {lastSync.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
+              </span>
+            </div>
+          )}
         </div>
       </header>
 
@@ -666,30 +743,30 @@ function StatsView({ attendance, employees, baseValues, loading }: { attendance:
         <span className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Attendance </span>
         <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Dashboard</span>
       </h1>
-      <p className="mt-3 text-center text-xs sm:text-sm text-white/45">Live monitoring — {showDate}</p>
+      <p className="mt-3 text-center text-[13px] font-bold tracking-wide text-emerald-400/70 sm:text-sm sm:font-normal sm:tracking-normal sm:text-white/45">Live monitoring — {showDate}</p>
 
-      <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4 sm:gap-5">
+      <div className="mt-8 sm:mt-10 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-5">
         {cards.map(c => (
-          <div key={c.label} className="relative overflow-hidden rounded-[24px] border border-emerald-400/25 bg-linear-to-b from-[#073b2d] to-[#021d17] px-4 py-7 text-center shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
-            <div className={`mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border ${c.ring}`}>
+          <div key={c.label} className="relative overflow-hidden rounded-[24px] border border-emerald-400/25 bg-linear-to-b from-[#073b2d] to-[#021d17] px-2 py-4 sm:px-4 sm:py-7 text-center shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
+            <div className={`mx-auto mb-2 sm:mb-4 flex h-9 w-9 sm:h-12 sm:w-12 items-center justify-center rounded-full border [&_svg]:h-4 [&_svg]:w-4 sm:[&_svg]:h-6 sm:[&_svg]:w-6 ${c.ring}`}>
               {c.icon}
             </div>
-            <div className={`text-3xl sm:text-4xl font-extrabold ${c.num}`}>
+            <div className={`text-xl sm:text-4xl font-extrabold ${c.num}`}>
               {loading ? '—' : c.value.toLocaleString()}
             </div>
-            <div className="mt-2 text-[11px] sm:text-sm font-bold tracking-widest text-white/60">{c.label}</div>
+            <div className="mt-1 sm:mt-2 text-[9px] sm:text-sm font-bold tracking-wider sm:tracking-widest text-white/60">{c.label}</div>
           </div>
         ))}
       </div>
 
       {/* ===== Designation Wise Statistics Table ===== */}
       <div className="mt-10 mb-6">
-        <h2 className="text-left text-lg sm:text-xl font-extrabold tracking-wide bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-          Designation Wise Statistics
+        <h2 className="text-center sm:text-left text-lg sm:text-xl font-extrabold tracking-wide bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
+          Designation Wise
         </h2>
 
-        <div className="mt-4 overflow-x-auto rounded-[24px] border border-emerald-400/25 bg-linear-to-b from-[#073b2d] to-[#021d17] shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
-          <table className="w-full min-w-[860px] text-left text-xs sm:text-sm">
+        <div className="mt-4 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden rounded-[24px] border border-emerald-400/25 bg-linear-to-b from-[#073b2d] to-[#021d17] shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
+          <table className="w-full min-w-[360px] sm:min-w-[860px] text-left text-[10px] sm:text-sm [&_td]:px-2.5 sm:[&_td]:px-4 [&_td]:py-2.5 sm:[&_td]:py-3 [&_th]:px-2.5 sm:[&_th]:px-4 [&_th]:py-2.5 sm:[&_th]:py-3">
             <thead>
               <tr className="border-b border-white/10 bg-white/5">
                 <th className="px-4 py-3 font-bold tracking-widest text-white/70">DESIGNATION</th>
@@ -710,7 +787,7 @@ function StatsView({ attendance, employees, baseValues, loading }: { attendance:
                 <>
                   {/* Total row (Excel ki tarah sab se upar) */}
                   <tr className="border-b border-white/10 bg-emerald-500/10">
-                    <td className="px-4 py-3 font-extrabold text-white">DashBoard Total HR</td>
+                    <td className="px-4 py-3 font-extrabold text-white">Total HR</td>
                     <td className="px-4 py-3 font-extrabold text-emerald-300">{totals.total.toLocaleString()}</td>
                     <td className="px-4 py-3 font-extrabold text-emerald-300">{totals.hired.toLocaleString()}</td>
                     <td className="px-4 py-3 font-extrabold text-emerald-300">{totals.checkin.toLocaleString()}</td>
@@ -738,12 +815,12 @@ function StatsView({ attendance, employees, baseValues, loading }: { attendance:
 
       {/* ===== Category Wise Statistics Table ===== */}
       <div className="mt-10 mb-6">
-        <h2 className="text-left text-lg sm:text-xl font-extrabold tracking-wide bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-          Category Wise Statistics
+        <h2 className="text-center sm:text-left text-lg sm:text-xl font-extrabold tracking-wide bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
+          Category Wise
         </h2>
 
-        <div className="mt-4 overflow-x-auto rounded-[24px] border border-emerald-400/25 bg-linear-to-b from-[#073b2d] to-[#021d17] shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
-          <table className="w-full min-w-[860px] text-left text-xs sm:text-sm">
+        <div className="mt-4 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden rounded-[24px] border border-emerald-400/25 bg-linear-to-b from-[#073b2d] to-[#021d17] shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
+          <table className="w-full min-w-[360px] sm:min-w-[860px] text-left text-[10px] sm:text-sm [&_td]:px-2.5 sm:[&_td]:px-4 [&_td]:py-2.5 sm:[&_td]:py-3 [&_th]:px-2.5 sm:[&_th]:px-4 [&_th]:py-2.5 sm:[&_th]:py-3">
             <thead>
               <tr className="border-b border-white/10 bg-white/5">
                 <th className="px-4 py-3 font-bold tracking-widest text-white/70">CATEGORY</th>
@@ -764,7 +841,7 @@ function StatsView({ attendance, employees, baseValues, loading }: { attendance:
                 <>
                   {/* Total row */}
                   <tr className="border-b border-white/10 bg-emerald-500/10">
-                    <td className="px-4 py-3 font-extrabold text-white">Category Wise Total HR</td>
+                    <td className="px-4 py-3 font-extrabold text-white">Total HR</td>
                     <td className="px-4 py-3 font-extrabold text-emerald-300">{catTotals.total.toLocaleString()}</td>
                     <td className="px-4 py-3 font-extrabold text-emerald-300">{catTotals.hired.toLocaleString()}</td>
                     <td className="px-4 py-3 font-extrabold text-emerald-300">{catTotals.checkin.toLocaleString()}</td>

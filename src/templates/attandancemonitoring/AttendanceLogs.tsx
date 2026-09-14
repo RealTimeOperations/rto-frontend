@@ -145,12 +145,15 @@ export default function AttendanceLogs({ rows, loading }: Props) {
     <div className="flex-1 flex flex-col min-h-0">
       {/* Heading + controls */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-        <h1 className="text-xl sm:text-2xl font-extrabold bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-          Attendance Logs
-        </h1>
-        <span className="w-fit text-[11px] font-bold text-emerald-200 bg-emerald-500/15 border border-emerald-400/30 rounded-full px-3 py-1">
-          Total: {filtered.length}
-        </span>
+        {/* ✅ Heading + Total — mobile par EK line */}
+        <div className="flex items-center gap-3">
+          <h1 className="text-xl sm:text-2xl font-extrabold bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
+            Attendance Logs
+          </h1>
+          <span className="w-fit text-[11px] font-bold text-emerald-200 bg-emerald-500/15 border border-emerald-400/30 rounded-full px-3 py-1">
+            Total: {filtered.length}
+          </span>
+        </div>
 
         <div className="sm:ml-auto flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
           
@@ -158,7 +161,7 @@ export default function AttendanceLogs({ rows, loading }: Props) {
           <button
             onClick={handleDownloadExcel}
             disabled={downloading || filtered.length === 0}
-            className="flex items-center justify-center gap-2 rounded-full border border-emerald-400/40 bg-emerald-500/15 px-4 py-2 text-[11px] font-bold text-emerald-300 transition-colors hover:bg-emerald-500/25 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+            className="hidden sm:flex items-center justify-center gap-2 rounded-full border border-emerald-400/40 bg-emerald-500/15 px-4 py-2 text-[11px] font-bold text-emerald-300 transition-colors hover:bg-emerald-500/25 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
           >
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
@@ -168,11 +171,13 @@ export default function AttendanceLogs({ rows, loading }: Props) {
             {downloading ? 'Saving…' : 'Excel'}
           </button>
 
+          {/* ✅ Mobile: dono filters EK line mein */}
+          <div className="flex gap-2 w-full sm:contents">
           {/* Check-in/Check-out Filter */}
           <select
             value={filter}
             onChange={e => { setFilter(e.target.value as any) }}
-            className="rounded-full border border-white/15 bg-[#071b15] px-4 py-2 text-[11px] font-semibold text-white/80 outline-none focus:border-emerald-400/60"
+            className="flex-1 min-w-0 sm:flex-none rounded-full border border-white/15 bg-[#071b15] px-3 sm:px-4 h-9 text-[11px] font-semibold text-white/80 outline-none focus:border-emerald-400/60"
           >
             <option value="all">All Attendance</option>
             <option value="checkin">Check-In</option>
@@ -180,11 +185,11 @@ export default function AttendanceLogs({ rows, loading }: Props) {
           </select>
 
           {/* ✅ UC/Ward Searchable Dropdown */}
-          <div className="relative w-full sm:w-64 uc-dropdown-container">
+          <div className="relative flex-1 min-w-0 sm:flex-none sm:w-64 uc-dropdown-container">
             <button
               type="button"
               onClick={() => setIsUcDropdownOpen(!isUcDropdownOpen)}
-              className="w-full flex items-center justify-between rounded-full border border-white/15 bg-[#071b15] px-4 py-2 text-[11px] font-semibold text-white/80 outline-none focus:border-emerald-400/60 transition-colors hover:border-emerald-400/40"
+              className="w-full h-9 flex items-center justify-between rounded-full border border-white/15 bg-[#071b15] px-3 sm:px-4 text-[11px] font-semibold text-white/80 outline-none focus:border-emerald-400/60 transition-colors hover:border-emerald-400/40"
             >
               <span className="truncate">{ucWard || 'All UC/Wards'}</span>
               <svg className={`h-3.5 w-3.5 transition-transform duration-200 ${isUcDropdownOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -242,13 +247,15 @@ export default function AttendanceLogs({ rows, loading }: Props) {
             )}
           </div>
 
+          </div>
+
           {/* Main Search Bar */}
           <div className="relative w-full sm:w-64">
             <input
               value={search}
               onChange={e => { setSearch(e.target.value) }}
               placeholder="Search CNIC, Name, UC/Ward…"
-              className="w-full rounded-full border border-white/15 bg-[#071b15] pl-9 pr-8 py-2 text-xs sm:text-sm text-white/80 placeholder-white/35 outline-none focus:border-emerald-400/60"
+              className="w-full h-9 rounded-full border border-white/15 bg-[#071b15] pl-9 pr-8 text-xs sm:text-sm text-white/80 placeholder-white/35 outline-none focus:border-emerald-400/60"
             />
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="8" />
@@ -281,21 +288,21 @@ export default function AttendanceLogs({ rows, loading }: Props) {
             ) : (
               filtered.map((r, i) => (
                 <tr key={r.id ?? i} className="border-t border-white/5 transition-colors hover:bg-white/5">
-                  <td className="px-2 py-3 text-center text-white/50 font-mono whitespace-nowrap">{i + 1}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-white/80">{r.date}</td>
-                  <td className="px-4 py-3 font-semibold text-white/90">{r.user_name}</td>
-                  <td className="px-4 py-3 font-mono text-emerald-200 whitespace-nowrap">{r.cnic}</td>
-                  <td className="px-4 py-3 text-white/70">{cleanDesig(r.designation)}</td>
-                  <td className="px-4 py-3 text-white/70">{r.uc_ward}</td>
-                  <td className="px-4 py-3 text-white/70">{r.attendance_point}</td>
-                  <td className="px-4 py-3">
+                  <td className="px-1.5 sm:px-2 py-2 sm:py-3 text-center text-[10px] sm:text-sm text-white/50 font-mono whitespace-nowrap">{i + 1}</td>
+                  <td className="px-2 sm:px-4 py-2 sm:py-3 text-[10px] sm:text-sm whitespace-nowrap text-white/80">{r.date}</td>
+                  <td className="px-2 sm:px-4 py-2 sm:py-3 text-[10px] sm:text-sm font-semibold text-white/90 whitespace-nowrap">{r.user_name}</td>
+                  <td className="px-2 sm:px-4 py-2 sm:py-3 text-[10px] sm:text-sm font-mono text-emerald-200 whitespace-nowrap">{r.cnic}</td>
+                  <td className="px-2 sm:px-4 py-2 sm:py-3 text-[10px] sm:text-sm text-white/70 whitespace-nowrap">{cleanDesig(r.designation)}</td>
+                  <td className="px-2 sm:px-4 py-2 sm:py-3 text-[10px] sm:text-sm text-white/70 whitespace-nowrap">{r.uc_ward}</td>
+                  <td className="px-2 sm:px-4 py-2 sm:py-3 text-[10px] sm:text-sm text-white/70 whitespace-nowrap">{r.attendance_point}</td>
+                  <td className="px-2 sm:px-4 py-2 sm:py-3">
                     {String(r.check_type ?? '').toLowerCase() === 'checkin' ? (
-                      <span className="rounded-full bg-emerald-500/15 border border-emerald-400/40 text-emerald-300 px-2.5 py-1 text-[10px] font-bold whitespace-nowrap">CHECK-IN</span>
+                      <span className="rounded-full bg-emerald-500/15 border border-emerald-400/40 text-emerald-300 px-2 py-0.5 sm:px-2.5 sm:py-1 text-[8px] sm:text-[10px] font-bold whitespace-nowrap">CHECK-IN</span>
                     ) : (
-                      <span className="rounded-full bg-sky-500/15 border border-sky-400/40 text-sky-300 px-2.5 py-1 text-[10px] font-bold whitespace-nowrap">CHECK-OUT</span>
+                      <span className="rounded-full bg-sky-500/15 border border-sky-400/40 text-sky-300 px-2 py-0.5 sm:px-2.5 sm:py-1 text-[8px] sm:text-[10px] font-bold whitespace-nowrap">CHECK-OUT</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-white/70">{r.date_time}</td>
+                  <td className="px-2 sm:px-4 py-2 sm:py-3 text-[10px] sm:text-sm whitespace-nowrap text-white/70">{r.date_time}</td>
                 </tr>
               ))
             )}

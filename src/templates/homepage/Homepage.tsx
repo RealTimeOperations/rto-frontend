@@ -65,8 +65,8 @@ export default function Homepage({ role, permissions, permissionsLoaded = true, 
       {/* Dark overlay */}
       <div aria-hidden="true" className="absolute inset-0 bg-[#021b16]/35" />
 
-      {/* Extra green glow */}
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(0,255,170,0.10),transparent_38%)]" />
+      {/* Extra green glow — mobile par hide (GPU heavy) */}
+      <div aria-hidden="true" className="hidden sm:block pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(0,255,170,0.10),transparent_38%)]" />
 
       {/* Top-left: Zakwan logo */}
       <img
@@ -83,7 +83,7 @@ export default function Homepage({ role, permissions, permissionsLoaded = true, 
       />
 
       {/* Main content */}
-      <main className="relative z-10 flex min-h-screen flex-col items-center px-5 pt-14 sm:pt-16 pb-28">
+      <main className="relative z-10 flex min-h-screen flex-col items-center px-5 pt-14 sm:pt-16 pb-20 sm:pb-28 overflow-y-auto scroll-smooth">
         {/* ✅ Show loading until permissions are confirmed */}
         {role === 'employee' && !permissionsLoaded && (
           <div className="flex-1 flex items-center justify-center">
@@ -95,12 +95,12 @@ export default function Homepage({ role, permissions, permissionsLoaded = true, 
         {(role !== 'employee' || permissionsLoaded) && (
           <>
             {/* Hero icon */}
-            <div className="relative mb-4 sm:mb-5">
-          <div aria-hidden="true" className="absolute inset-0 scale-125 rounded-full bg-emerald-400/20 blur-2xl" />
+            <div className="relative mb-3 sm:mb-5">
+          <div aria-hidden="true" className="hidden sm:block absolute inset-0 scale-125 rounded-full bg-emerald-400/20 blur-2xl" />
           <img
             src="/logos/loginform-logo.png"
             alt="Real Time Operations"
-            className="relative h-16 w-16 sm:h-20 sm:w-20 object-contain drop-shadow-[0_0_25px_rgba(0,255,170,0.45)] animate-[logo-pulse_4s_ease-in-out_infinite]"
+            className="relative h-14 w-14 sm:h-20 sm:w-20 object-contain sm:drop-shadow-[0_0_25px_rgba(0,255,170,0.45)] animate-[logo-pulse_4s_ease-in-out_infinite]"
           />
         </div>
 
@@ -110,7 +110,7 @@ export default function Homepage({ role, permissions, permissionsLoaded = true, 
           <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Operations</span>
         </h1>
 
-        <p className="mt-4 mb-6 text-xs sm:text-sm text-white/45">
+        <p className="hidden sm:block mt-4 mb-6 text-xs sm:text-sm text-white/45">
           Unified monitoring platform for containers, vehicles & attendance
         </p>
 
@@ -244,8 +244,8 @@ function MonitoringCard({ title, highlight, icon, primary = false, onClick }: Mo
       onClick={onClick}
       className="group relative w-full cursor-pointer select-none touch-manipulation outline-none"
     >
-      <div className="relative overflow-hidden rounded-[28px] shadow-[0_20px_60px_rgba(0,0,0,0.30)] transition-all duration-500 group-hover:-translate-y-2 group-hover:shadow-[0_20px_70px_rgba(0,255,170,0.16)]">
-        <div className="absolute left-[calc(50%-600px)] top-[calc(50%-600px)] h-[1200px] w-[1200px] animate-[border-spin_8s_linear_infinite] bg-[conic-gradient(from_0deg,#059669,#34d399,#7acba4,#34d399,#059669)] opacity-60" />
+      <div className="relative overflow-hidden rounded-[28px] shadow-[0_6px_20px_rgba(0,0,0,0.35)] sm:shadow-[0_20px_60px_rgba(0,0,0,0.30)] transition-all duration-500 group-hover:-translate-y-2 group-hover:shadow-[0_20px_70px_rgba(0,255,170,0.16)]">
+        <div className="absolute left-[calc(50%-600px)] top-[calc(50%-600px)] h-[1200px] w-[1200px] sm:animate-[border-spin_8s_linear_infinite] bg-[conic-gradient(from_0deg,#059669,#34d399,#7acba4,#34d399,#059669)] opacity-60" />
 
         <div
           className={`relative m-0.5 rounded-[26px] bg-linear-to-b from-[#073b2d] to-[#021d17] flex flex-col items-center justify-center px-5 py-6 sm:py-7 ${
@@ -278,7 +278,7 @@ function MonitoringCard({ title, highlight, icon, primary = false, onClick }: Mo
           </div>
 
           <div className="relative mt-4 sm:mt-7 h-9 w-9 sm:h-11 sm:w-11 overflow-hidden rounded-full transition-all duration-300 group-hover:scale-110 group-hover:shadow-[0_0_25px_rgba(0,255,170,0.4)]">
-            <div className="absolute left-[calc(50%-250px)] top-[calc(50%-250px)] h-125 w-125 animate-[border-spin_8s_linear_infinite] bg-[conic-gradient(from_0deg,#059669,#34d399,#7acba4,#34d399,#059669)] opacity-70" />
+            <div className="absolute left-[calc(50%-250px)] top-[calc(50%-250px)] h-125 w-125 sm:animate-[border-spin_8s_linear_infinite] bg-[conic-gradient(from_0deg,#059669,#34d399,#7acba4,#34d399,#059669)] opacity-70" />
             <div className="absolute inset-[1.5px] rounded-full bg-[#021d17] flex items-center justify-center">
               <ArrowIcon />
             </div>
@@ -295,7 +295,7 @@ function MonitoringCard({ title, highlight, icon, primary = false, onClick }: Mo
 
 function DustbinIcon() {
   return (
-    <svg width="88" height="88" viewBox="0 0 64 64" fill="none" className="drop-shadow-[0_0_16px_rgba(16,185,129,0.4)]">
+    <svg width="88" height="88" viewBox="0 0 64 64" fill="none" className="sm:drop-shadow-[0_0_16px_rgba(16,185,129,0.4)]">
       <defs>
         <linearGradient id="gradBin" x1="32" y1="4" x2="32" y2="58" gradientUnits="userSpaceOnUse">
           <stop stopColor="#42f596" />

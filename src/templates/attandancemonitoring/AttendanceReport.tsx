@@ -346,24 +346,27 @@ export default function AttendanceReport({ rows, employees, loading }: Props) {
     <div className="flex-1 flex flex-col min-h-0">
       {/* Heading + stats + filters + search */}
       <div className="flex flex-col lg:flex-row lg:items-center gap-3">
-        <h1 className="text-xl sm:text-2xl font-extrabold bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-          Attendance Report
-        </h1>
-        {/* Single count card — always equals current table rows */}
-        <span className="w-fit text-[11px] font-bold text-emerald-200 bg-emerald-500/15 border border-emerald-400/30 rounded-full px-3 py-1">
-          Total: {filtered.length}
-        </span>
+        {/* ✅ Heading + Total — mobile par EK line */}
+        <div className="flex items-center gap-3">
+          <h1 className="text-xl sm:text-2xl font-extrabold bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
+            Attendance Report
+          </h1>
+          {/* Single count card — always equals current table rows */}
+          <span className="w-fit text-[11px] font-bold text-emerald-200 bg-emerald-500/15 border border-emerald-400/30 rounded-full px-3 py-1">
+            Total: {filtered.length}
+          </span>
+        </div>
 
         {/* ✅ Filters & Search Bar Group */}
-        <div className="lg:ml-auto flex flex-col sm:flex-row gap-2 sm:gap-3 w-full lg:w-auto">
+        <div className="lg:ml-auto flex flex-wrap sm:flex-nowrap gap-2 sm:gap-3 w-full lg:w-auto">
           
-          {/* ✅ Copy Report menu button */}
-          <div className="relative copy-menu-container">
+          {/* ✅ Copy Report menu button — mobile: search ke sath EK line */}
+          <div className="relative copy-menu-container flex-1 min-w-[45%] order-1 sm:order-none sm:flex-none sm:min-w-0">
             <button
               type="button"
               onClick={() => setCopyMenuOpen(!copyMenuOpen)}
               disabled={copying}
-              className="w-full flex items-center justify-between gap-2.5 rounded-full border border-sky-400/40 bg-sky-500/15 px-4 py-2 text-xs sm:text-sm font-bold text-sky-300 transition-colors hover:bg-sky-500/25 disabled:opacity-50 whitespace-nowrap"
+              className="w-full h-9 flex items-center justify-between gap-2.5 rounded-full border border-sky-400/40 bg-sky-500/15 px-3 sm:px-4 text-xs sm:text-sm font-bold text-sky-300 transition-colors hover:bg-sky-500/25 disabled:opacity-50 whitespace-nowrap"
             >
               <span className="flex items-center gap-2">
                 <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -406,7 +409,7 @@ export default function AttendanceReport({ rows, employees, loading }: Props) {
           <select
             value={filter}
             onChange={e => setFilter(e.target.value as 'all' | 'present' | 'absent' | 'on-duty')}
-            className="rounded-full border border-white/15 bg-[#071b15] px-4 py-2 text-xs sm:text-sm font-semibold text-white/80 outline-none focus:border-emerald-400/60"
+            className="flex-1 min-w-[45%] order-3 sm:order-none sm:flex-none sm:min-w-0 rounded-full border border-white/15 bg-[#071b15] px-3 sm:px-4 h-9 text-xs sm:text-sm font-semibold text-white/80 outline-none focus:border-emerald-400/60"
           >
             <option value="all">All Attendance</option>
             <option value="present">Present</option>
@@ -415,11 +418,11 @@ export default function AttendanceReport({ rows, employees, loading }: Props) {
           </select>
 
           {/* 2. UC/Ward Searchable Dropdown (Same as TotalHR) */}
-          <div className="relative w-full sm:w-64 uc-dropdown-container">
+          <div className="relative flex-1 min-w-[45%] order-4 sm:order-none sm:flex-none sm:w-64 uc-dropdown-container">
             <button
               type="button"
               onClick={() => setIsUcDropdownOpen(!isUcDropdownOpen)}
-              className="w-full flex items-center justify-between rounded-full border border-white/15 bg-[#071b15] px-4 py-2 text-xs sm:text-sm font-semibold text-white/80 outline-none focus:border-emerald-400/60 transition-colors hover:border-emerald-400/40"
+              className="w-full h-9 flex items-center justify-between rounded-full border border-white/15 bg-[#071b15] px-3 sm:px-4 text-xs sm:text-sm font-semibold text-white/80 outline-none focus:border-emerald-400/60 transition-colors hover:border-emerald-400/40"
             >
               <span className="truncate">{ucWard || 'All UC/Wards'}</span>
               <svg className={`h-4 w-4 transition-transform duration-200 ${isUcDropdownOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -480,12 +483,12 @@ export default function AttendanceReport({ rows, employees, loading }: Props) {
           </div>
 
           {/* 3. Search Bar with Cross Button */}
-          <div className="relative w-full sm:w-64">
+          <div className="relative flex-1 min-w-[45%] order-2 sm:order-none sm:flex-none sm:w-64">
             <input
               value={search}
               onChange={e => { setSearch(e.target.value) }}
               placeholder="Search CNIC, Name, UC/Ward…"
-              className="w-full rounded-full border border-white/15 bg-[#071b15] pl-9 pr-8 py-2 text-xs sm:text-sm text-white/80 placeholder-white/35 outline-none focus:border-emerald-400/60"
+              className="w-full h-9 rounded-full border border-white/15 bg-[#071b15] pl-9 pr-8 text-xs sm:text-sm text-white/80 placeholder-white/35 outline-none focus:border-emerald-400/60"
             />
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="8" />
@@ -518,7 +521,7 @@ export default function AttendanceReport({ rows, employees, loading }: Props) {
           <tr><td colSpan={14} className="px-2 py-10 text-center text-white/50">Koi record nahi mila</td></tr>
         ) : (
           filtered.map(r => (
-            <tr key={r.cnic || r.sr} className="border-t border-white/5 transition-colors hover:bg-white/5">
+            <tr key={r.cnic || r.sr} className="border-t border-white/5 transition-colors hover:bg-white/5 [&_td]:whitespace-nowrap [&_td]:py-2 sm:[&_td]:py-3">
               <td className="px-2 py-3 text-center text-white/50 font-mono">{r.sr}</td>
               <td className="px-2 py-3 text-center">
                 <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-extrabold border ${r.checkin === 'P' ? 'bg-emerald-500/20 border-emerald-400/50 text-emerald-300' : 'bg-red-500/15 border-red-400/40 text-red-300'}`}>{r.checkin}</span>
