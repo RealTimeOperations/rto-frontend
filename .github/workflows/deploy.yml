@@ -2,8 +2,8 @@ name: Build & Deploy Frontend to Netlify
 
 on:
   push:
-    branches: [ main ]        # ⚠️ agar aap ki branch "master" hai to master likhein
-  workflow_dispatch:          # manual run ka button
+    branches: [ main ]        # ⚠️ agar branch "master" hai to master likhein
+  workflow_dispatch:
 
 jobs:
   build-deploy:
@@ -19,11 +19,9 @@ jobs:
           node-version: 20
 
       - name: Install dependencies
-        working-directory: frontend
         run: npm ci            # ⚠️ agar package-lock.json commit nahi hai to: npm install
 
       - name: Build (Vite)
-        working-directory: frontend
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
@@ -33,7 +31,7 @@ jobs:
       - name: Deploy to Netlify (production)
         uses: netlify/actions/cli@master
         with:
-          args: deploy --prod --dir=frontend/dist
+          args: deploy --prod --dir=dist
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
