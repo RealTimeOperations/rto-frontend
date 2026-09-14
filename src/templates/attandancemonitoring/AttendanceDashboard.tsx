@@ -34,8 +34,23 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
 
   // ✅ Last sync time + notifications system
   const [lastSync, setLastSync] = useState<Date | null>(null)
-  const [notifications, setNotifications] = useState<{ id: number; type: 'success' | 'error'; message: string; time: string }[]>([])
-  const [unread, setUnread] = useState(0)
+  const [notifications, setNotifications] = useState<{ id: number; type: 'success' | 'error'; message: string; time: string; unread?: boolean }[]>(() => {
+    try {
+      const saved = localStorage.getItem('rto_latest_notification')
+      if (saved) {
+        const item = JSON.parse(saved)
+        if (item && item.message) return [item]
+      }
+    } catch {}
+    return []
+  })
+  const [unread, setUnread] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('rto_latest_notification')
+      if (saved) return JSON.parse(saved)?.unread ? 1 : 0
+    } catch {}
+    return 0
+  })
   const [popup, setPopup] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   const [notifOpen, setNotifOpen] = useState(false)
   const popupTimer = useRef<number | null>(null)
@@ -50,8 +65,11 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
       time: new Date().toLocaleString('en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }),
     }
     // ✅ Sirf latest notification rakho — purani foran remove
-    setNotifications([item])
-    setUnread(u => u + 1)
+    // ✅ localStorage mein save — refresh ke baad bhi rahegi jab tak nayi na aa
+    const savedItem = { ...item, unread: true }
+    setNotifications([savedItem])
+    setUnread(1)
+    try { localStorage.setItem('rto_latest_notification', JSON.stringify(savedItem)) } catch {}
     // Popup sirf 1 second ke liye
     setPopup({ type, message })
     if (popupTimer.current) window.clearTimeout(popupTimer.current)
@@ -65,12 +83,76 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
       setSlider({ left: activeBtn.offsetLeft, width: activeBtn.offsetWidth })
     }
   }, [view])
+  // ✅ Backend sync API (Update HR button) — deploy par apna server URL dalein
+  const SYNC_API = 'http://localhost:8000'
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [hrSync, setHrSync] = useState<null | { stage: 'confirm' } | { stage: 'loading' } | { stage: 'done'; type: 'success' | 'warn' | 'error'; message: string }>(null)
+
+  // ✅ Role check — Update HR sirf admin ke liye
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) return
+      const cached = localStorage.getItem('rto_role_' + session.user.id)
+      if (cached) {
+        if (alive) setIsAdmin(cached === 'admin')
+        return
+      }
+      const { data } = await supabase.rpc('get_my_role')
+      if (alive) setIsAdmin(data === 'admin')
+    })()
+    return () => { alive = false }
+  }, [])
+
+  // ✅ Update HR: backend ka /sync/employees trigger karo (employees_sync.py)
+  async function runHrSync() {
+    setHrSync({ stage: 'loading' })
+    try {
+      const res = await fetch(SYNC_API + '/sync/employees', { method: 'POST' })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.detail || 'Server error: ' + res.status)
+      if (json.status === 'updated') {
+        setHrSync({ stage: 'done', type: 'success', message: 'HR data successfully updated' })
+        pushNotification('success', 'HR data successfully updated')
+        load()
+      } else {
+        setHrSync({ stage: 'done', type: 'warn', message: 'No Updated data on portal' })
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Sync failed'
+      setHrSync({ stage: 'done', type: 'error', message: msg })
+      pushNotification('error', 'HR sync error: ' + msg)
+    }
+  }
+
   // ✅ Server status: live = fetching process OK, error = portal/internet issue
-  const [serverStatus, setServerStatus] = useState<'live' | 'error'>('live')
-  const statusRef = useRef<'live' | 'error'>('live')
+  //    localStorage se initial value — refresh par galat green flash nahi hota
+  const [serverStatus, setServerStatus] = useState<'live' | 'error'>(() => {
+    try { return localStorage.getItem('rto_server_status') === 'error' ? 'error' : 'live' } catch { return 'live' }
+  })
+  const statusRef = useRef<'live' | 'error'>(serverStatus)
+  // ✅ Aakhri error message — refresh par wahi ongoing error dobara notify na ho
+  const lastErrMsgRef = useRef<string>((() => {
+    try {
+      const saved = localStorage.getItem('rto_latest_notification')
+      const n = saved ? JSON.parse(saved) : null
+      return n?.type === 'error' ? String(n.message || '') : ''
+    } catch { return '' }
+  })())
   function setStatus(s: 'live' | 'error') {
+    if (statusRef.current === s) return
     statusRef.current = s
     setServerStatus(s)
+    try { localStorage.setItem('rto_server_status', s) } catch {}
+  }
+  function notifyError(msg: string) {
+    // Sirf tab notify karo: status pehli dafa error ho YA error message badla ho
+    if (statusRef.current !== 'error' || lastErrMsgRef.current !== msg) {
+      pushNotification('error', msg)
+    }
+    lastErrMsgRef.current = msg
+    setStatus('error')
   }
   const lastLogIdRef = useRef<string | null>(null)
   const aliveRef = useRef(true)
@@ -125,15 +207,11 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
       setEmployees(emp)
       setBaseValues((bv.data ?? []) as { label: string; value: number; sort_order: number; type: string }[])
       setLastSync(new Date())
-      setStatus('live')
       // ✅ Notification sirf jab naya data aaya ho — refresh/mount par nahi
       if (notify) pushNotification('success', 'Data successfully fetched and updated')
     } catch (e) {
       console.error('Load error:', e)
-      if (statusRef.current !== 'error') {
-        pushNotification('error', 'Error in data fetch')
-      }
-      setStatus('error')
+      notifyError('Error in data fetch')
     } finally {
       if (aliveRef.current) setLoading(false)
     }
@@ -144,36 +222,60 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
     load()
   }, [load])
 
-  // ✅ Auto-poll: har 30 second mein check — fetch fail = RED, fetch OK = GREEN
+  // ✅ Heartbeat poll: har 5 second mein backend ki health check karo
+  //    - Heartbeat fresh + status running  → GREEN
+  //    - Heartbeat purani (>15 sec) / missing → RED (server band) — max ~20 sec mein
+  //    - Status portal_error → RED (portal issue message ke sath)
+  //    - Naya attendance row aaya → full refresh + success notification
   useEffect(() => {
-    const POLL_MS = 30_000
-    const timer = setInterval(async () => {
+    const POLL_MS = 5_000
+    const HEARTBEAT_MAX_MS = 15_000
+    async function check() {
       try {
-        const { data, error } = await supabase
+        const { data: hb, error: hbErr } = await supabase
+          .from('system_heartbeat')
+          .select('status, message, updated_at')
+          .eq('id', 1)
+          .maybeSingle()
+        if (hbErr) throw hbErr
+        const hbTime = hb?.updated_at ? new Date(hb.updated_at).getTime() : 0
+        const fresh = !!hb && Date.now() - hbTime <= HEARTBEAT_MAX_MS
+        if (!fresh) {
+          // ❌ Server band / process stop — heartbeat nahi aa rahi
+          notifyError('Error in data fetch')
+        } else if (hb.status !== 'running') {
+          // ❌ Portal par issue — backend ne khud report kiya
+          notifyError(hb.message || 'Error in Data Fetching (Portal issue)')
+        } else if (statusRef.current === 'error') {
+          // ✅ Process dobara chalu hua — wapis green + notification
+          setStatus('live')
+          pushNotification('success', 'Fetching process start')
+        }
+
+        // Naya attendance data check
+        const { data: latest, error: latErr } = await supabase
           .from('attendance_logs')
           .select('id')
           .order('id', { ascending: false })
           .limit(1)
-        if (error) throw error
-        // ✅ Fetch OK → dot green (process dobara chal para)
-        if (statusRef.current === 'error') setStatus('live')
-        const latestId = (data?.[0]?.id as string | undefined) ?? null
+        if (latErr) throw latErr
+        const latestId = (latest?.[0]?.id as string | undefined) ?? null
         if (lastLogIdRef.current === null) {
           lastLogIdRef.current = latestId
         } else if (latestId !== lastLogIdRef.current) {
-          // Naya data aaya → full refresh + success notification
           lastLogIdRef.current = latestId
+          setStatus('live')
           await load(true)
         }
       } catch (e) {
-        // ❌ Data fetch stop (kisi bhi wajah se) → dot red + notification
-        if (statusRef.current !== 'error') {
-          pushNotification('error', 'Error in data fetch')
-        }
-        setStatus('error')
+        // ❌ Supabase se connect hi nahi ho raha (internet down)
+        notifyError('Error in data fetch')
       }
-    }, POLL_MS)
+    }
+    check()   // ✅ Mount par FORAN check — 5 second ka intezar nahi
+    const timer = setInterval(check, POLL_MS)
     return () => clearInterval(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [load])
 
   const tabs: { key: View; label: string }[] = [
@@ -229,6 +331,57 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
 
           {/* Right: Last Sync pill + Notification bell (top par) */}
           <div className="flex-1 flex justify-end items-center gap-2.5 pr-1 sm:pr-3 pointer-events-auto">
+
+                {/* ✅ Update HR modal: confirm → loading → result */}
+                {hrSync && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center p-5 bg-black/60 backdrop-blur-sm">
+                    <div className="w-full max-w-sm bg-linear-to-br from-[#0d372c] to-[#08261f] border border-emerald-400/20 rounded-2xl p-7 shadow-[0_25px_60px_rgba(0,0,0,0.6)]">
+                      {hrSync.stage === 'confirm' && (
+                        <>
+                          <h3 className="text-lg font-bold text-white mb-2">Update HR Data</h3>
+                          <p className="text-white/60 text-sm mb-6">
+                            Portal se assigned employees ka taza data fetch kar ke Supabase mein upload kiya jayega. Continue karein?
+                          </p>
+                          <div className="flex gap-3">
+                            <button onClick={() => setHrSync(null)} className="flex-1 py-2.5 bg-white/5 border border-white/15 rounded-full text-white/70 text-sm font-semibold hover:bg-white/10 transition">Cancel</button>
+                            <button onClick={runHrSync} className="running-button flex-1 py-2.5 rounded-full text-white text-sm font-bold hover:opacity-90 transition">Yes, Update</button>
+                          </div>
+                        </>
+                      )}
+                      {hrSync.stage === 'loading' && (
+                        <div className="flex flex-col items-center gap-4 py-4">
+                          <div className="h-10 w-10 rounded-full border-2 border-emerald-400/30 border-t-emerald-300 animate-spin" />
+                          <div className="text-sm font-semibold text-white/80">Syncing HR data from portal…</div>
+                          <div className="text-[11px] text-white/45">Please wait — process running hai</div>
+                        </div>
+                      )}
+                      {hrSync.stage === 'done' && (
+                        <>
+                          <div className="flex flex-col items-center gap-3 mb-6">
+                            <div className={`flex h-12 w-12 items-center justify-center rounded-full border ${
+                              hrSync.type === 'success' ? 'bg-emerald-500/15 border-emerald-400/40 text-emerald-300'
+                              : hrSync.type === 'warn' ? 'bg-amber-500/15 border-amber-400/40 text-amber-300'
+                              : 'bg-red-500/15 border-red-400/40 text-red-300'
+                            }`}>
+                              {hrSync.type === 'success' ? (
+                                <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                              ) : (
+                                <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
+                              )}
+                            </div>
+                            <div className={`text-sm font-bold text-center ${
+                              hrSync.type === 'success' ? 'text-emerald-300'
+                              : hrSync.type === 'warn' ? 'text-amber-300'
+                              : 'text-red-300'
+                            }`}>{hrSync.message}</div>
+                          </div>
+                          <button onClick={() => setHrSync(null)} className="running-button w-full py-2.5 rounded-full text-white text-sm font-bold hover:opacity-90 transition">Close</button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {lastSync && (
                   <div className="rto-run-border relative hidden sm:flex items-center gap-2 rounded-full border border-transparent bg-[#071b15]/80 px-4 py-2">
                     {serverStatus === 'live' ? (
@@ -258,6 +411,15 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
                     onClick={() => {
                       setNotifOpen(v => !v)
                       setUnread(0)
+                      // ✅ Seen mark karo — localStorage mein bhi update (refresh par red dot wapis na aaye)
+                      try {
+                        const saved = localStorage.getItem('rto_latest_notification')
+                        if (saved) {
+                          const item = JSON.parse(saved)
+                          item.unread = false
+                          localStorage.setItem('rto_latest_notification', JSON.stringify(item))
+                        }
+                      } catch {}
                     }}
                     aria-label="Notifications"
                     className="rto-run-border relative flex items-center justify-center rounded-full border border-transparent bg-[#071b15]/80 p-2.5 text-white/70 hover:text-white transition"
@@ -333,7 +495,7 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
       <main className="pt-24 pb-4 px-4 sm:px-6 max-w-[1750px] mx-auto flex flex-col min-h-screen">
         {view === 'dashboard' && <StatsView attendance={attendance} employees={employees} baseValues={baseValues} loading={loading} />}
         {view === 'attendance' && <AttendanceLogs rows={attendance} loading={loading} />}
-        {view === 'hr' && <TotalHR rows={employees} loading={loading} />}
+        {view === 'hr' && <TotalHR rows={employees} loading={loading} onRefresh={load} />}
         {view === 'report' && <AttendanceReport rows={attendance} employees={employees} loading={loading} />}
       </main>
     </div>

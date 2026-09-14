@@ -7,6 +7,7 @@ type Row = Record<string, any>
 type Props = {
   rows: Row[]
   loading: boolean
+  onRefresh?: () => void   // sync ke baad parent ko table reload karne ke liye
 }
 
 const norm = (s: any) => String(s ?? '').replace(/-/g, '').trim().toLowerCase()
@@ -20,7 +21,7 @@ const matchRow = (r: Row, q: string) =>
     return s.includes(q) || s.replace(/-/g, '').includes(q)
   })
 
-export default function TotalHR({ rows, loading }: Props) {
+export default function TotalHR({ rows, loading, onRefresh }: Props) {
   const [search, setSearch] = useState('')
   const [ucWard, setUcWard] = useState('')
   const [downloading, setDownloading] = useState(false)
@@ -28,6 +29,49 @@ export default function TotalHR({ rows, loading }: Props) {
   // ✅ Custom searchable dropdown states
   const [isUcDropdownOpen, setIsUcDropdownOpen] = useState(false)
   const [ucDropdownSearch, setUcDropdownSearch] = useState('')
+
+  // ✅ Admin check + Update HR sync states
+  const SYNC_API = 'http://localhost:8000'
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [hrSync, setHrSync] = useState<
+    | null
+    | { stage: 'confirm' }
+    | { stage: 'loading' }
+    | { stage: 'done'; type: 'success' | 'warn' | 'error'; message: string }
+  >(null)
+
+  // ✅ Role check — Update HR sirf admin ke liye
+  //    get_my_role current session (auth.uid()) ka role deta hai — koi purana cache nahi
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      try {
+        const { supabase } = await import('../../lib/supabase')
+        const { data } = await supabase.rpc('get_my_role')
+        if (alive) setIsAdmin(data === 'admin')
+      } catch {}
+    })()
+    return () => { alive = false }
+  }, [])
+
+  // ✅ Update HR: backend ka /sync/employees trigger karo
+  async function runHrSync() {
+    setHrSync({ stage: 'loading' })
+    try {
+      const res = await fetch(SYNC_API + '/sync/employees', { method: 'POST' })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(json.detail || 'Server error: ' + res.status)
+      if (json.status === 'updated') {
+        setHrSync({ stage: 'done', type: 'success', message: 'HR data successfully updated' })
+        onRefresh?.()   // Parent ko table reload karne ko bolo
+      } else {
+        setHrSync({ stage: 'done', type: 'warn', message: 'No Updated data on portal' })
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Sync failed'
+      setHrSync({ stage: 'done', type: 'error', message: msg })
+    }
+  }
 
   // ✅ Dropdown ke bahar click karne par band ho jaye
   useEffect(() => {
@@ -167,6 +211,20 @@ export default function TotalHR({ rows, loading }: Props) {
             {downloading ? 'Saving…' : 'Excel'}
           </button>
 
+          {/* ✅ Update HR Button — sirf admin ko dikhega */}
+          {isAdmin && (
+            <button
+              onClick={() => setHrSync({ stage: 'confirm' })}
+              className="flex items-center justify-center gap-2 rounded-full border border-sky-400/40 bg-sky-500/15 px-4 py-2 text-[11px] sm:text-xs font-bold text-sky-300 transition-colors hover:bg-sky-500/25 whitespace-nowrap"
+            >
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+                <polyline points="21 3 21 9 15 9" />
+              </svg>
+              Update HR
+            </button>
+          )}
+
           {/* ✅ Searchable UC/Ward Dropdown */}
           <div className="relative w-full sm:w-64 uc-dropdown-container">
             <button
@@ -286,6 +344,66 @@ export default function TotalHR({ rows, loading }: Props) {
               ))
             )}
       </SplitTable>
+
+      {/* ✅ Update HR Modal — confirm → loading → result */}
+      {hrSync && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-5 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-sm bg-linear-to-br from-[#0d372c] to-[#08261f] border border-emerald-400/20 rounded-2xl p-7 shadow-[0_25px_60px_rgba(0,0,0,0.6)]">
+            {hrSync.stage === 'confirm' && (
+              <>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-500/15 border border-sky-400/40">
+                    <svg className="h-5 w-5 text-sky-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+                      <polyline points="21 3 21 9 15 9" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-bold text-sky-200">Update HR Data</h3>
+                </div>
+                <p className="text-white/60 text-sm mb-6">
+                  Portal se assigned employees ka taza data fetch kar ke Supabase mein upload kiya jayega. Continue karein?
+                </p>
+                <div className="flex gap-3">
+                  <button onClick={() => setHrSync(null)} className="flex-1 py-2.5 bg-white/5 border border-white/15 rounded-full text-white/70 text-sm font-semibold hover:bg-white/10 transition">Cancel</button>
+                  <button onClick={runHrSync} className="running-button flex-1 py-2.5 rounded-full text-white text-sm font-bold hover:opacity-90 transition">Yes, Update</button>
+                </div>
+              </>
+            )}
+
+            {hrSync.stage === 'loading' && (
+              <div className="flex flex-col items-center gap-4 py-4">
+                <div className="h-12 w-12 rounded-full border-2 border-sky-400/30 border-t-sky-300 animate-spin" />
+                <div className="text-sm font-semibold text-white/85 text-center">Syncing HR data from portal…</div>
+                <div className="text-[11px] text-white/45 text-center">Please wait — process running hai</div>
+              </div>
+            )}
+
+            {hrSync.stage === 'done' && (
+              <>
+                <div className="flex flex-col items-center gap-3 mb-6">
+                  <div className={`flex h-14 w-14 items-center justify-center rounded-full border ${
+                    hrSync.type === 'success' ? 'bg-emerald-500/15 border-emerald-400/40 text-emerald-300'
+                    : hrSync.type === 'warn' ? 'bg-amber-500/15 border-amber-400/40 text-amber-300'
+                    : 'bg-red-500/15 border-red-400/40 text-red-300'
+                  }`}>
+                    {hrSync.type === 'success' ? (
+                      <svg className="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+                    ) : (
+                      <svg className="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
+                    )}
+                  </div>
+                  <div className={`text-sm font-bold text-center px-2 ${
+                    hrSync.type === 'success' ? 'text-emerald-300'
+                    : hrSync.type === 'warn' ? 'text-amber-300'
+                    : 'text-red-300'
+                  }`}>{hrSync.message}</div>
+                </div>
+                <button onClick={() => setHrSync(null)} className="running-button w-full py-2.5 rounded-full text-white text-sm font-bold hover:opacity-90 transition">Close</button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
