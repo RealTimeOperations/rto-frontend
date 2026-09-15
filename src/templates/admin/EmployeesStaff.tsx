@@ -95,19 +95,36 @@ export default function EmployeesStaff() {
             Total: {loading ? '…' : rows.length}
           </span>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search name / work type / email…"
-            className="h-10 px-4 w-56 bg-white/5 border border-white/15 rounded-full text-white text-xs outline-none focus:border-emerald-500 transition"
-          />
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          {/* ✅ Button pehle — mobile par sirf "+ Add" */}
           <button
             onClick={openAdd}
-            className="running-button px-6 py-2.5 rounded-full text-white text-xs font-bold hover:opacity-90 transition"
+            className="running-button flex-none px-3 sm:px-6 h-9 sm:h-auto sm:py-2.5 rounded-full text-white text-[11px] sm:text-xs font-bold hover:opacity-90 transition whitespace-nowrap"
           >
-            + Add Employee Staff
+            <span className="sm:hidden">+ Add</span>
+            <span className="hidden sm:inline">+ Add Employee Staff</span>
           </button>
+          {/* ✅ Search baad mein — bari width + cross button */}
+          <div className="relative flex-1 sm:flex-none min-w-0 sm:w-56">
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search name / work type / email…"
+              className="h-9 sm:h-10 px-3 sm:px-4 pr-8 w-full bg-white/5 border border-white/15 rounded-full text-white text-xs outline-none focus:border-emerald-500 transition"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                aria-label="Clear search"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/40 transition-colors hover:text-red-300"
+              >
+                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { ModalState, Profile } from './types'
 
@@ -208,6 +208,7 @@ export default function UserModal({ state, onClose, onSaved, lockRole }: Props) 
         }
         await supabase.from('profiles').update(upd).eq('id', created.id)
       }
+      setPassword('')
       onSaved()
     } else if (state.mode === 'edit' && editing) {
       const passwordChanged = password !== '' && password !== loadedPassword
@@ -234,20 +235,21 @@ export default function UserModal({ state, onClose, onSaved, lockRole }: Props) 
         upd.can_containers = permContainers
       }
       await supabase.from('profiles').update(upd).eq('id', editing.id)
+      setPassword('')
       onSaved()
     }
     setSaving(false)
   }
 
-  const inputClass = 'w-full h-11 px-4 bg-white/5 border border-white/15 rounded-xl text-white text-sm outline-none focus:border-emerald-500 transition'
+  const inputClass = 'w-full h-9 sm:h-11 px-3 sm:px-4 bg-white/5 border border-white/15 rounded-xl text-white text-sm outline-none focus:border-emerald-500 transition'
 
   // Final role used for conditional rendering in the form
   const finalRole = lockRole ?? role
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-5 bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-md bg-linear-to-br from-[#0d372c] to-[#08261f] border border-emerald-400/20 rounded-2xl p-7 shadow-[0_25px_60px_rgba(0,0,0,0.6)]">
-        <h3 className="running-text text-lg font-bold mb-5">{title}</h3>
+    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-3 sm:p-5 pt-8 sm:pt-5 bg-black/60 backdrop-blur-sm overflow-y-auto">
+      <div className="w-full max-w-md bg-linear-to-br from-[#0d372c] to-[#08261f] border border-emerald-400/20 rounded-2xl p-5 sm:p-7 shadow-[0_25px_60px_rgba(0,0,0,0.6)] my-auto">
+        <h3 className="running-text text-base sm:text-lg font-bold mb-4 sm:mb-5">{title}</h3>
         {viewing ? (
           <div className="space-y-3 text-sm">
             <div className="flex justify-between gap-4"><span className="text-white/50">Username</span><span className="text-white font-mono">{viewing.username}</span></div>
@@ -259,10 +261,10 @@ export default function UserModal({ state, onClose, onSaved, lockRole }: Props) 
             <div className="flex justify-between gap-4"><span className="text-white/50">Role</span><span className="text-white capitalize">{viewing.role}</span></div>
             <div className="flex justify-between gap-4"><span className="text-white/50">Status</span><span className="text-white capitalize">{viewing.status}</span></div>
             <div className="flex justify-between gap-4"><span className="text-white/50">Created</span><span className="text-white">{new Date(viewing.created_at).toLocaleString()}</span></div>
-            <button onClick={onClose} className="running-button w-full py-2.5 rounded-full text-white text-sm font-bold mt-2 hover:opacity-90 transition">Close</button>
+            <button onClick={onClose} className="running-button w-full py-2 sm:py-2.5 rounded-full text-white text-sm font-bold mt-2 hover:opacity-90 transition">Close</button>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} autoComplete="off" autoCapitalize="off" autoCorrect="off" spellCheck="false" className="space-y-4">
+          <form onSubmit={handleSubmit} autoComplete="off" autoCapitalize="off" autoCorrect="off" spellCheck="false" className="space-y-3 sm:space-y-4">
             {/* Honeypot fields — browser autofill inhein fill karega, asli fields safe rahengi */}
             <input type="text" name="hf_username" autoComplete="username" tabIndex={-1} aria-hidden="true" className="absolute -left-248 h-0 w-0 opacity-0" />
             <input type="password" name="hf_password" autoComplete="current-password" tabIndex={-1} aria-hidden="true" className="absolute -left-248 h-0 w-0 opacity-0" />  
@@ -323,13 +325,13 @@ export default function UserModal({ state, onClose, onSaved, lockRole }: Props) 
               </label>
               <div className="relative">
                 <input
-                  type={showPassword ? 'text' : 'password'}
+                  type="text"
                   required={state.mode === 'add'}
-                  name="user_password"
                   autoComplete="off"
                   value={password}
                   onChange={e => { typedPassword.current = true; setPassword(e.target.value) }}
                   placeholder="••••••••"
+                  style={{ WebkitTextSecurity: showPassword ? 'none' : 'disc' } as CSSProperties}
                   className={`${inputClass} pr-12`}
                 />
                 <button
@@ -426,8 +428,8 @@ export default function UserModal({ state, onClose, onSaved, lockRole }: Props) 
               </div>
             )}
             <div className="flex gap-3 pt-1">
-              <button type="button" onClick={onClose} className="flex-1 py-2.5 bg-white/5 border border-white/15 rounded-full text-white/70 text-sm font-semibold hover:bg-white/10 transition">Cancel</button>
-              <button type="submit" disabled={saving} className="running-button flex-1 py-2.5 rounded-full text-white text-sm font-bold hover:opacity-90 transition disabled:opacity-50">
+              <button type="button" onClick={() => { setPassword(''); onClose() }} className="flex-1 py-2 sm:py-2.5 bg-white/5 border border-white/15 rounded-full text-white/70 text-sm font-semibold hover:bg-white/10 transition">Cancel</button>
+              <button type="submit" disabled={saving} className="running-button flex-1 py-2 sm:py-2.5 rounded-full text-white text-sm font-bold hover:opacity-90 transition disabled:opacity-50">
                 {saving ? 'Saving…' : state.mode === 'add' ? addLabel : 'Save Changes'}
               </button>
             </div>

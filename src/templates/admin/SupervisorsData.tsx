@@ -66,26 +66,44 @@ export default function SupervisorsData() {
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
+      <div className="xl:max-w-[1500px] xl:mx-auto">
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <div className="flex items-center gap-3">
-          <h2 className="running-text text-xl font-bold">Supervisors Data</h2>
-          <span className="text-[11px] font-bold text-emerald-200 bg-emerald-500/15 border border-emerald-400/30 rounded-full px-3 py-1">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-nowrap">
+          <h2 className="running-text text-base sm:text-xl font-bold whitespace-nowrap">Supervisors Staff</h2>
+          <span className="px-2 sm:px-3 py-0.5 sm:py-1 text-[9px] sm:text-[11px] font-bold text-emerald-200 bg-emerald-500/15 border border-emerald-400/30 rounded-full whitespace-nowrap">
             Total: {rows.length}
           </span>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search name / CNIC / designation…"
-            className="h-10 px-4 w-56 bg-white/5 border border-white/15 rounded-full text-white text-xs outline-none focus:border-emerald-500 transition"
-          />
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          {/* ✅ Button pehle — mobile par sirf "+ Add" */}
           <button
             onClick={() => setModal({ mode: 'add' })}
-            className="running-button px-5 py-2.5 rounded-full text-white text-xs font-bold hover:opacity-90 transition"
+            className="running-button flex-none px-3 sm:px-5 h-9 sm:h-auto sm:py-2.5 rounded-full text-white text-[11px] sm:text-xs font-bold hover:opacity-90 transition whitespace-nowrap"
           >
-            + Add Supervisor
+            <span className="sm:hidden">+ Add</span>
+            <span className="hidden sm:inline">+ Add Supervisor</span>
           </button>
+          {/* ✅ Search baad mein — bari width + cross button */}
+          <div className="relative flex-1 sm:flex-none min-w-0 sm:w-56">
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search name / CNIC / designation…"
+              className="h-9 sm:h-10 px-3 sm:px-4 pr-8 w-full bg-white/5 border border-white/15 rounded-full text-white text-xs outline-none focus:border-emerald-500 transition"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                aria-label="Clear search"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/40 transition-colors hover:text-red-300"
+              >
+                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -97,7 +115,8 @@ export default function SupervisorsData() {
 
       <SplitTable
         minW={1300}
-        widths={[4, 12, 11, 11, 11, 8, 13, 14, 7, 9]}
+        center={[9]}
+        widths={[4, 10, 10, 11, 12, 7, 13, 14, 9, 10]}
         headers={['Sr#', 'Name', 'Father/Husband', 'CNIC', 'Designation', 'Region', 'UC/Ward', 'Attendance Point', 'Role', 'Actions']}
       >
         {loading ? (
@@ -111,27 +130,27 @@ export default function SupervisorsData() {
               <td className="px-4 py-3 font-semibold text-white/90 whitespace-nowrap">{r.name}</td>
               <td className="px-4 py-3 text-white/70 whitespace-nowrap">{r.father_husband}</td>
               <td className="px-4 py-3 font-mono text-emerald-200 whitespace-nowrap">{r.cnic}</td>
-              <td className="px-4 py-3 whitespace-nowrap">
-                <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold border ${desigBadge(r.designation ?? '')}`}>
+              <td className="px-2 sm:px-4 py-2 sm:py-3">
+                <span className={`rounded-full px-1.5 sm:px-2.5 py-0.5 sm:py-1 text-[8px] sm:text-[10px] font-semibold border whitespace-nowrap ${desigBadge(r.designation ?? '')}`}>
                   {r.designation}
                 </span>
               </td>
               <td className="px-4 py-3 text-white/70 whitespace-nowrap">{r.region}</td>
               <td className="px-4 py-3 text-white/70">{r.uc_ward}</td>
               <td className="px-4 py-3 text-white/70">{r.attendance_point}</td>
-              <td className="px-4 py-3">
-                <span className="rounded-full px-2.5 py-1 text-[10px] font-bold border bg-amber-500/15 border-amber-400/40 text-amber-300 whitespace-nowrap">
+              <td className="px-2 sm:px-4 py-2 sm:py-3">
+                <span className="rounded-full px-1.5 sm:px-2.5 py-0.5 sm:py-1 text-[8px] sm:text-[10px] font-bold border bg-amber-500/15 border-amber-400/40 text-amber-300 whitespace-nowrap">
                   {r.role}
                 </span>
               </td>
-              <td className="px-4 py-3">
-                <div className="flex items-center justify-end gap-2">
-                  <button onClick={() => setModal({ mode: 'edit', row: r })} aria-label="Edit supervisor" className="p-2 rounded-lg text-amber-300 hover:bg-amber-500/15 transition">
+              <td className="px-2 sm:px-4 py-2 sm:py-3">
+                <div className="flex items-center justify-center gap-1 sm:gap-2">
+                  <button onClick={() => setModal({ mode: 'edit', row: r })} aria-label="Edit supervisor" className="p-1.5 sm:p-2 rounded-lg text-amber-300 hover:bg-amber-500/15 transition">
                     <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
                     </svg>
                   </button>
-                  <button onClick={() => setDeleteTarget(r)} aria-label="Delete supervisor" className="p-2 rounded-lg text-red-300 hover:bg-red-500/15 transition">
+                  <button onClick={() => setDeleteTarget(r)} aria-label="Delete supervisor" className="p-1.5 sm:p-2 rounded-lg text-red-300 hover:bg-red-500/15 transition">
                     <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M3 6h18" />
                       <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
@@ -144,6 +163,7 @@ export default function SupervisorsData() {
           ))
         )}
       </SplitTable>
+      </div>
 
       {modal && (
         <SupervisorDataModal

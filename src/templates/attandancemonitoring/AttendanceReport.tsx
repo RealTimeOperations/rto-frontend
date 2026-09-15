@@ -171,10 +171,19 @@ export default function AttendanceReport({ rows, employees, loading }: Props) {
   // ✅ Build copy list: filters applied + sorted by Designation → UC/Ward → Attendance Point
   function copyList(kind: 'onduty' | 'absent') {
     const q = norm(search)
+    // ✅ Morning shift ki had: is ghante se PEHLE check-in = morning, BAAD mein = evening (exclude)
+    const MORNING_LIMIT = 12
+    const isMorningCheckin = (t: string) => {
+      const hour = parseInt(String(t ?? '').split(' ')[1]?.split(':')[0] ?? '99', 10)
+      return hour < MORNING_LIMIT
+    }
     const list = report.filter(r => {
       if (ucWard && String(r.uc_ward ?? '').trim() !== ucWard) return false
       if (q && !matchRow(r, q)) return false
-      if (kind === 'onduty') return r.checkin === 'P' && r.checkout === '--'
+      if (kind === 'onduty') {
+        // ✅ Sirf MORNING check-in + remaining checkout — evening shift walon ko remove karo
+        return r.checkin === 'P' && r.checkout === '--' && isMorningCheckin(r.checkinTime)
+      }
       return r.checkin === 'A'
     })
     // Natural sort: numbers compare as real numbers (Ward 6 < Ward 7 < Ward 9 < Ward 10 < Ward 22),
@@ -418,7 +427,7 @@ export default function AttendanceReport({ rows, employees, loading }: Props) {
           </select>
 
           {/* 2. UC/Ward Searchable Dropdown (Same as TotalHR) */}
-          <div className="relative flex-1 min-w-[45%] order-4 sm:order-none sm:flex-none sm:w-64 uc-dropdown-container">
+          <div className="relative flex-1 min-w-[45%] order-4 sm:order-none sm:flex-none sm:min-w-0 sm:w-64 uc-dropdown-container">
             <button
               type="button"
               onClick={() => setIsUcDropdownOpen(!isUcDropdownOpen)}
@@ -483,7 +492,7 @@ export default function AttendanceReport({ rows, employees, loading }: Props) {
           </div>
 
           {/* 3. Search Bar with Cross Button */}
-          <div className="relative flex-1 min-w-[45%] order-2 sm:order-none sm:flex-none sm:w-64">
+          <div className="relative flex-1 min-w-[45%] order-2 sm:order-none sm:flex-none sm:min-w-0 sm:w-64">
             <input
               value={search}
               onChange={e => { setSearch(e.target.value) }}
