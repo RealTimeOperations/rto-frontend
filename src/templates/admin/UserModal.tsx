@@ -86,12 +86,12 @@ export default function UserModal({ state, onClose, onSaved, lockRole }: Props) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // ✅ Supervisor add mode: default sab modules ON (admin baad mein toggle kar sake)
+  // ✅ Supervisor add mode: default sab modules OFF (admin zaroorat par ON kare)
   useEffect(() => {
     if (state.mode === 'add' && lockRole === 'supervisor') {
-      setPermAttendance(true)
-      setPermVehicles(true)
-      setPermContainers(true)
+      setPermAttendance(false)
+      setPermVehicles(false)
+      setPermContainers(false)
     }
   }, [state.mode, lockRole])
 

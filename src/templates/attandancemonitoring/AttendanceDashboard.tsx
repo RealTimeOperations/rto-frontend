@@ -77,11 +77,19 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
     popupTimer.current = window.setTimeout(() => setPopup(null), 1000)
   }
 
+  // ✅ Sliding pill position — view change + window resize + font load par update
   useEffect(() => {
-    if (!navRef.current) return
-    const activeBtn = navRef.current.querySelector('[data-active="true"]') as HTMLElement
-    if (activeBtn) {
-      setSlider({ left: activeBtn.offsetLeft, width: activeBtn.offsetWidth })
+    const update = () => {
+      if (!navRef.current) return
+      const activeBtn = navRef.current.querySelector('[data-active="true"]') as HTMLElement
+      if (activeBtn) setSlider({ left: activeBtn.offsetLeft, width: activeBtn.offsetWidth })
+    }
+    update()
+    const t = setTimeout(update, 100) // font load ke baad dobara measure
+    window.addEventListener('resize', update)
+    return () => {
+      clearTimeout(t)
+      window.removeEventListener('resize', update)
     }
   }, [view])
   // ✅ Backend sync API (Update HR button) — deploy par apna server URL dalein
@@ -195,8 +203,9 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
     )
   }
 
-  const load = useCallback(async (notify = false) => {
-    setLoading(true)
+  const load = useCallback(async (notify = false, silent = false) => {
+    // ✅ Silent update: loading state change nahi hoti — values foran swap hoti hain
+    if (!silent) setLoading(true)
     try {
       const [att, emp, bv] = await Promise.all([
         fetchAll('attendance_logs'),
@@ -214,7 +223,7 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
       console.error('Load error:', e)
       notifyError('Error in data fetch')
     } finally {
-      if (aliveRef.current) setLoading(false)
+      if (aliveRef.current && !silent) setLoading(false)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -230,7 +239,14 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
   //    - Naya attendance row aaya → full refresh + success notification
   useEffect(() => {
     const POLL_MS = 5_000
-    const HEARTBEAT_MAX_MS = 15_000
+    // ✅ Grace period: portal fetch cycle mein heartbeat kuch der ruk sakti hai (process busy) —
+    //    40s tak stale = normal fetch, 90s+ stale = process band
+    const HEARTBEAT_MAX_MS = 40_000
+    const HEARTBEAT_HARD_MS = 90_000
+    // ✅ Ye statuses "process alive/busy" count hoti hain (error nahi)
+    const ALIVE_STATUSES = ['running', 'fetching', 'syncing', 'loading']
+    // ✅ Sirf ye statuses explicit error hain
+    const ERROR_STATUSES = ['error', 'portal_error', 'failed', 'stopped']
     async function check() {
       try {
         const { data: hb, error: hbErr } = await supabase
@@ -240,13 +256,17 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
           .maybeSingle()
         if (hbErr) throw hbErr
         const hbTime = hb?.updated_at ? new Date(hb.updated_at).getTime() : 0
-        const fresh = !!hb && Date.now() - hbTime <= HEARTBEAT_MAX_MS
-        if (!fresh) {
-          // ❌ Server band / process stop — heartbeat nahi aa rahi
+        const ageMs = hbTime ? Date.now() - hbTime : Infinity
+        const status = String(hb?.status ?? '').toLowerCase()
+        if (ERROR_STATUSES.includes(status)) {
+          // ❌ Backend ne khud error report kiya
+          notifyError(hb?.message || 'Error in Data Fetching (Portal issue)')
+        } else if (!hb || ageMs > HEARTBEAT_HARD_MS) {
+          // ❌ Heartbeat missing ya 90s+ purani — server/process band
           notifyError('Error in data fetch')
-        } else if (hb.status !== 'running') {
-          // ❌ Portal par issue — backend ne khud report kiya
-          notifyError(hb.message || 'Error in Data Fetching (Portal issue)')
+        } else if (ageMs > HEARTBEAT_MAX_MS && !ALIVE_STATUSES.includes(status)) {
+          // ❌ 40s+ purani aur status alive nahi — process band
+          notifyError('Error in data fetch')
         } else if (statusRef.current === 'error') {
           // ✅ Process dobara chalu hua — wapis green + notification
           setStatus('live')
@@ -266,7 +286,7 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
         } else if (latestId !== lastLogIdRef.current) {
           lastLogIdRef.current = latestId
           setStatus('live')
-          await load(true)
+          await load(true, true) // ✅ Silent refresh — koi flicker / reload nahi
         }
       } catch (e) {
         // ❌ Supabase se connect hi nahi ho raha (internet down)
@@ -290,7 +310,7 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
     <div className="min-h-screen bg-[#021b16] text-white">
       {/* ===== Top Navbar (solid + visible) ===== */}
       <header className="fixed top-0 left-0 right-0 z-40 pointer-events-none">
-        <div className="relative flex items-center px-3 sm:px-6 py-3 pointer-events-auto md:pointer-events-none bg-[#021b16] md:bg-transparent border-b border-white/10 md:border-b-0 shadow-[0_6px_24px_rgba(0,0,0,0.45)] md:shadow-none">
+        <div className="relative flex items-center px-3 sm:px-6 py-3 pointer-events-auto md:pointer-events-none bg-[#021b16] border-b border-white/10 md:border-b-0 shadow-[0_6px_24px_rgba(0,0,0,0.45)] md:shadow-none">
           {/* Left: Home button only */}
           <div className="flex-1 flex justify-start pointer-events-auto">
             <button
@@ -349,8 +369,10 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
                   key={t.key}
                   data-active={view === t.key}
                   onClick={() => setView(t.key)}
-                  className={`relative z-10 px-2.5 sm:px-5 py-2 rounded-full text-[11px] sm:text-sm font-bold tracking-wide transition-colors duration-300 whitespace-nowrap ${
-                    view === t.key ? 'text-white' : 'text-white/60 hover:text-emerald-200'
+                  className={`relative z-10 px-2.5 sm:px-5 py-2 rounded-full text-[11px] sm:text-sm font-bold tracking-wide transition-all duration-300 whitespace-nowrap ${
+                    view === t.key
+                      ? 'text-white drop-shadow-[0_0_6px_rgba(167,243,208,0.4)]'
+                      : 'text-white/60 hover:text-emerald-200 hover:drop-shadow-[0_0_4px_rgba(167,243,208,0.2)]'
                   }`}
                 >
                   {t.label}
@@ -739,11 +761,14 @@ function StatsView({ attendance, employees, baseValues, loading }: { attendance:
 
   return (
     <div>
-      <h1 className="text-center text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight leading-none">
-        <span className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Attendance </span>
-        <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Dashboard</span>
-      </h1>
-      <p className="mt-3 text-center text-[13px] font-bold tracking-wide text-emerald-400/70 sm:text-sm sm:font-normal sm:tracking-normal sm:text-white/45">Live monitoring — {showDate}</p>
+      {/* ✅ Sticky heading block — scroll par cards is ke PEECHE se guzarti hain */}
+      <div className="sticky top-[60px] sm:top-[64px] z-30 -mx-4 sm:-mx-6 -mt-8 px-4 sm:px-6 pt-6 sm:pt-8 pb-4 bg-[#021b16]">
+        <h1 className="text-center text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight leading-none">
+          <span className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Attendance </span>
+          <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Dashboard</span>
+        </h1>
+        <p className="mt-2 sm:mt-3 text-center text-[13px] font-bold tracking-wide text-emerald-400/70 sm:text-sm sm:font-normal sm:tracking-normal sm:text-white/45">Live monitoring — {showDate}</p>
+      </div>
 
       <div className="mt-8 sm:mt-10 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-5">
         {cards.map(c => (
@@ -759,111 +784,113 @@ function StatsView({ attendance, employees, baseValues, loading }: { attendance:
         ))}
       </div>
 
-      {/* ===== Designation Wise Statistics Table ===== */}
-      <div className="mt-10 mb-6">
-        <h2 className="text-center sm:text-left text-lg sm:text-xl font-extrabold tracking-wide bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-          Designation Wise
-        </h2>
+      {/* ===== Designation + Category Wise — large screens par ek line mein ===== */}
+      <div className="mt-10 mb-6 grid grid-cols-1 min-[1400px]:grid-cols-2 gap-8 items-stretch">
+        <div className="flex flex-col">
+          <h2 className="text-center text-lg sm:text-xl font-extrabold tracking-wide bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
+            Designation Wise
+          </h2>
 
-        <div className="mt-4 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden rounded-[24px] border border-emerald-400/25 bg-linear-to-b from-[#073b2d] to-[#021d17] shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
-          <table className="w-full min-w-[360px] sm:min-w-[860px] text-left text-[10px] sm:text-sm [&_td]:px-2.5 sm:[&_td]:px-4 [&_td]:py-2.5 sm:[&_td]:py-3 [&_th]:px-2.5 sm:[&_th]:px-4 [&_th]:py-2.5 sm:[&_th]:py-3">
-            <thead>
-              <tr className="border-b border-white/10 bg-white/5">
-                <th className="px-4 py-3 font-bold tracking-widest text-white/70">DESIGNATION</th>
-                <th className="px-4 py-3 font-bold tracking-widest text-white/70">TOTAL</th>
-                <th className="px-4 py-3 font-bold tracking-widest text-white/70">HIRED</th>
-                <th className="px-4 py-3 font-bold tracking-widest text-white/70">CHECKIN</th>
-                <th className="px-4 py-3 font-bold tracking-widest text-white/70">CHECKOUT</th>
-                <th className="px-4 py-3 font-bold tracking-widest text-white/70">PRESENT</th>
-                <th className="px-4 py-3 font-bold tracking-widest text-white/70">ABSENT</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-white/50">Loading statistics…</td>
+          <div className="mt-4 flex-1 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden rounded-[24px] border border-emerald-400/25 bg-linear-to-b from-[#073b2d] to-[#021d17] shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
+            <table className="h-full w-full min-w-[360px] sm:min-w-[640px] text-left text-[10px] sm:text-sm [&_td]:px-2.5 sm:[&_td]:px-4 [&_td]:py-2.5 sm:[&_td]:py-3 [&_th]:px-2.5 sm:[&_th]:px-4 [&_th]:py-2.5 sm:[&_th]:py-3">
+              <thead>
+                <tr className="border-b border-white/10 bg-white/5">
+                  <th className="px-4 py-3 font-bold tracking-widest text-white/70">DESIGNATION</th>
+                  <th className="px-4 py-3 font-bold tracking-widest text-white/70">TOTAL</th>
+                  <th className="px-4 py-3 font-bold tracking-widest text-white/70">HIRED</th>
+                  <th className="px-4 py-3 font-bold tracking-widest text-white/70">CHECKIN</th>
+                  <th className="px-4 py-3 font-bold tracking-widest text-white/70">CHECKOUT</th>
+                  <th className="px-4 py-3 font-bold tracking-widest text-white/70">PRESENT</th>
+                  <th className="px-4 py-3 font-bold tracking-widest text-white/70">ABSENT</th>
                 </tr>
-              ) : (
-                <>
-                  {/* Total row (Excel ki tarah sab se upar) */}
-                  <tr className="border-b border-white/10 bg-emerald-500/10">
-                    <td className="px-4 py-3 font-extrabold text-white">Total HR</td>
-                    <td className="px-4 py-3 font-extrabold text-emerald-300">{totals.total.toLocaleString()}</td>
-                    <td className="px-4 py-3 font-extrabold text-emerald-300">{totals.hired.toLocaleString()}</td>
-                    <td className="px-4 py-3 font-extrabold text-emerald-300">{totals.checkin.toLocaleString()}</td>
-                    <td className="px-4 py-3 font-extrabold text-sky-300">{totals.checkout.toLocaleString()}</td>
-                    <td className="px-4 py-3 font-extrabold text-emerald-300">{totals.present.toLocaleString()}</td>
-                    <td className="px-4 py-3 font-extrabold text-red-300">{totals.absent.toLocaleString()}</td>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-10 text-center text-white/50">Loading statistics…</td>
                   </tr>
-                  {desigList.map(g => (
-                    <tr key={g.desig} className="border-b border-white/5 last:border-0 transition-colors hover:bg-white/5">
-                      <td className="px-4 py-3 font-semibold text-white/90">{g.desig}</td>
-                      <td className="px-4 py-3 text-white/70">{g.total.toLocaleString()}</td>
-                      <td className="px-4 py-3 text-white/70">{g.hired.toLocaleString()}</td>
-                      <td className="px-4 py-3 font-semibold text-emerald-300">{g.checkin.toLocaleString()}</td>
-                      <td className="px-4 py-3 font-semibold text-sky-300">{g.checkout.toLocaleString()}</td>
-                      <td className="px-4 py-3 font-semibold text-emerald-300">{g.present.toLocaleString()}</td>
-                      <td className="px-4 py-3 font-semibold text-red-300">{g.absent.toLocaleString()}</td>
+                ) : (
+                  <>
+                    {/* Total row (Excel ki tarah sab se upar) */}
+                    <tr className="border-b border-white/10 bg-emerald-500/10">
+                      <td className="px-4 py-3 font-extrabold text-white">Total HR</td>
+                      <td className="px-4 py-3 font-extrabold text-emerald-300">{totals.total.toLocaleString()}</td>
+                      <td className="px-4 py-3 font-extrabold text-emerald-300">{totals.hired.toLocaleString()}</td>
+                      <td className="px-4 py-3 font-extrabold text-emerald-300">{totals.checkin.toLocaleString()}</td>
+                      <td className="px-4 py-3 font-extrabold text-sky-300">{totals.checkout.toLocaleString()}</td>
+                      <td className="px-4 py-3 font-extrabold text-emerald-300">{totals.present.toLocaleString()}</td>
+                      <td className="px-4 py-3 font-extrabold text-red-300">{totals.absent.toLocaleString()}</td>
                     </tr>
-                  ))}
-                </>
-              )}
-            </tbody>
-          </table>
+                    {desigList.map(g => (
+                      <tr key={g.desig} className="border-b border-white/5 last:border-0 transition-colors hover:bg-white/5">
+                        <td className="px-4 py-3 font-semibold text-white/90">{g.desig}</td>
+                        <td className="px-4 py-3 text-white/70">{g.total.toLocaleString()}</td>
+                        <td className="px-4 py-3 text-white/70">{g.hired.toLocaleString()}</td>
+                        <td className="px-4 py-3 font-semibold text-emerald-300">{g.checkin.toLocaleString()}</td>
+                        <td className="px-4 py-3 font-semibold text-sky-300">{g.checkout.toLocaleString()}</td>
+                        <td className="px-4 py-3 font-semibold text-emerald-300">{g.present.toLocaleString()}</td>
+                        <td className="px-4 py-3 font-semibold text-red-300">{g.absent.toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
 
-      {/* ===== Category Wise Statistics Table ===== */}
-      <div className="mt-10 mb-6">
-        <h2 className="text-center sm:text-left text-lg sm:text-xl font-extrabold tracking-wide bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-          Category Wise
-        </h2>
+        {/* ===== Category Wise Statistics Table ===== */}
+        <div className="flex flex-col">
+          <h2 className="text-center text-lg sm:text-xl font-extrabold tracking-wide bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
+            Category Wise
+          </h2>
 
-        <div className="mt-4 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden rounded-[24px] border border-emerald-400/25 bg-linear-to-b from-[#073b2d] to-[#021d17] shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
-          <table className="w-full min-w-[360px] sm:min-w-[860px] text-left text-[10px] sm:text-sm [&_td]:px-2.5 sm:[&_td]:px-4 [&_td]:py-2.5 sm:[&_td]:py-3 [&_th]:px-2.5 sm:[&_th]:px-4 [&_th]:py-2.5 sm:[&_th]:py-3">
-            <thead>
-              <tr className="border-b border-white/10 bg-white/5">
-                <th className="px-4 py-3 font-bold tracking-widest text-white/70">CATEGORY</th>
-                <th className="px-4 py-3 font-bold tracking-widest text-white/70">TOTAL</th>
-                <th className="px-4 py-3 font-bold tracking-widest text-white/70">HIRED</th>
-                <th className="px-4 py-3 font-bold tracking-widest text-white/70">CHECKIN</th>
-                <th className="px-4 py-3 font-bold tracking-widest text-white/70">CHECKOUT</th>
-                <th className="px-4 py-3 font-bold tracking-widest text-white/70">PRESENT</th>
-                <th className="px-4 py-3 font-bold tracking-widest text-white/70">ABSENT</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-white/50">Loading statistics…</td>
+          <div className="mt-4 flex-1 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden rounded-[24px] border border-emerald-400/25 bg-linear-to-b from-[#073b2d] to-[#021d17] shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
+            <table className="h-full w-full min-w-[360px] sm:min-w-[640px] text-left text-[10px] sm:text-sm [&_td]:px-2.5 sm:[&_td]:px-4 [&_td]:py-2.5 sm:[&_td]:py-3 [&_th]:px-2.5 sm:[&_th]:px-4 [&_th]:py-2.5 sm:[&_th]:py-3">
+              <thead>
+                <tr className="border-b border-white/10 bg-white/5">
+                  <th className="px-4 py-3 font-bold tracking-widest text-white/70">CATEGORY</th>
+                  <th className="px-4 py-3 font-bold tracking-widest text-white/70">TOTAL</th>
+                  <th className="px-4 py-3 font-bold tracking-widest text-white/70">HIRED</th>
+                  <th className="px-4 py-3 font-bold tracking-widest text-white/70">CHECKIN</th>
+                  <th className="px-4 py-3 font-bold tracking-widest text-white/70">CHECKOUT</th>
+                  <th className="px-4 py-3 font-bold tracking-widest text-white/70">PRESENT</th>
+                  <th className="px-4 py-3 font-bold tracking-widest text-white/70">ABSENT</th>
                 </tr>
-              ) : (
-                <>
-                  {/* Total row */}
-                  <tr className="border-b border-white/10 bg-emerald-500/10">
-                    <td className="px-4 py-3 font-extrabold text-white">Total HR</td>
-                    <td className="px-4 py-3 font-extrabold text-emerald-300">{catTotals.total.toLocaleString()}</td>
-                    <td className="px-4 py-3 font-extrabold text-emerald-300">{catTotals.hired.toLocaleString()}</td>
-                    <td className="px-4 py-3 font-extrabold text-emerald-300">{catTotals.checkin.toLocaleString()}</td>
-                    <td className="px-4 py-3 font-extrabold text-sky-300">{catTotals.checkout.toLocaleString()}</td>
-                    <td className="px-4 py-3 font-extrabold text-emerald-300">{catTotals.present.toLocaleString()}</td>
-                    <td className="px-4 py-3 font-extrabold text-red-300">{catTotals.absent.toLocaleString()}</td>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={7} className="px-4 py-10 text-center text-white/50">Loading statistics…</td>
                   </tr>
-                  {catList.map(g => (
-                    <tr key={g.cat} className="border-b border-white/5 last:border-0 transition-colors hover:bg-white/5">
-                      <td className="px-4 py-3 font-semibold text-white/90">{g.cat}</td>
-                      <td className="px-4 py-3 text-white/70">{g.total.toLocaleString()}</td>
-                      <td className="px-4 py-3 text-white/70">{g.hired.toLocaleString()}</td>
-                      <td className="px-4 py-3 font-semibold text-emerald-300">{g.checkin.toLocaleString()}</td>
-                      <td className="px-4 py-3 font-semibold text-sky-300">{g.checkout.toLocaleString()}</td>
-                      <td className="px-4 py-3 font-semibold text-emerald-300">{g.present.toLocaleString()}</td>
-                      <td className="px-4 py-3 font-semibold text-red-300">{g.absent.toLocaleString()}</td>
+                ) : (
+                  <>
+                    {/* Total row */}
+                    <tr className="border-b border-white/10 bg-emerald-500/10">
+                      <td className="px-4 py-3 font-extrabold text-white">Total HR</td>
+                      <td className="px-4 py-3 font-extrabold text-emerald-300">{catTotals.total.toLocaleString()}</td>
+                      <td className="px-4 py-3 font-extrabold text-emerald-300">{catTotals.hired.toLocaleString()}</td>
+                      <td className="px-4 py-3 font-extrabold text-emerald-300">{catTotals.checkin.toLocaleString()}</td>
+                      <td className="px-4 py-3 font-extrabold text-sky-300">{catTotals.checkout.toLocaleString()}</td>
+                      <td className="px-4 py-3 font-extrabold text-emerald-300">{catTotals.present.toLocaleString()}</td>
+                      <td className="px-4 py-3 font-extrabold text-red-300">{catTotals.absent.toLocaleString()}</td>
                     </tr>
-                  ))}
-                </>
-              )}
-            </tbody>
-          </table>
+                    {catList.map(g => (
+                      <tr key={g.cat} className="border-b border-white/5 last:border-0 transition-colors hover:bg-white/5">
+                        <td className="px-4 py-3 font-semibold text-white/90">{g.cat}</td>
+                        <td className="px-4 py-3 text-white/70">{g.total.toLocaleString()}</td>
+                        <td className="px-4 py-3 text-white/70">{g.hired.toLocaleString()}</td>
+                        <td className="px-4 py-3 font-semibold text-emerald-300">{g.checkin.toLocaleString()}</td>
+                        <td className="px-4 py-3 font-semibold text-sky-300">{g.checkout.toLocaleString()}</td>
+                        <td className="px-4 py-3 font-semibold text-emerald-300">{g.present.toLocaleString()}</td>
+                        <td className="px-4 py-3 font-semibold text-red-300">{g.absent.toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

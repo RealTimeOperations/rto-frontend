@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import DashboardAttendance from './supervisorsattendance/DashboardAttendance'
 
 type ModuleKey = 'attendance' | 'vehicles' | 'containers'
 
@@ -143,6 +144,12 @@ export default function SupervisorModule({ module }: { module: ModuleKey }) {
     )
   }
 
+  // ✅ Attendance module — render DashboardAttendance
+  if (module === 'attendance') {
+    return <DashboardAttendance />
+  }
+
+  // ✅ Baqi modules (vehicles, containers) — placeholder
   return (
     <div className="min-h-screen bg-[#021b16] text-white flex flex-col">
       {/* Top bar: Back + Logout */}

@@ -18,6 +18,7 @@ import AttendanceTransition from './templates/animations/AttendanceTransition'
 import ContainersTransition from './templates/animations/ContainersTransition'
 import VehiclesTransition from './templates/animations/VehiclesTransition'
 import HomeTransition from './templates/animations/HomeTransition'
+import DashboardAttendance from './templates/SupervisorsMonitoring/supervisorsattendance/DashboardAttendance'
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null)
@@ -271,7 +272,8 @@ export default function App() {
         <Route path="/supervisors/vehicles" element={isLoggedIn && role === 'supervisor' ? <SupervisorModule module="vehicles" /> : <Navigate to={isLoggedIn ? '/home' : '/login'} replace />} />
         <Route path="/supervisors/containers" element={isLoggedIn && role === 'supervisor' ? <SupervisorModule module="containers" /> : <Navigate to={isLoggedIn ? '/home' : '/login'} replace />} />
         <Route path="/admin" element={isAdmin ? <Admin /> : <Navigate to="/login" replace />} />
-          <Route path="*" element={<Navigate to={isLoggedIn ? '/home' : '/login'} replace />} />
+        <Route path="*" element={<Navigate to={isLoggedIn ? '/home' : '/login'} replace />} />
+        <Route path="/supervisors/attendance" element={<SupervisorModule module="attendance" />} />
         </Routes>
 
         {welcome && (

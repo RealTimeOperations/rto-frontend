@@ -5,6 +5,8 @@ import { supabase } from '../../lib/supabase'
 export default function SupervisorsHomepage() {
   const navigate = useNavigate()
   const [username, setUsername] = useState('')
+  const [cnic, setCnic] = useState('')
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [permissions, setPermissions] = useState<{ attendance: boolean; vehicles: boolean; containers: boolean }>({ attendance: true, vehicles: true, containers: true })
 
@@ -40,9 +42,10 @@ export default function SupervisorsHomepage() {
       setUsername(name)
       const { data: prof } = await supabase
         .from('profiles')
-        .select('can_attendance, can_vehicles, can_containers')
+        .select('can_attendance, can_vehicles, can_containers, cnic')
         .eq('id', userId)
         .maybeSingle()
+      if (prof?.cnic && alive) setCnic(String(prof.cnic))
       if (prof) {
         setPermissions({
           attendance: Boolean(prof.can_attendance),
@@ -182,48 +185,91 @@ export default function SupervisorsHomepage() {
             </svg>
             <span className="text-xs sm:text-sm font-bold tracking-wide text-emerald-200">Supervisor Portal</span>
           </div>
-          <button
-            onClick={handleLogout}
-            className="pointer-events-auto rto-run-border relative flex items-center gap-2 rounded-full border border-transparent bg-[#071b15]/80 px-4 py-2.5 text-xs sm:text-sm font-semibold text-red-300 transition-all duration-300 hover:bg-red-500/15 hover:shadow-[0_0_25px_rgba(239,68,68,0.25)]"
-          >
-            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-              <polyline points="16 17 21 12 16 7" />
-              <line x1="21" y1="12" x2="9" y2="12" />
-            </svg>
-            Logout
-          </button>
+          <div className="pointer-events-auto flex items-center gap-2">
+            {/* Logout — user icon se PEHLE; mobile par sirf icon */}
+            <button
+              onClick={handleLogout}
+              aria-label="Logout"
+              className="rto-run-border relative flex items-center gap-2 rounded-full border border-transparent bg-[#071b15]/80 px-3 sm:px-4 py-2.5 text-xs sm:text-sm font-semibold text-red-300 transition-all duration-300 hover:bg-red-500/15 hover:shadow-[0_0_25px_rgba(239,68,68,0.25)]"
+            >
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+              <span className="hidden sm:inline">Logout</span>
+            </button>
+
+            {/* User icon — top right, info dropdown (name + CNIC) */}
+            <div className="relative">
+              <button
+                onClick={() => setUserMenuOpen(v => !v)}
+                aria-label="Account info"
+                className="rto-run-border relative flex items-center justify-center rounded-full border border-transparent bg-[#071b15]/80 p-2.5 text-emerald-200 transition-all duration-300 hover:bg-emerald-500/15"
+              >
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
+                </svg>
+              </button>
+
+              {userMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-30" onClick={() => setUserMenuOpen(false)} />
+                  <div className="fixed right-3 top-16 z-40 w-64 rounded-2xl border border-white/10 bg-[#071b15] shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden">
+                    <div className="px-4 py-2.5 border-b border-white/10 text-xs font-bold tracking-widest text-white/70">ACCOUNT INFO</div>
+                    <div className="p-4 space-y-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-emerald-400/40 bg-emerald-500/15 text-emerald-300">
+                          <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                            <circle cx="12" cy="7" r="4" />
+                          </svg>
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-[10px] font-bold tracking-widest text-white/50">LOGGED IN AS</div>
+                          <div className="text-sm font-bold text-emerald-200 font-mono truncate">@{username}</div>
+                        </div>
+                      </div>
+                      <div className="rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+                        <div className="text-[10px] font-bold tracking-widest text-white/50">CNIC</div>
+                        <div className="text-xs font-bold text-white/85 font-mono mt-0.5">{cnic || '—'}</div>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
         </div>
       </header>
 
-      {/* Welcome heading */}
-      <h1 className="mt-24 text-center text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight leading-none">
-        <span className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-          Welcome to{' '}
-        </span>
-        <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-          Supervisors Homepage
-        </span>
-      </h1>
-
-      {/* Logged-in user badge */}
-      <div className="mt-6 flex items-center gap-3 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-6 py-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-full border border-emerald-400/40 bg-emerald-500/15 text-emerald-300">
-          <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-            <circle cx="12" cy="7" r="4" />
-          </svg>
-        </div>
-        <div className="text-left">
-          <div className="text-[10px] font-bold tracking-widest text-white/50">LOGGED IN AS</div>
-          <div className="text-sm sm:text-base font-bold text-emerald-200 font-mono">@{username}</div>
-        </div>
+      {/* ===== Brand heading: RTO icon + title, neeche welcome line ===== */}
+      <div className="mt-24 flex flex-col items-center gap-3 sm:gap-4">
+        {/* ✅ Icon — heading ke UPAR (center) */}
+        <img
+          src="/logos/loginform-logo.png"
+          alt="Real Time Operations"
+          className="h-12 w-12 sm:h-16 sm:w-16 object-contain drop-shadow-[0_0_18px_rgba(16,185,129,0.35)]"
+        />
+        {/* ✅ "Real Time" silver + "Operations" green (project style) */}
+        <h1 className="text-center text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight leading-none">
+          <span className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
+            Real Time{' '}
+          </span>
+          <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
+            Operations
+          </span>
+        </h1>
+        <h2 className="text-sm sm:text-lg md:text-xl font-bold tracking-wide leading-none">
+          <span className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
+            Welcome to Supervisors Portal
+          </span>
+        </h2>
       </div>
 
-      <p className="mt-4 text-xs sm:text-sm text-white/45">Select a monitoring module to continue</p>
-
       {/* ===== Module cards ===== */}
-      <div className="mt-8 w-full max-w-5xl">
+      <div className="mt-10 w-full max-w-5xl">
         {modules.length === 0 ? (
           <div className="rounded-[26px] border border-red-400/30 bg-red-500/10 p-10 text-center">
             <div className="inline-flex h-14 w-14 items-center justify-center rounded-full border border-red-400/40 bg-red-500/15 text-red-300 mb-4">

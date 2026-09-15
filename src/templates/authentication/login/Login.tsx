@@ -302,7 +302,7 @@ export default function Login({ kickReason, onKicked, onLoginStart, onLoginSucce
             <img
               src="/logos/zakwan-logo.png"
               alt="Zakwan Builders & Developers"
-              className="h-12 sm:h-20 md:h-24 lg:h-28 xl:h-32 w-auto object-contain drop-shadow-[0_5px_12px_rgba(0,0,0,0.45)] animate-[logo-zoom_4s_ease-in-out_infinite]"
+              className="h-16 sm:h-20 md:h-24 lg:h-28 xl:h-32 w-auto object-contain drop-shadow-[0_5px_12px_rgba(0,0,0,0.45)] animate-[logo-zoom_4s_ease-in-out_infinite]"
             />
             <div className="hidden md:block h-12 w-px bg-[linear-gradient(180deg,#059669,#7acba4,#059669)] bg-[length:100%_200%] animate-[text-run-vertical_2.5s_linear_infinite]" />
           </div>
@@ -331,15 +331,15 @@ export default function Login({ kickReason, onKicked, onLoginStart, onLoginSucce
             <img
               src="/logos/suthra-logo.png"
               alt="Suthra Punjab Authority"
-              className="h-14 sm:h-24 md:h-32 lg:h-36 xl:h-40 w-auto object-contain drop-shadow-[0_5px_12px_rgba(0,0,0,0.45)] animate-[logo-zoom_4s_ease-in-out_infinite]"
+              className="h-20 sm:h-24 md:h-32 lg:h-36 xl:h-40 w-auto object-contain drop-shadow-[0_5px_12px_rgba(0,0,0,0.45)] animate-[logo-zoom_4s_ease-in-out_infinite]"
             />
           </div>
         </header>
 
         {/* Main */}
-        <main className="flex-1 lg:min-h-0 flex flex-col lg:flex-row items-center lg:items-stretch justify-center lg:justify-start gap-3 lg:gap-8 pt-1 lg:pt-4 pb-2 lg:pb-0 overflow-visible lg:overflow-hidden login-main">
+        <main className="flex-1 lg:min-h-0 flex flex-col lg:flex-row items-center lg:items-stretch justify-start lg:justify-start gap-3 lg:gap-4 xl:gap-8 pt-2 lg:pt-4 pb-2 lg:pb-0 overflow-visible lg:overflow-hidden login-main">
           {/* Left hero — mobile par hide */}
-          <section className="hidden lg:flex flex-1 min-h-0 w-full flex-col lg:pl-6 xl:pl-10 login-left">
+          <section className="hidden lg:flex flex-1 min-w-0 min-h-0 flex-col lg:pl-2 xl:pl-10 login-left">
             <h1 className="text-3xl sm:text-4xl xl:text-5xl font-extrabold leading-tight">
               <span className="bg-[linear-gradient(180deg,#64748b,#94a3b8,#cbd5e1,#94a3b8,#64748b)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">REAL TIME</span>
               <br />
@@ -353,34 +353,34 @@ export default function Login({ kickReason, onKicked, onLoginStart, onLoginSucce
               </span>
             </p>
             {/* Feature cards — design match */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-8 max-w-4xl login-features">
+            <div className="grid grid-cols-3 gap-2 xl:gap-4 mt-6 xl:mt-8 w-full max-w-4xl login-features">
               {features.map(f => (
                 <div
                   key={f.title1}
-                  className="relative overflow-hidden rounded-2xl border border-emerald-400/15 bg-linear-to-br from-[#0c2b23] to-[#081f19] p-4 shadow-[0_10px_30px_rgba(0,0,0,0.35)]"
+                  className="relative overflow-hidden rounded-2xl border border-emerald-400/15 bg-linear-to-br from-[#0c2b23] to-[#081f19] p-2.5 xl:p-4 shadow-[0_10px_30px_rgba(0,0,0,0.35)]"
                 >
                   {/* Dot grid top-right — running colors */}
-                  <div className="absolute top-4 right-4 h-[34px] w-[34px] opacity-60 bg-[linear-gradient(135deg,#059669_0%,#059669_40%,#ffffff_50%,#059669_60%,#059669_100%)] bg-[length:300%_300%] animate-[text-run-diagonal_2.5s_linear_infinite] [mask-image:radial-gradient(circle,#000_2px,transparent_2px)] [mask-size:10px_10px]" />
+                  <div className="absolute top-2 right-2 h-6 w-6 xl:top-4 xl:right-4 xl:h-[34px] xl:w-[34px] opacity-60 bg-[linear-gradient(135deg,#059669_0%,#059669_40%,#ffffff_50%,#059669_60%,#059669_100%)] bg-[length:300%_300%] animate-[text-run-diagonal_2.5s_linear_infinite] [mask-image:radial-gradient(circle,#000_2px,transparent_2px)] [mask-size:10px_10px]" />
                   {/* Faint arc */}
                   <div className="absolute -right-10 top-10 h-40 w-40 rounded-full border border-emerald-400/10" />
                   {/* Hexagon + title side by side */}
                   <div className="flex items-center">
-                    <div className="relative h-14 w-14 shrink-0">
+                    <div className="relative h-10 w-10 xl:h-14 xl:w-14 shrink-0">
                       <svg className="absolute inset-0 h-full w-full text-emerald-400/30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="0.6">
                         <path d="M12 1.5l9 5.25v10.5L12 22.5l-9-5.25V6.75z" />
                       </svg>
                       <svg className="absolute inset-1 h-[calc(100%-8px)] w-[calc(100%-8px)] text-emerald-400 drop-shadow-[0_0_6px_rgba(16,185,129,0.8)]" viewBox="0 0 24 24" fill="rgba(0,0,0,0.45)" stroke="currentColor" strokeWidth="0.8">
                         <path d="M12 1.5l9 5.25v10.5L12 22.5l-9-5.25V6.75z" />
                       </svg>
-                      <svg className="absolute inset-0 m-auto h-5 w-5 text-emerald-400" viewBox="0 0 24 24" fill="currentColor">
+                      <svg className="absolute inset-0 m-auto h-4 w-4 xl:h-5 xl:w-5 text-emerald-400" viewBox="0 0 24 24" fill="currentColor">
                         {f.icon}
                       </svg>
                     </div>
-                    <div className="ml-0.5 h-px w-6 bg-emerald-400/60" />
-                    <span className="mr-2 h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.9)]" />
-                    <div>
-                      <div className="text-sm font-extrabold tracking-wide leading-snug bg-linear-to-b from-white via-slate-200 to-slate-500 bg-clip-text text-transparent">{f.title1}</div>
-                      <div className="text-sm font-extrabold tracking-wide leading-snug bg-linear-to-b from-emerald-200 via-emerald-400 to-emerald-700 bg-clip-text text-transparent">MONITORING</div>
+                    <div className="ml-0.5 h-px w-3 xl:w-6 bg-emerald-400/60" />
+                    <span className="mr-1.5 xl:mr-2 h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.9)]" />
+                    <div className="min-w-0">
+                      <div className="text-[10px] xl:text-sm font-extrabold tracking-wide leading-snug bg-linear-to-b from-white via-slate-200 to-slate-500 bg-clip-text text-transparent">{f.title1}</div>
+                      <div className="text-[10px] xl:text-sm font-extrabold tracking-wide leading-snug bg-linear-to-b from-emerald-200 via-emerald-400 to-emerald-700 bg-clip-text text-transparent">MONITORING</div>
                     </div>
                   </div>
 
@@ -394,7 +394,7 @@ export default function Login({ kickReason, onKicked, onLoginStart, onLoginSucce
             </div>
 
             {/* Animation container — running border, bottom form ke sath aligned */}
-            <div className="relative w-full max-w-4xl mt-4 flex-1 min-h-0 max-h-[200px] rounded-[26px] overflow-hidden shadow-[0_0_18px_rgba(16,185,129,0.18)] login-animation">
+            <div className="relative w-full max-w-4xl mt-3 xl:mt-4 flex-1 min-h-0 max-h-[140px] xl:max-h-[200px] rounded-[26px] overflow-hidden shadow-[0_0_18px_rgba(16,185,129,0.18)] login-animation">
               <div className="absolute left-[calc(50%-600px)] top-[calc(50%-600px)] h-[1200px] w-[1200px] animate-[border-spin_8s_linear_infinite] bg-[conic-gradient(from_0deg,#059669,#34d399,#7acba4,#34d399,#059669)] opacity-60" />  
               <div className="absolute inset-0.5 rounded-3xl bg-[#071b15]" />
               <div className="absolute inset-0.5 rounded-3xl overflow-hidden">
@@ -404,7 +404,7 @@ export default function Login({ kickReason, onKicked, onLoginStart, onLoginSucce
           </section>
 
           {/* Mobile: heading + form | Desktop: sirf form */}
-          <section className="w-full max-w-sm shrink-0 lg:flex lg:flex-col lg:justify-start lg:-translate-x-25">
+          <section className="w-full max-w-sm shrink-0 lg:max-w-[340px] xl:max-w-sm lg:flex lg:flex-col lg:justify-start 2xl:-translate-x-25">
             {/* Mobile heading — desktop par hide */}
             <div className="lg:hidden flex flex-col items-center justify-center mb-3">
               {/* ✅ Circle icon with running border (login form ke top wala icon) */}
