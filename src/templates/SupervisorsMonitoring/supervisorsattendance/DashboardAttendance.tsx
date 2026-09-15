@@ -52,6 +52,68 @@ export default function DashboardAttendance() {
   const navRef = useRef<HTMLDivElement>(null)
   const [slider, setSlider] = useState({ left: 0, width: 0 })
 
+  // ✅ Last sync + server status + notifications (same as employee side)
+  const [lastSync, setLastSync] = useState<Date | null>(null)
+  const [serverStatus, setServerStatus] = useState<'live' | 'error'>(() => {
+    try { return localStorage.getItem('rto_server_status') === 'error' ? 'error' : 'live' } catch { return 'live' }
+  })
+  const statusRef = useRef<'live' | 'error'>(serverStatus)
+  const [notifications, setNotifications] = useState<{ id: number; type: 'success' | 'error'; message: string; time: string; unread?: boolean }[]>(() => {
+    try {
+      const saved = localStorage.getItem('rto_latest_notification')
+      if (saved) {
+        const item = JSON.parse(saved)
+        if (item && item.message) return [item]
+      }
+    } catch {}
+    return []
+  })
+  const [unread, setUnread] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('rto_latest_notification')
+      if (saved) return JSON.parse(saved)?.unread ? 1 : 0
+    } catch {}
+    return 0
+  })
+  const [popup, setPopup] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+  const [notifOpen, setNotifOpen] = useState(false)
+  const popupTimer = useRef<number | null>(null)
+  const notifId = useRef(0)
+  const lastLogIdRef = useRef<string | null>(null)
+  const lastErrMsgRef = useRef<string>('')
+
+  function pushNotification(type: 'success' | 'error', message: string) {
+    notifId.current += 1
+    const item = {
+      id: notifId.current,
+      type,
+      message,
+      time: new Date().toLocaleString('en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }),
+    }
+    const savedItem = { ...item, unread: true }
+    setNotifications([savedItem])
+    setUnread(1)
+    try { localStorage.setItem('rto_latest_notification', JSON.stringify(savedItem)) } catch {}
+    setPopup({ type, message })
+    if (popupTimer.current) window.clearTimeout(popupTimer.current)
+    popupTimer.current = window.setTimeout(() => setPopup(null), 1000)
+  }
+
+  function setStatus(s: 'live' | 'error') {
+    if (statusRef.current === s) return
+    statusRef.current = s
+    setServerStatus(s)
+    try { localStorage.setItem('rto_server_status', s) } catch {}
+  }
+
+  function notifyError(msg: string) {
+    if (statusRef.current !== 'error' || lastErrMsgRef.current !== msg) {
+      pushNotification('error', msg)
+    }
+    lastErrMsgRef.current = msg
+    setStatus('error')
+  }
+
   const tabs: { key: View; label: string }[] = [
     { key: 'dashboard', label: 'Dashboard' },
     { key: 'workers', label: 'Total Workers' },
@@ -121,6 +183,15 @@ export default function DashboardAttendance() {
       const allLogs = await fetchWorkerAttendance(list.map(w => w.cnic).filter(Boolean))
       if (!alive) return
       setLogs(allLogs)
+      setLastSync(new Date())
+      // ✅ New data detection — notify on silent refresh
+      const latestId = allLogs.length > 0 ? String(allLogs[0]?.id ?? '') : null
+      if (lastLogIdRef.current === null) {
+        lastLogIdRef.current = latestId
+      } else if (latestId !== lastLogIdRef.current) {
+        lastLogIdRef.current = latestId
+        pushNotification('success', 'Data successfully fetched and updated')
+      }
       setLoading(false)
     }
 
@@ -134,6 +205,49 @@ export default function DashboardAttendance() {
       clearInterval(timer)
     }
   }, [])
+
+  // ✅ Heartbeat poll — server live/error status (same logic as employee side)
+  useEffect(() => {
+    const POLL_MS = 5_000
+    const HEARTBEAT_MAX_MS = 40_000
+    const HEARTBEAT_HARD_MS = 90_000
+    const ALIVE_STATUSES = ['running', 'fetching', 'syncing', 'loading']
+    const ERROR_STATUSES = ['error', 'portal_error', 'failed', 'stopped']
+    let alive = true
+    async function check() {
+      try {
+        const { data: hb, error: hbErr } = await supabase
+          .from('system_heartbeat')
+          .select('status, message, updated_at')
+          .eq('id', 1)
+          .maybeSingle()
+        if (hbErr) throw hbErr
+        const hbTime = hb?.updated_at ? new Date(hb.updated_at).getTime() : 0
+        const ageMs = hbTime ? Date.now() - hbTime : Infinity
+        const status = String(hb?.status ?? '').toLowerCase()
+        if (!alive) return
+        if (ERROR_STATUSES.includes(status)) {
+          notifyError(hb?.message || 'Error in Data Fetching (Portal issue)')
+        } else if (!hb || ageMs > HEARTBEAT_HARD_MS) {
+          notifyError('Error in data fetch')
+        } else if (ageMs > HEARTBEAT_MAX_MS && !ALIVE_STATUSES.includes(status)) {
+          notifyError('Error in data fetch')
+        } else if (statusRef.current === 'error') {
+          setStatus('live')
+          pushNotification('success', 'Fetching process start')
+        }
+      } catch {
+        if (alive) notifyError('Error in data fetch')
+      }
+    }
+    check()
+    const hbTimer = setInterval(check, POLL_MS)
+    return () => {
+      alive = false
+      clearInterval(hbTimer)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])    
 
   // ✅ Stats — sirf AAJ ke logs se (cards daily status dikhate hain)
   const todayStr = new Date().toLocaleDateString('en-CA') // local YYYY-MM-DD
@@ -159,7 +273,7 @@ export default function DashboardAttendance() {
     <div className="min-h-screen bg-[#021b16] text-white">
       {/* ===== Top Navbar (same design as Attendance Monitoring) ===== */}
       <header className="fixed top-0 left-0 right-0 z-40 pointer-events-none">
-        <div className="relative flex items-center px-3 sm:px-6 py-2 sm:py-3 pointer-events-auto md:pointer-events-none bg-[#021b16] md:bg-transparent border-b border-white/10 md:border-b-0 shadow-[0_6px_24px_rgba(0,0,0,0.45)] md:shadow-none">
+        <div className="relative flex items-center px-3 sm:px-6 py-2 sm:py-3 pointer-events-auto md:pointer-events-none bg-[#021b16] border-b border-white/10 md:border-b-0 shadow-[0_6px_24px_rgba(0,0,0,0.45)] md:shadow-none">
           {/* Left: Home (mobile par sirf icon) */}
           <div className="flex-1 flex justify-start pointer-events-auto">
             <button
@@ -225,8 +339,141 @@ export default function DashboardAttendance() {
             </nav>
           </div>
 
-          {/* Right: Hamburger (mobile only) */}
+          {/* Right: LIVE pills + bell + hamburger */}
           <div className="flex-1 flex justify-end items-center gap-2.5 pr-1 sm:pr-3 pointer-events-auto">
+            {/* ✅ Tablet (md–lg): compact LIVE pill */}
+            {lastSync && (
+              <div className="rto-run-border relative hidden md:flex lg:hidden items-center gap-1.5 rounded-full border border-transparent bg-[#071b15]/80 px-2.5 py-1.5">
+                {serverStatus === 'live' ? (
+                  <span className="relative flex h-2 w-2">
+                    <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60 animate-ping" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
+                  </span>
+                ) : (
+                  <span className="relative flex h-2 w-2">
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.9)] animate-pulse" />
+                  </span>
+                )}
+                <span className={`text-[8px] font-bold tracking-[0.14em] ${serverStatus === 'live' ? 'text-emerald-300' : 'text-red-300'}`}>
+                  {serverStatus === 'live' ? 'LIVE' : 'ERROR'}
+                </span>
+                <div className="h-2.5 w-px bg-white/15" />
+                <span className={`text-[9px] font-bold bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite] whitespace-nowrap ${
+                  serverStatus === 'live'
+                    ? 'bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)]'
+                    : 'bg-[linear-gradient(180deg,#ef4444,#f87171,#fca5a5,#f87171,#ef4444)]'
+                }`}>
+                  {lastSync.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
+                </span>
+              </div>
+            )}
+
+            {/* ✅ Desktop (lg+): full LIVE + LAST UPDATED pill */}
+            {lastSync && (
+              <div className="rto-run-border relative hidden lg:flex items-center gap-2 rounded-full border border-transparent bg-[#071b15]/80 px-4 py-2">
+                {serverStatus === 'live' ? (
+                  <span className="relative flex h-2.5 w-2.5" title="Server live — data fetching OK">
+                    <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60 animate-ping" />
+                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
+                  </span>
+                ) : (
+                  <span className="relative flex h-2.5 w-2.5" title="Server error — data fetching stopped">
+                    <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.9)] animate-pulse" />
+                  </span>
+                )}
+                <span className={`text-[9px] font-bold tracking-[0.18em] ${serverStatus === 'live' ? 'text-emerald-300' : 'text-red-300'}`}>
+                  {serverStatus === 'live' ? 'LIVE' : 'ERROR'}
+                </span>
+                <div className="h-3 w-px bg-white/15" />
+                <span className="text-[9px] font-bold tracking-[0.18em] text-white/45">LAST UPDATED</span>
+                <span className="text-[11px] font-bold bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite] whitespace-nowrap">
+                  {lastSync.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} — {lastSync.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
+                </span>
+              </div>
+            )}
+
+            {/* ✅ Notification bell */}
+            <div className="relative">
+              <button
+                onClick={() => {
+                  setNotifOpen(v => !v)
+                  setUnread(0)
+                  try {
+                    const saved = localStorage.getItem('rto_latest_notification')
+                    if (saved) {
+                      const item = JSON.parse(saved)
+                      item.unread = false
+                      localStorage.setItem('rto_latest_notification', JSON.stringify(item))
+                    }
+                  } catch {}
+                }}
+                aria-label="Notifications"
+                className="rto-run-border relative flex items-center justify-center rounded-full border border-transparent bg-[#071b15]/80 p-2 sm:p-2.5 text-white/70 hover:text-white transition"
+              >
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                </svg>
+                {unread > 0 && (
+                  <span className="absolute top-0.5 right-0.5 h-2 w-2 rounded-full bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.9)]" />
+                )}
+              </button>
+
+              {/* 1-second popup */}
+              {popup && (
+                <div className={`absolute right-0 top-full mt-2 z-50 px-3 py-2 rounded-xl border text-[11px] font-semibold shadow-[0_10px_30px_rgba(0,0,0,0.4)] whitespace-nowrap ${
+                  popup.type === 'success'
+                    ? 'bg-emerald-500/15 border-emerald-400/40 text-emerald-300'
+                    : 'bg-red-500/15 border-red-400/40 text-red-300'
+                }`}>
+                  {popup.type === 'success' ? '✓ ' : '⚠ '}{popup.message}
+                </div>
+              )}
+
+              {/* Notifications dropdown */}
+              {notifOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setNotifOpen(false)} />
+                  <div className="absolute right-0 top-full mt-2 z-50 w-72 rounded-2xl border border-white/10 bg-[#071b15] shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden">
+                    <div className="px-4 py-2.5 border-b border-white/10 text-xs font-bold tracking-widest text-white/70">NOTIFICATIONS</div>
+                    <div className="max-h-64 overflow-y-auto">
+                      {notifications.length === 0 ? (
+                        <div className="px-4 py-6 text-center text-xs text-white/40">No notifications yet</div>
+                      ) : (
+                        notifications.map(n => (
+                          <div key={n.id} className="px-4 py-2.5 flex items-start gap-2.5">
+                            <span className={`mt-0.5 text-xs font-bold ${n.type === 'success' ? 'text-emerald-300' : 'text-red-300'}`}>
+                              {n.type === 'success' ? '✓' : '⚠'}
+                            </span>
+                            <div>
+                              <div className="text-[11px] text-white/85">{n.message}</div>
+                              <div className={`mt-1.5 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 ${
+                                n.type === 'success'
+                                  ? 'border-emerald-400/30 bg-emerald-500/10'
+                                  : 'border-red-400/30 bg-red-500/10'
+                              }`}>
+                                <svg className={`h-3 w-3 ${n.type === 'success' ? 'text-emerald-300' : 'text-red-300'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <circle cx="12" cy="12" r="10" />
+                                  <polyline points="12 6 12 12 16 14" />
+                                </svg>
+                                <span className={`text-[10px] font-bold bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite] ${
+                                  n.type === 'success'
+                                    ? 'bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)]'
+                                    : 'bg-[linear-gradient(180deg,#ef4444,#f87171,#fca5a5,#f87171,#ef4444)]'
+                                }`}>
+                                  {n.time}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
             <button
               onClick={() => setMenuOpen(!menuOpen)}
               aria-label="Menu"
@@ -246,6 +493,33 @@ export default function DashboardAttendance() {
               )}
             </button>
           </div>
+
+          {/* ✅ Mobile: LIVE pill — header ke EXACT center mein */}
+          {lastSync && (
+            <div className="rto-run-border absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 md:hidden flex items-center gap-1.5 rounded-full border border-transparent bg-[#071b15]/80 px-2.5 py-1.5 pointer-events-none">
+              {serverStatus === 'live' ? (
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60 animate-ping" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
+                </span>
+              ) : (
+                <span className="relative flex h-2 w-2">
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.9)] animate-pulse" />
+                </span>
+              )}
+              <span className={`text-[8px] font-bold tracking-[0.14em] ${serverStatus === 'live' ? 'text-emerald-300' : 'text-red-300'}`}>
+                {serverStatus === 'live' ? 'LIVE' : 'ERROR'}
+              </span>
+              <div className="h-2.5 w-px bg-white/15" />
+              <span className={`text-[9px] font-bold bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite] whitespace-nowrap ${
+                serverStatus === 'live'
+                  ? 'bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)]'
+                  : 'bg-[linear-gradient(180deg,#ef4444,#f87171,#fca5a5,#f87171,#ef4444)]'
+              }`}>
+                {lastSync.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
+              </span>
+            </div>
+          )}
         </div>
       </header>
 
