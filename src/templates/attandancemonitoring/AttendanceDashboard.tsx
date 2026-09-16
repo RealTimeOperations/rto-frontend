@@ -27,7 +27,7 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
   }, [view])
   const [attendance, setAttendance] = useState<Row[]>([])
   const [employees, setEmployees] = useState<Row[]>([])
-  const [baseValues, setBaseValues] = useState<{ label: string; value: number; sort_order: number; type: string }[]>([])
+  const [baseValues, setBaseValues] = useState<{ label: string; value: number; sort_order: number; type: string; present_target?: number | null }[]>([])
   const [loading, setLoading] = useState(true)
   const navRef = useRef<HTMLDivElement>(null)
   const [slider, setSlider] = useState({ left: 0, width: 0 })
@@ -210,12 +210,12 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
       const [att, emp, bv] = await Promise.all([
         fetchAll('attendance_logs'),
         fetchAll('assigned_employees'),
-        supabase.from('base_values').select('label, value, sort_order, type').order('sort_order', { ascending: true }),
+        supabase.from('base_values').select('label, value, sort_order, type, present_target').order('sort_order', { ascending: true }),
       ])
       if (!aliveRef.current) return
       setAttendance(att.filter(r => !isStaff(r)))
       setEmployees(emp)
-      setBaseValues((bv.data ?? []) as { label: string; value: number; sort_order: number; type: string }[])
+      setBaseValues((bv.data ?? []) as { label: string; value: number; sort_order: number; type: string; present_target?: number | null }[])
       setLastSync(new Date())
       // ✅ Notification sirf jab naya data aaya ho — refresh/mount par nahi
       if (notify) pushNotification('success', 'Data successfully fetched and updated')
@@ -604,7 +604,7 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
 /* =========================================================
    DASHBOARD STATS VIEW (FIXED)
 ========================================================= */
-function StatsView({ attendance, employees, baseValues, loading }: { attendance: Row[]; employees: Row[]; baseValues: { label: string; value: number; sort_order: number; type: string }[]; loading: boolean }) {
+function StatsView({ attendance, employees, baseValues, loading }: { attendance: Row[]; employees: Row[]; baseValues: { label: string; value: number; sort_order: number; type: string; present_target?: number | null }[]; loading: boolean }) {
   const normCnic = (v: any) => String(v ?? '').replace(/-/g, '').trim().toLowerCase()
 
   // ✅ FIX 2: Employees ko bhi filter karein taake FMOs/Managers TOTAL HR mein count na hon
@@ -712,7 +712,7 @@ function StatsView({ attendance, employees, baseValues, loading }: { attendance:
   for (const e of validEmployees) {
     empCatByCnic.set(normCnic(e.cnic), String(e.work_type ?? '').trim().toLowerCase())
   }
-  const catList = categoryBVs.map((row: { label: string; value: number }) => {
+  const catList = categoryBVs.map((row: { label: string; value: number; present_target?: number | null }) => {
     const key = row.label.toLowerCase()
     const hired = validEmployees.filter((e: Row) => String(e.work_type ?? '').trim().toLowerCase() === key).length
     const checkinSet = new Set<string>()
@@ -729,7 +729,7 @@ function StatsView({ attendance, employees, baseValues, loading }: { attendance:
     // Present = check-in AND check-out both; Absent = never checked in
     const present = [...checkinSet].filter(k => checkoutSet.has(k)).length
     const absent = hired - checkinSet.size
-    return { cat: row.label, total: row.value, hired, checkin: checkinSet.size, checkout: checkoutSet.size, present, absent }
+    return { cat: row.label, total: row.value, hired, checkin: checkinSet.size, checkout: checkoutSet.size, present, absent, target: row.present_target ?? null }
   })
   const catTotals = catList.reduce(
     (acc: { total: number; hired: number; checkin: number; checkout: number; present: number; absent: number }, g: any) => ({
@@ -742,6 +742,9 @@ function StatsView({ attendance, employees, baseValues, loading }: { attendance:
     }),
     { total: 0, hired: 0, checkin: 0, checkout: 0, present: 0, absent: 0 }
   )
+
+  // ✅ Total present target (Category Wise Total HR row ke liye)
+  const totalPresentTarget = baseValues.find(b => b.type === 'total_present_target')?.value ?? null
 
   const showDate = latestDate
     ? new Date(latestDate + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
@@ -872,7 +875,7 @@ function StatsView({ attendance, employees, baseValues, loading }: { attendance:
                       <td className="px-4 py-3 font-extrabold text-emerald-300">{catTotals.hired.toLocaleString()}</td>
                       <td className="px-4 py-3 font-extrabold text-emerald-300">{catTotals.checkin.toLocaleString()}</td>
                       <td className="px-4 py-3 font-extrabold text-sky-300">{catTotals.checkout.toLocaleString()}</td>
-                      <td className="px-4 py-3 font-extrabold text-emerald-300">{catTotals.present.toLocaleString()}</td>
+                      <td className={`px-4 py-3 font-extrabold ${totalPresentTarget != null && catTotals.present < totalPresentTarget ? 'text-yellow-300' : 'text-emerald-300'}`}>{catTotals.present.toLocaleString()}</td>
                       <td className="px-4 py-3 font-extrabold text-red-300">{catTotals.absent.toLocaleString()}</td>
                     </tr>
                     {catList.map(g => (
@@ -882,10 +885,15 @@ function StatsView({ attendance, employees, baseValues, loading }: { attendance:
                         <td className="px-4 py-3 text-white/70">{g.hired.toLocaleString()}</td>
                         <td className="px-4 py-3 font-semibold text-emerald-300">{g.checkin.toLocaleString()}</td>
                         <td className="px-4 py-3 font-semibold text-sky-300">{g.checkout.toLocaleString()}</td>
-                        <td className="px-4 py-3 font-semibold text-emerald-300">{g.present.toLocaleString()}</td>
+                        <td
+                          className={`px-4 py-3 font-semibold ${g.target != null && g.present < g.target ? 'text-yellow-300' : 'text-emerald-300'}`}
+                          title={g.target != null ? `Present target: ${g.target.toLocaleString()}` : undefined}
+                        >
+                          {g.present.toLocaleString()}
+                        </td>
                         <td className="px-4 py-3 font-semibold text-red-300">{g.absent.toLocaleString()}</td>
                       </tr>
-                    ))}
+                    ))} 
                   </>
                 )}
               </tbody>

@@ -23,6 +23,9 @@ export default function Supervisors() {
   const [resetTarget, setResetTarget] = useState<Profile | null>(null)
   const [resetting, setResetting] = useState(false)
   const [search, setSearch] = useState('')
+  // ✅ Device binding toggle (Reset popup ke andar) — default ON
+  const [bindingOn, setBindingOn] = useState(true)
+  const [savingBinding, setSavingBinding] = useState(false)
 
   // Load only supervisor login accounts
   const load = useCallback(async () => {
@@ -60,6 +63,16 @@ export default function Supervisors() {
     await supabase.rpc('admin_reset_device', { p_id: resetTarget.id })
     setResetting(false)
     setResetTarget(null)
+    load()
+  }
+
+  // ✅ Device binding ON/OFF — foran save hota hai (default ON)
+  async function handleBindingToggle(enabled: boolean) {
+    if (!resetTarget) return
+    setSavingBinding(true)
+    setBindingOn(enabled)
+    await supabase.rpc('admin_set_device_binding', { p_id: resetTarget.id, p_enabled: enabled })
+    setSavingBinding(false)
     load()
   }
   return (
@@ -132,11 +145,14 @@ export default function Supervisors() {
                   <td className="px-4 py-3 text-white/80 text-xs font-mono">{u.cnic || <span className="text-white/30">—</span>}</td>
                   <td className="px-4 py-3 text-xs">
                     <div className="text-white/80">{u.bound_device_name || <span className="text-white/30">—</span>}</div>
-                    <div className="mt-1">
+                    <div className="mt-1 flex items-center gap-1 flex-wrap">
                       {u.bound_device_id ? (
                         <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-400/40 text-emerald-300 text-[9px] font-bold">BOUND</span>
                       ) : (
                         <span className="px-1.5 py-0.5 rounded-full bg-white/5 border border-white/15 text-white/40 text-[9px] font-bold">NOT BOUND</span>
+                      )}
+                      {(u as any).device_binding_enabled === false && (
+                        <span className="px-1.5 py-0.5 rounded-full bg-red-500/15 border border-red-400/40 text-red-300 text-[9px] font-bold">BINDING OFF</span>
                       )}
                     </div>
                   </td>
@@ -180,7 +196,10 @@ export default function Supervisors() {
                         </svg>
                       </button>
                       <button
-                        onClick={() => setResetTarget(u)}
+                        onClick={() => {
+                          setResetTarget(u)
+                          setBindingOn((u as any).device_binding_enabled !== false)
+                        }}
                         title="Reset device binding"
                         className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-500/15 border border-amber-400/40 text-amber-300 text-[10px] font-bold hover:bg-amber-500/25 transition whitespace-nowrap"
                       >
@@ -261,7 +280,7 @@ export default function Supervisors() {
               Are you sure you want to reset the device binding for{' '}
               <span className="text-white font-semibold">{resetTarget.username}</span>?
             </p>
-            <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-xs text-white/60 mb-6 space-y-1.5">
+            <div className="bg-white/5 border border-white/10 rounded-xl p-3 text-xs text-white/60 mb-4 space-y-1.5">
               <div className="flex justify-between gap-3">
                 <span>Current device:</span>
                 <span className="text-white/85 font-semibold text-right">{resetTarget.bound_device_name || '—'}</span>
@@ -273,6 +292,31 @@ export default function Supervisors() {
               <p className="pt-1 text-white/45">
                 After reset, the supervisor can login from any device. The next successful login will bind that device.
               </p>
+            </div>
+
+            {/* ✅ Device Binding toggle — default ON, supervisor-wise save */}
+            <div className={`flex items-center justify-between gap-3 rounded-xl border p-3 mb-6 ${
+              bindingOn ? 'bg-emerald-500/10 border-emerald-400/40' : 'bg-red-500/10 border-red-400/40'
+            }`}>
+              <div>
+                <div className={`text-xs font-bold ${bindingOn ? 'text-emerald-300' : 'text-red-300'}`}>
+                  Device Binding: {bindingOn ? 'ON' : 'OFF'}
+                </div>
+                <div className="text-[10px] text-white/50 mt-0.5">
+                  {bindingOn
+                    ? 'Supervisor sirf apni bound device se login kar sakta hai.'
+                    : 'Supervisor kisi bhi device se login kar sakta hai (binding disabled).'}
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={savingBinding}
+                onClick={() => handleBindingToggle(!bindingOn)}
+                aria-label="Toggle device binding"
+                className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${bindingOn ? 'bg-emerald-500' : 'bg-white/15'} disabled:opacity-50`}
+              >
+                <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${bindingOn ? 'left-[22px]' : 'left-0.5'}`} />
+              </button>
             </div>
             <div className="flex gap-3">
               <button
