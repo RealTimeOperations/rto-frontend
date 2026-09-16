@@ -286,7 +286,7 @@ export default function Login({ kickReason, onKicked, onLoginStart, onLoginSucce
   ]
 
   return (
-    <div className="relative h-[100dvh] lg:h-screen overflow-x-hidden overflow-y-auto lg:overflow-hidden bg-[#071b15]">
+    <div className="login-page relative h-[100dvh] lg:h-screen overflow-x-hidden overflow-y-auto lg:overflow-hidden bg-[#071b15]">
       {/* Background image — mobile par hide */}
       <div
         className="hidden sm:block absolute inset-0 bg-no-repeat pointer-events-none"
@@ -294,44 +294,46 @@ export default function Login({ kickReason, onKicked, onLoginStart, onLoginSucce
       />
 
       {/* Content */}
-      <div className="relative z-10 flex min-h-[100dvh] lg:h-full lg:min-h-0 flex-col px-4 sm:px-6 pt-2 pb-3 lg:px-10 lg:pt-3 lg:pb-3">
+      <div className="login-content relative z-10 flex min-h-[100dvh] lg:h-full lg:min-h-0 flex-col px-4 sm:px-6 pt-2 pb-3 lg:px-10 lg:pt-3 lg:pb-3">
         {/* Header — mobile: 2 logos | desktop: full header */}
-        <header className="flex md:grid grid-cols-[1fr_auto_1fr] items-center justify-between gap-4">
+        <header className="login-header flex md:grid grid-cols-[1fr_auto_1fr] items-center justify-between gap-4 pt-2 md:pt-3 lg:pt-4">
           {/* Left: Zakwan logo */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center">
             <img
               src="/logos/zakwan-logo.png"
               alt="Zakwan Builders & Developers"
-              className="h-16 sm:h-20 md:h-24 lg:h-28 xl:h-32 w-auto object-contain drop-shadow-[0_5px_12px_rgba(0,0,0,0.45)] animate-[logo-zoom_4s_ease-in-out_infinite]"
+              className="h-16 sm:h-20 md:h-24 lg:h-36 xl:h-40 2xl:h-44 w-auto object-contain drop-shadow-[0_5px_12px_rgba(0,0,0,0.45)] animate-[logo-zoom_4s_ease-in-out_infinite]"
             />
-            <div className="hidden md:block h-12 w-px bg-[linear-gradient(180deg,#059669,#7acba4,#059669)] bg-[length:100%_200%] animate-[text-run-vertical_2.5s_linear_infinite]" />
           </div>
 
-          {/* Center — desktop only */}
-          <div className="hidden md:flex items-center gap-3">
-            <img src="/logos/loginform-logo.png" alt="Real Time Operations" className="h-12 xl:h-14 w-auto object-contain animate-[logo-pulse_4s_ease-in-out_infinite]" />
-            <div>
-              <div className="text-lg xl:text-xl font-extrabold tracking-wider leading-tight bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">REAL TIME</div>
-              <div className="inline-block">
-                <div className="text-lg xl:text-xl font-extrabold tracking-[0.15em] leading-tight bg-[linear-gradient(180deg,#059669,#10b981,#34d399,#10b981,#059669)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">OPERATIONS</div>
-                <div className="flex justify-between w-full text-[9px] xl:text-[10px] tracking-widest text-slate-300 mt-1">
-                  <span>MONITOR</span>
-                  <span>•</span>
-                  <span>TRACK</span>
-                  <span>•</span>
-                  <span>OPTIMIZE</span>
+          {/* Center — desktop only: the two green separator lines stay beside the center heading */}
+          <div className="hidden md:flex items-center justify-center gap-4 lg:gap-5 mt-1 lg:mt-2">
+            <div className="hidden md:block h-12 lg:h-14 w-px bg-[linear-gradient(180deg,#059669,#7acba4,#059669)] bg-[length:100%_200%] animate-[text-run-vertical_2.5s_linear_infinite]" />
+            <div className="flex items-center gap-3">
+              <img src="/logos/loginform-logo.png" alt="Real Time Operations" className="h-12 md:h-14 xl:h-16 2xl:h-[72px] w-auto object-contain animate-[logo-pulse_4s_ease-in-out_infinite]" />
+              <div>
+                <div className="text-lg xl:text-xl font-extrabold tracking-wider leading-tight bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">REAL TIME</div>
+                <div className="inline-block">
+                  <div className="text-lg xl:text-xl font-extrabold tracking-[0.15em] leading-tight bg-[linear-gradient(180deg,#059669,#10b981,#34d399,#10b981,#059669)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">OPERATIONS</div>
+                  <div className="flex justify-between w-full text-[9px] xl:text-[10px] tracking-widest text-slate-300 mt-1">
+                    <span>MONITOR</span>
+                    <span>•</span>
+                    <span>TRACK</span>
+                    <span>•</span>
+                    <span>OPTIMIZE</span>
+                  </div>
                 </div>
               </div>
             </div>
+            <div className="hidden md:block h-12 lg:h-14 w-px bg-[linear-gradient(180deg,#059669,#7acba4,#059669)] bg-[length:100%_200%] animate-[text-run-vertical_2.5s_linear_infinite]" />
           </div>
 
           {/* Right: Suthra logo */}
-          <div className="flex items-center justify-end gap-4">
-            <div className="hidden md:block h-12 w-px bg-[linear-gradient(180deg,#059669,#7acba4,#059669)] bg-[length:100%_200%] animate-[text-run-vertical_2.5s_linear_infinite]" />
+          <div className="flex items-center justify-end">
             <img
               src="/logos/suthra-logo.png"
               alt="Suthra Punjab Authority"
-              className="h-20 sm:h-24 md:h-32 lg:h-36 xl:h-40 w-auto object-contain drop-shadow-[0_5px_12px_rgba(0,0,0,0.45)] animate-[logo-zoom_4s_ease-in-out_infinite]"
+              className="h-20 sm:h-24 md:h-32 lg:h-44 xl:h-48 2xl:h-52 w-auto object-contain drop-shadow-[0_5px_12px_rgba(0,0,0,0.45)] animate-[logo-zoom_4s_ease-in-out_infinite]"
             />
           </div>
         </header>
@@ -404,7 +406,7 @@ export default function Login({ kickReason, onKicked, onLoginStart, onLoginSucce
           </section>
 
           {/* Mobile: heading + form | Desktop: sirf form */}
-          <section className="w-full max-w-sm shrink-0 lg:max-w-[340px] xl:max-w-sm lg:flex lg:flex-col lg:justify-start 2xl:-translate-x-25">
+          <section className="login-form-section w-full max-w-sm shrink-0 lg:max-w-[340px] xl:max-w-sm lg:flex lg:flex-col lg:justify-start">
             {/* Mobile heading — desktop par hide */}
             <div className="lg:hidden flex flex-col items-center justify-center mb-3">
               {/* ✅ Circle icon with running border (login form ke top wala icon) */}
@@ -539,6 +541,461 @@ export default function Login({ kickReason, onKicked, onLoginStart, onLoginSucce
           </section>
         </main>
       </div>
+
+
+        {/* Desktop-only responsive layout. Mobile/tablet styles above remain unchanged. */}
+        <style>{`
+          /* =========================================================
+             BASE DESKTOP / LCD RESPONSIVE LAYOUT
+             ========================================================= */
+          @media (min-width: 1024px) {
+            .login-page {
+              overflow: hidden !important;
+            }
+
+            .login-content {
+              box-sizing: border-box;
+              height: 100%;
+              min-height: 0 !important;
+              padding-left: clamp(28px, 3.5vw, 78px) !important;
+              padding-right: clamp(28px, 3.5vw, 78px) !important;
+              padding-top: clamp(8px, 1.2vh, 16px) !important;
+              padding-bottom: clamp(8px, 1vh, 14px) !important;
+            }
+
+            /* TOP HEADER
+               Logos grow with the display instead of staying tiny. */
+            .login-header {
+              flex: 0 0 clamp(92px, 13vh, 150px);
+              min-height: clamp(92px, 13vh, 150px);
+              padding-top: clamp(10px, 1.8vh, 22px) !important;
+              width: 100%;
+              gap: clamp(14px, 2vw, 42px) !important;
+            }
+
+            .login-header > div:first-child img {
+              height: clamp(72px, 11.5vh, 150px) !important;
+              width: auto;
+              max-width: clamp(150px, 13vw, 235px);
+            }
+
+            .login-header > div:nth-child(2) {
+              margin-top: clamp(2px, 0.5vh, 8px) !important;
+            }
+
+            .login-header > div:nth-child(2) img {
+              height: clamp(52px, 6.8vh, 78px) !important;
+            }
+
+            .login-header > div:last-child img {
+              height: clamp(82px, 12.8vh, 165px) !important;
+              width: auto;
+              max-width: clamp(82px, 8.5vw, 155px);
+            }
+
+            /* Center heading + its two green separator lines stay together. */
+            .login-header > div:nth-child(2) > div:first-child {
+              height: clamp(52px, 6.8vh, 78px) !important;
+            }
+
+            .login-header > div:nth-child(2) > div:nth-child(2) {
+              min-width: max-content;
+            }
+
+            /* MAIN AREA
+               Both columns share the same bottom edge. */
+            .login-main {
+              flex: 1 1 auto !important;
+              min-height: 0 !important;
+              width: 100% !important;
+              display: grid !important;
+              grid-template-columns: minmax(0, 1fr) clamp(340px, 22vw, 430px) !important;
+              align-items: stretch !important;
+              column-gap: clamp(28px, 5vw, 100px) !important;
+              row-gap: 0 !important;
+              padding-top: clamp(4px, 0.8vh, 10px) !important;
+              padding-bottom: clamp(16px, 3vh, 40px) !important;
+              align-content: end !important;
+              overflow: hidden !important;
+            }
+
+            /* LEFT COLUMN */
+            .login-left {
+              min-width: 0 !important;
+              min-height: 0 !important;
+              width: 100% !important;
+              max-width: none !important;
+              padding-left: 0 !important;
+              padding-right: 0 !important;
+              justify-content: space-between !important;
+              align-self: stretch !important;
+            }
+
+            .login-left > h1 {
+              font-size: clamp(2rem, 3.15vw, 3.7rem) !important;
+              line-height: 1.05 !important;
+              flex-shrink: 0;
+            }
+
+            .login-left > p {
+              font-size: clamp(12px, 0.82vw, 16px) !important;
+              line-height: 1.45 !important;
+              margin-top: clamp(10px, 1.8vh, 22px) !important;
+              max-width: clamp(360px, 31vw, 530px) !important;
+              flex-shrink: 0;
+            }
+
+            .login-features {
+              width: 88% !important;
+              max-width: none !important;
+              grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+              gap: clamp(7px, 0.9vw, 17px) !important;
+              margin-top: clamp(24px, 3.4vh, 46px) !important;
+              flex-shrink: 0;
+            }
+
+            .login-features > div {
+              min-width: 0 !important;
+              padding: clamp(10px, 1.1vw, 18px) !important;
+              border-radius: clamp(16px, 1.4vw, 24px) !important;
+            }
+
+            .login-features > div > .flex > div:first-child {
+              width: clamp(38px, 3.2vw, 58px) !important;
+              height: clamp(38px, 3.2vw, 58px) !important;
+            }
+
+            .login-features > div > .flex > div:nth-child(2) {
+              width: clamp(8px, 1vw, 22px) !important;
+            }
+
+            .login-features > div > .flex > span {
+              width: clamp(5px, 0.45vw, 7px) !important;
+              height: clamp(5px, 0.45vw, 7px) !important;
+              margin-left: 0 !important;
+              margin-right: clamp(4px, 0.35vw, 8px) !important;
+            }
+
+            .login-features > div .text-\[10px\] {
+              font-size: clamp(9px, 0.72vw, 14px) !important;
+            }
+
+            /* Animation sits at the bottom of the left column. */
+            .login-animation {
+              width: 88% !important;
+              max-width: none !important;
+              flex: 1 1 0% !important;
+              min-height: clamp(135px, 17vh, 205px) !important;
+              height: auto !important;
+              max-height: none !important;
+              margin-top: clamp(18px, 2.8vh, 36px) !important;
+              margin-bottom: 0 !important;
+              border-radius: clamp(20px, 1.6vw, 28px) !important;
+            }
+
+            /* FORM COLUMN
+               Default desktop size is moderate; LCD rules below enlarge it. */
+            .login-form-section {
+              width: 100% !important;
+              max-width: none !important;
+              min-width: 0 !important;
+              min-height: 0 !important;
+              transform: none !important;
+              justify-content: flex-end !important;
+              align-items: stretch !important;
+              align-self: stretch !important;
+            }
+
+            /* ✅ Sirf form wrapper (last child) — mobile heading div untouched */
+            .login-form-section > div:last-child {
+              width: 100% !important;
+              max-width: none !important;
+              margin-top: 0 !important;
+              margin-bottom: 0 !important;
+            }
+
+            .login-form-section form {
+              padding: clamp(20px, 1.7vw, 30px) !important;
+            }
+
+            .login-form-section form h2 {
+              font-size: clamp(19px, 1.45vw, 27px) !important;
+            }
+
+            .login-form-section form > p {
+              margin-bottom: clamp(14px, 1.8vh, 24px) !important;
+            }
+
+            .login-form-section form input,
+            .login-form-section form > button[type="submit"] {
+              height: clamp(44px, 4.8vh, 54px) !important;
+            }
+
+            .login-form-section .hidden.lg\:block {
+              width: clamp(66px, 7vh, 94px) !important;
+              height: clamp(66px, 7vh, 94px) !important;
+              margin-bottom: clamp(8px, 1vh, 16px) !important;
+            }
+          }
+
+          /* =========================================================
+             SHORT LAPTOPS
+             Keeps form narrower and removes the large bottom gap.
+             ========================================================= */
+          @media (min-width: 1024px) and (max-height: 779px) {
+            .login-content {
+              padding-top: 5px !important;
+              padding-bottom: 5px !important;
+            }
+
+            /* ✅ Poori block vertical center — top ki free space khatam */
+            .login-main {
+              align-content: center !important;
+            }
+
+            .login-header {
+              flex-basis: clamp(76px, 10vh, 96px);
+              min-height: clamp(76px, 10vh, 96px);
+              padding-top: 7px !important;
+            }
+
+            .login-header > div:first-child img {
+              height: clamp(60px, 9.5vh, 96px) !important;
+            }
+
+            .login-header > div:last-child img {
+              height: clamp(68px, 10.5vh, 108px) !important;
+            }
+
+            .login-header > div:nth-child(2) img {
+              height: clamp(48px, 6.2vh, 64px) !important;
+            }
+
+            /* ✅ Top center heading ko top se thora margin */
+            .login-header > div:nth-child(2) {
+              margin-top: clamp(6px, 1.4vh, 16px) !important;
+            }
+
+            .login-main {
+              grid-template-columns: minmax(0, 1fr) clamp(320px, 24vw, 380px) !important;
+              column-gap: clamp(18px, 3.5vw, 60px) !important;
+              padding-right: clamp(16px, 2.5vw, 55px) !important;
+            }
+
+            .login-left {
+              justify-content: flex-end !important;
+              padding-top: 0 !important;
+            }
+
+            .login-left > h1 {
+              font-size: clamp(1.8rem, 3vw, 3rem) !important;
+            }
+
+            .login-left > p {
+              margin-top: 6px !important;
+              font-size: clamp(11px, 0.8vw, 14px) !important;
+            }
+
+            .login-features {
+              margin-top: clamp(16px, 2.4vh, 26px) !important;
+            }
+
+            .login-features > div {
+              padding: clamp(6px, 0.9vh, 10px) !important;
+            }
+
+            .login-features > div > .flex > div:first-child {
+              width: clamp(30px, 2.6vw, 44px) !important;
+              height: clamp(30px, 2.6vw, 44px) !important;
+            }
+
+            .login-features > div > .flex > div:nth-child(2) {
+              width: clamp(6px, 0.7vw, 14px) !important;
+            }
+
+            .login-features > div > .flex > span {
+              width: 4px !important;
+              height: 4px !important;
+              margin-right: clamp(3px, 0.3vw, 6px) !important;
+            }
+
+            .login-features > div .text-\[10px\] {
+              font-size: clamp(8px, 0.65vw, 12px) !important;
+            }
+
+            .login-animation {
+              flex: 1 1 0% !important;
+              min-height: clamp(100px, 14vh, 140px) !important;
+              height: auto !important;
+              max-height: clamp(150px, 19vh, 200px) !important;
+              margin-top: clamp(14px, 2vh, 20px) !important;
+            }
+
+            .login-form-section {
+              width: clamp(320px, 24vw, 380px) !important;
+              max-width: clamp(320px, 24vw, 380px) !important;
+              justify-content: flex-end !important;
+            }
+
+            .login-form-section form {
+              padding: clamp(17px, 1.5vw, 24px) !important;
+            }
+
+            .login-form-section .hidden.lg\:block {
+              width: clamp(56px, 7vh, 70px) !important;
+              height: clamp(56px, 7vh, 70px) !important;
+              margin-bottom: 6px !important;
+            }
+
+            .login-form-section form > p {
+              margin-bottom: clamp(10px, 1.5vh, 16px) !important;
+            }
+
+            .login-form-section form .mb-3 {
+              margin-bottom: 8px !important;
+            }
+
+            .login-form-section form .mb-4 {
+              margin-bottom: 10px !important;
+            }
+
+            .login-form-section form input,
+            .login-form-section form > button[type="submit"] {
+              height: clamp(42px, 5vh, 48px) !important;
+            }
+          }
+
+          /* =========================================================
+             LCD / LARGE DISPLAYS
+             Form becomes significantly larger according to screen size.
+             Left animation and form bottom edges remain aligned.
+             ========================================================= */
+          @media (min-width: 1400px) and (min-height: 780px) {
+            .login-main {
+              grid-template-columns: minmax(0, 1fr) clamp(380px, 22vw, 480px) !important;
+              column-gap: clamp(35px, 4.5vw, 100px) !important;
+              padding-bottom: clamp(80px, 11vh, 160px) !important;
+              padding-right: clamp(60px, 7vw, 220px) !important;
+            }
+
+            .login-left {
+              justify-content: flex-end !important;
+            }
+
+            .login-form-section {
+              width: clamp(380px, 22vw, 480px) !important;
+              max-width: clamp(380px, 22vw, 480px) !important;
+              justify-content: flex-end !important;
+            }
+
+            .login-form-section form {
+              padding: clamp(28px, 2.2vw, 44px) !important;
+            }
+
+            .login-form-section form h2 {
+              font-size: clamp(24px, 1.7vw, 34px) !important;
+            }
+
+            .login-form-section form > p {
+              font-size: clamp(11px, 0.75vw, 14px) !important;
+              margin-bottom: clamp(20px, 2.6vh, 36px) !important;
+            }
+
+            .login-form-section form .mb-3 {
+              margin-bottom: clamp(14px, 1.8vh, 24px) !important;
+            }
+
+            .login-form-section form .mb-4 {
+              margin-bottom: clamp(16px, 2.1vh, 28px) !important;
+            }
+
+            .login-form-section form input,
+            .login-form-section form > button[type="submit"] {
+              height: clamp(52px, 6vh, 70px) !important;
+            }
+
+            .login-form-section .hidden.lg\:block {
+              width: clamp(84px, 9vh, 124px) !important;
+              height: clamp(84px, 9vh, 124px) !important;
+              margin-bottom: clamp(12px, 1.6vh, 24px) !important;
+            }
+
+            .login-animation {
+              flex: 1 1 0% !important;
+              min-height: clamp(140px, 16vh, 200px) !important;
+              height: auto !important;
+              max-height: clamp(170px, 20vh, 240px) !important;
+            }
+
+            /* Larger LCD top logos */
+            .login-header > div:first-child img {
+              height: clamp(88px, 12.5vh, 165px) !important;
+              max-width: clamp(175px, 14vw, 255px);
+            }
+
+            .login-header > div:last-child img {
+              height: clamp(98px, 14vh, 180px) !important;
+              max-width: clamp(95px, 9vw, 170px);
+            }
+
+            .login-header > div:nth-child(2) img {
+              height: clamp(56px, 7vh, 82px) !important;
+            }
+          }
+
+          /* EXTRA LARGE LCD */
+          @media (min-width: 2000px) and (min-height: 780px) {
+            .login-main {
+              grid-template-columns: minmax(0, 1fr) clamp(420px, 21vw, 520px) !important;
+              column-gap: clamp(55px, 4.5vw, 125px) !important;
+            }
+
+            .login-form-section {
+              width: clamp(420px, 21vw, 520px) !important;
+              max-width: clamp(420px, 21vw, 520px) !important;
+            }
+
+            .login-form-section form {
+              padding: clamp(32px, 2vw, 48px) !important;
+            }
+
+            .login-form-section form input,
+            .login-form-section form > button[type="submit"] {
+              height: clamp(56px, 6vh, 72px) !important;
+            }
+
+            .login-animation {
+              flex: 1 1 0% !important;
+              height: auto !important;
+              max-height: clamp(180px, 21vh, 260px) !important;
+            }
+          }
+
+          /* VERY WIDE + SHORT LED/LCD
+             Short-height displays stay compact even when very wide. */
+          @media (min-width: 1700px) and (max-height: 779px) {
+            .login-main {
+              grid-template-columns: minmax(0, 1fr) clamp(330px, 22vw, 400px) !important;
+              column-gap: clamp(25px, 4vw, 75px) !important;
+            }
+
+            .login-left {
+              justify-content: flex-end !important;
+            }
+
+            .login-form-section {
+              width: clamp(330px, 22vw, 400px) !important;
+              max-width: clamp(330px, 22vw, 400px) !important;
+            }
+
+            .login-animation {
+              flex: 1 1 0% !important;
+              height: auto !important;
+              max-height: none !important;
+            }
+          }
+        `}</style>
+
     </div>
   )
 }

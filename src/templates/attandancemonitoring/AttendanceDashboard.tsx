@@ -435,23 +435,23 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
                 )}
 
                 {lastSync && (
-                  <div className="rto-run-border relative hidden lg:flex items-center gap-2 rounded-full border border-transparent bg-[#071b15]/80 px-4 py-2">
+                  <div className="rto-run-border relative hidden lg:flex items-center gap-1.5 xl:gap-2 rounded-full border border-transparent bg-[#071b15]/80 px-3 py-1.5 xl:px-4 xl:py-2">
                     {serverStatus === 'live' ? (
-                      <span className="relative flex h-2.5 w-2.5" title="Server live — data fetching OK">
+                      <span className="relative flex h-2 w-2 xl:h-2.5 xl:w-2.5" title="Server live — data fetching OK">
                         <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60 animate-ping" />
-                        <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
+                        <span className="relative inline-flex h-2 w-2 xl:h-2.5 xl:w-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
                       </span>
                     ) : (
-                      <span className="relative flex h-2.5 w-2.5" title="Server error — data fetching band hai">
-                        <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.9)] animate-pulse" />
+                      <span className="relative flex h-2 w-2 xl:h-2.5 xl:w-2.5" title="Server error — data fetching band hai">
+                        <span className="relative inline-flex h-2 w-2 xl:h-2.5 xl:w-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.9)] animate-pulse" />
                       </span>
                     )}
-                    <span className={`text-[9px] font-bold tracking-[0.18em] ${serverStatus === 'live' ? 'text-emerald-300' : 'text-red-300'}`}>
+                    <span className={`text-[8px] xl:text-[9px] font-bold tracking-[0.14em] xl:tracking-[0.18em] ${serverStatus === 'live' ? 'text-emerald-300' : 'text-red-300'}`}>
                       {serverStatus === 'live' ? 'LIVE' : 'ERROR'}
                     </span>
-                    <div className="h-3 w-px bg-white/15" />
-                    <span className="text-[9px] font-bold tracking-[0.18em] text-white/45">LAST UPDATED</span>
-                    <span className="text-[11px] font-bold bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite] whitespace-nowrap">
+                    <div className="h-2.5 xl:h-3 w-px bg-white/15" />
+                    <span className="text-[8px] xl:text-[9px] font-bold tracking-[0.14em] xl:tracking-[0.18em] text-white/45">LAST UPDATED</span>
+                    <span className="text-[10px] xl:text-[11px] font-bold bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite] whitespace-nowrap">
                       {lastSync.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} — {lastSync.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
                     </span>
                   </div>
@@ -785,7 +785,7 @@ function StatsView({ attendance, employees, baseValues, loading }: { attendance:
       </div>
 
       {/* ===== Designation + Category Wise — large screens par ek line mein ===== */}
-      <div className="mt-10 mb-6 grid grid-cols-1 min-[1400px]:grid-cols-2 gap-8 items-stretch">
+      <div className="mt-10 mb-6 grid grid-cols-1 xl:grid-cols-2 gap-6 xl:gap-8 items-stretch">
         <div className="flex flex-col">
           <h2 className="text-center text-lg sm:text-xl font-extrabold tracking-wide bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
             Designation Wise
@@ -846,7 +846,7 @@ function StatsView({ attendance, employees, baseValues, loading }: { attendance:
           </h2>
 
           <div className="mt-4 flex-1 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden rounded-[24px] border border-emerald-400/25 bg-linear-to-b from-[#073b2d] to-[#021d17] shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
-            <table className="h-full w-full min-w-[360px] sm:min-w-[640px] text-left text-[10px] sm:text-sm [&_td]:px-2.5 sm:[&_td]:px-4 [&_td]:py-2.5 sm:[&_td]:py-3 [&_th]:px-2.5 sm:[&_th]:px-4 [&_th]:py-2.5 sm:[&_th]:py-3">
+            <table className="h-full w-full min-w-[360px] sm:min-w-[640px] xl:min-w-[540px] text-left text-[10px] sm:text-sm [&_td]:px-2.5 sm:[&_td]:px-4 xl:[&_td]:px-3 [&_td]:py-2.5 sm:[&_td]:py-3 [&_th]:px-2.5 sm:[&_th]:px-4 xl:[&_th]:px-3 [&_th]:py-2.5 sm:[&_th]:py-3">
               <thead>
                 <tr className="border-b border-white/10 bg-white/5">
                   <th className="px-4 py-3 font-bold tracking-widest text-white/70">CATEGORY</th>

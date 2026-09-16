@@ -54,7 +54,7 @@ export default function Homepage({ role, permissions, permissionsLoaded = true, 
   const showWelcome = role === 'employee' && visibleCards.length === 0
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#021b16] text-white">
+    <div className="home-page relative h-[100dvh] overflow-hidden bg-[#021b16] text-white">
       {/* Background image — mobile par hide */}
       <div
         aria-hidden="true"
@@ -83,7 +83,7 @@ export default function Homepage({ role, permissions, permissionsLoaded = true, 
       />
 
       {/* Main content */}
-      <main className="relative z-10 flex min-h-screen flex-col items-center px-5 pt-14 sm:pt-16 pb-20 sm:pb-28 overflow-y-auto scroll-smooth">
+      <main className="home-main relative z-10 flex h-full flex-col items-center justify-between px-5 pt-14 sm:pt-16 pb-20 sm:pb-28 overflow-hidden"> 
         {/* ✅ Show loading until permissions are confirmed */}
         {role === 'employee' && !permissionsLoaded && (
           <div className="flex-1 flex items-center justify-center">
@@ -94,15 +94,16 @@ export default function Homepage({ role, permissions, permissionsLoaded = true, 
         {/* ✅ Render content only when permissions are loaded (or not employee) */}
         {(role !== 'employee' || permissionsLoaded) && (
           <>
+            <div className="home-top flex flex-col items-center flex-shrink-0">
             {/* Hero icon */}
             <div className="relative mb-3 sm:mb-5">
-          <div aria-hidden="true" className="hidden sm:block absolute inset-0 scale-125 rounded-full bg-emerald-400/20 blur-2xl" />
-          <img
-            src="/logos/loginform-logo.png"
-            alt="Real Time Operations"
-            className="relative h-14 w-14 sm:h-20 sm:w-20 object-contain sm:drop-shadow-[0_0_25px_rgba(0,255,170,0.45)] animate-[logo-pulse_4s_ease-in-out_infinite]"
-          />
-        </div>
+              <div aria-hidden="true" className="hidden sm:block absolute inset-0 scale-125 rounded-full bg-emerald-400/20 blur-2xl" />
+              <img
+                src="/logos/loginform-logo.png"
+                alt="Real Time Operations"
+                className="home-logo relative h-14 w-14 sm:h-20 sm:w-20 object-contain sm:drop-shadow-[0_0_25px_rgba(0,255,170,0.45)] animate-[logo-pulse_4s_ease-in-out_infinite]"
+              />
+            </div>
 
         {/* Heading */}
         <h1 className="text-center text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight leading-none whitespace-nowrap">
@@ -110,9 +111,10 @@ export default function Homepage({ role, permissions, permissionsLoaded = true, 
           <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Operations</span>
         </h1>
 
-        <p className="hidden sm:block mt-4 mb-6 text-xs sm:text-sm text-white/45">
-          Unified monitoring platform for containers, vehicles & attendance
-        </p>
+            <p className="hidden sm:block mt-4 mb-6 text-xs sm:text-sm text-white/45">
+              Unified monitoring platform for containers, vehicles & attendance
+            </p>
+            </div>
 
         {/* ✅ Employee Welcome Screen (no permissions) */}
         {showWelcome && (
@@ -133,7 +135,7 @@ export default function Homepage({ role, permissions, permissionsLoaded = true, 
         {/* ✅ Monitoring cards (filtered by permissions) */}
         {!showWelcome && visibleCards.length > 0 && (
           <div
-            className={`mt-8 sm:mt-14 mx-auto grid w-full items-center gap-4 sm:gap-5 lg:gap-7 ${
+            className={`home-cards mt-8 sm:mt-14 mx-auto grid w-full items-stretch gap-4 sm:gap-5 lg:gap-7 min-h-0 flex-1 ${
               visibleCards.length === 1
                 ? 'grid-cols-1 max-w-[400px]'
                 : visibleCards.length === 2
@@ -221,6 +223,178 @@ export default function Homepage({ role, permissions, permissionsLoaded = true, 
           Logout
         </button>
       </div>
+
+      {/* ✅ Homepage responsive rules — laptop screens compact, LCD unchanged */}
+      <style>{`
+        /* =========================================================
+           SHORT LAPTOPS (max-height 850px) — no scroll, everything shrinks
+           ========================================================= */
+        @media (min-width: 640px) and (max-height: 850px) {
+          .home-page {
+            height: 100dvh !important;
+            overflow: hidden !important;
+          }
+
+          .home-main {
+            padding-top: clamp(10px, 2vh, 20px) !important;
+            padding-bottom: clamp(56px, 9vh, 90px) !important;
+            justify-content: center !important;
+            gap: clamp(10px, 2vh, 26px) !important;
+          }
+
+          .home-logo {
+            width: clamp(64px, 10vh, 96px) !important;
+            height: clamp(64px, 10vh, 96px) !important;
+          }
+
+          .home-top {
+            flex-shrink: 0 !important;
+          }
+
+          .home-top > h1 {
+            font-size: clamp(1.5rem, 3.5vh, 2rem) !important;
+          }
+
+          .home-top > p {
+            margin-top: clamp(4px, 0.8vh, 10px) !important;
+            margin-bottom: clamp(6px, 1.2vh, 14px) !important;
+          }
+
+          .home-cards {
+            margin-top: 0 !important;
+            gap: clamp(10px, 1.8vh, 20px) !important;
+            align-items: stretch !important;
+            grid-template-rows: 1fr !important;
+            flex: 0 0 auto !important;
+          }
+
+          /* Cards fill available vertical space */
+          .home-cards > div {
+            display: flex !important;
+            flex-direction: column !important;
+          }
+
+          .home-card-inner {
+            padding: clamp(14px, 2vh, 22px) clamp(12px, 1.5vw, 20px) !important;
+            min-height: 0 !important;
+            height: clamp(250px, 42vh, 460px) !important;
+            flex: 1 1 auto !important;
+            justify-content: center !important;
+            gap: clamp(10px, 2.2vh, 24px) !important;
+          }
+
+          .home-card-inner > div:first-of-type {
+            /* Icon container */
+            margin-bottom: 0 !important;
+          }
+
+          .home-card-inner > div:first-of-type svg {
+            width: clamp(48px, 7vh, 72px) !important;
+            height: clamp(48px, 7vh, 72px) !important;
+          }
+
+          .home-card-inner .text-center {
+            margin: 0 !important;
+          }
+
+          .home-card-inner .text-center > div:first-child {
+            font-size: clamp(1rem, 2.2vh, 1.35rem) !important;
+          }
+
+          .home-card-inner .text-center > div:last-child {
+            font-size: clamp(1.35rem, 3.2vh, 2rem) !important;
+            margin-top: clamp(2px, 0.4vh, 6px) !important;
+          }
+
+          .home-main {
+            padding-top: clamp(8px, 1.5vh, 16px) !important;
+            padding-bottom: clamp(56px, 9vh, 90px) !important;
+            justify-content: center !important;
+            gap: clamp(22px, 4.5vh, 52px) !important;
+          }
+
+          /* Zakwan / Suthra logos — full size on short laptops */
+          .home-page > img[alt*="Zakwan"] {
+            height: clamp(84px, 12.5vh, 128px) !important;
+            top: clamp(10px, 1.6vh, 20px) !important;
+          }
+
+          .home-page > img[alt*="Suthra"] {
+            height: clamp(96px, 14vh, 144px) !important;
+            top: clamp(10px, 1.6vh, 20px) !important;
+          }
+          /* ✅ FINAL card content fix — teeno gaps barabar */
+          .home-card-inner {
+            justify-content: center !important;
+            gap: clamp(12px, 2.4vh, 24px) !important;
+          }
+
+          /* ✅ Sab direct children ke margins khatam — sirf uniform gap */
+          .home-card-inner > div {
+            margin: 0 !important;
+          }
+
+          .home-card-inner > div:first-of-type svg {
+            width: clamp(54px, 8vh, 78px) !important;
+            height: clamp(54px, 8vh, 78px) !important;
+          }
+
+          .home-card-inner .text-center {
+            margin: 0 !important;
+          }
+        }
+
+        /* =========================================================
+           VERY SHORT LAPTOPS (max-height 700px) — extra compact
+           ========================================================= */
+        @media (min-width: 640px) and (max-height: 700px) {
+          .home-main {
+            padding-top: 6px !important;
+            padding-bottom: 44px !important;
+          }
+
+          .home-logo {
+            width: clamp(40px, 6vh, 52px) !important;
+            height: clamp(40px, 6vh, 52px) !important;
+          }
+
+          .home-card-inner > div:first-of-type svg {
+            width: clamp(40px, 6vh, 56px) !important;
+            height: clamp(40px, 6vh, 56px) !important;
+          }
+
+          .home-card-inner {
+            height: clamp(220px, 44vh, 380px) !important;
+          }
+
+          .home-card-inner .text-center > div:last-child {
+            font-size: clamp(1rem, 2.4vh, 1.4rem) !important;
+          }
+        }
+
+        /* =========================================================
+           LCD / TALL SCREENS (min-height 851px) — keep original behavior
+           Original min-height classes still apply via HTML
+           ========================================================= */
+        @media (min-width: 640px) and (min-height: 851px) {
+          .home-main {
+            justify-content: flex-start !important;
+          }
+
+          .home-cards {
+            flex: 0 0 auto !important;
+            margin-top: clamp(14px, 2.2vh, 30px) !important;
+          }
+
+          .home-card-inner {
+            min-height: 350px !important;
+          }
+
+          .home-card-inner.home-card-regular {
+            min-height: 320px !important;
+          }
+        }
+      `}</style>
     </div>
   )
 }
@@ -248,8 +422,8 @@ function MonitoringCard({ title, highlight, icon, primary = false, onClick }: Mo
         <div className="absolute left-[calc(50%-600px)] top-[calc(50%-600px)] h-[1200px] w-[1200px] sm:animate-[border-spin_8s_linear_infinite] bg-[conic-gradient(from_0deg,#059669,#34d399,#7acba4,#34d399,#059669)] opacity-60" />
 
         <div
-          className={`relative m-0.5 rounded-[26px] bg-linear-to-b from-[#073b2d] to-[#021d17] flex flex-col items-center justify-center px-5 py-6 sm:py-7 ${
-            primary ? 'min-h-[210px] sm:min-h-[350px] md:min-h-[380px]' : 'min-h-[190px] sm:min-h-[320px] md:min-h-[330px]'
+          className={`home-card-inner relative m-0.5 rounded-[26px] bg-linear-to-b from-[#073b2d] to-[#021d17] flex flex-col items-center justify-center px-5 py-6 sm:py-7 h-full ${
+            primary ? 'min-h-[210px]' : 'min-h-[190px]'
           }`}
         >
           <div
