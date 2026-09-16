@@ -307,7 +307,7 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
   ]
 
   return (
-    <div className="min-h-screen bg-[#021b16] text-white">
+    <div className="min-h-dvh overflow-x-clip bg-[#021b16] text-white">
       {/* ===== Top Navbar (solid + visible) ===== */}
       <header className="fixed top-0 left-0 right-0 z-40 pointer-events-none">
         <div className="relative flex items-center px-3 sm:px-6 py-3 pointer-events-auto md:pointer-events-none bg-[#021b16] border-b border-white/10 md:border-b-0 shadow-[0_6px_24px_rgba(0,0,0,0.45)] md:shadow-none">
@@ -435,23 +435,26 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
                 )}
 
                 {lastSync && (
-                  <div className="rto-run-border relative hidden lg:flex items-center gap-1.5 xl:gap-2 rounded-full border border-transparent bg-[#071b15]/80 px-3 py-1.5 xl:px-4 xl:py-2">
+                  <div className="rto-run-border relative hidden lg:flex items-center gap-1 xl:gap-2 rounded-full border border-transparent bg-[#071b15]/80 px-2.5 py-1 xl:px-4 xl:py-2">
                     {serverStatus === 'live' ? (
-                      <span className="relative flex h-2 w-2 xl:h-2.5 xl:w-2.5" title="Server live — data fetching OK">
+                      <span className="relative flex h-1.5 w-1.5 xl:h-2.5 xl:w-2.5" title="Server live — data fetching OK">
                         <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60 animate-ping" />
-                        <span className="relative inline-flex h-2 w-2 xl:h-2.5 xl:w-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
+                        <span className="relative inline-flex h-1.5 w-1.5 xl:h-2.5 xl:w-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
                       </span>
                     ) : (
-                      <span className="relative flex h-2 w-2 xl:h-2.5 xl:w-2.5" title="Server error — data fetching band hai">
-                        <span className="relative inline-flex h-2 w-2 xl:h-2.5 xl:w-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.9)] animate-pulse" />
+                      <span className="relative flex h-1.5 w-1.5 xl:h-2.5 xl:w-2.5" title="Server error — data fetching band hai">
+                        <span className="relative inline-flex h-1.5 w-1.5 xl:h-2.5 xl:w-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.9)] animate-pulse" />
                       </span>
                     )}
-                    <span className={`text-[8px] xl:text-[9px] font-bold tracking-[0.14em] xl:tracking-[0.18em] ${serverStatus === 'live' ? 'text-emerald-300' : 'text-red-300'}`}>
+                    <span className={`text-[7px] xl:text-[9px] font-bold tracking-[0.12em] xl:tracking-[0.18em] ${serverStatus === 'live' ? 'text-emerald-300' : 'text-red-300'}`}>
                       {serverStatus === 'live' ? 'LIVE' : 'ERROR'}
                     </span>
-                    <div className="h-2.5 xl:h-3 w-px bg-white/15" />
-                    <span className="text-[8px] xl:text-[9px] font-bold tracking-[0.14em] xl:tracking-[0.18em] text-white/45">LAST UPDATED</span>
-                    <span className="text-[10px] xl:text-[11px] font-bold bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite] whitespace-nowrap">
+                    <div className="h-2 xl:h-3 w-px bg-white/15" />
+                    <span className="hidden xl:inline text-[9px] font-bold tracking-[0.18em] text-white/45">LAST UPDATED</span>
+                    <span className="xl:hidden text-[9px] font-bold bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite] whitespace-nowrap">
+                      {lastSync.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
+                    </span>
+                    <span className="hidden xl:inline text-[11px] font-bold bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite] whitespace-nowrap">
                       {lastSync.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} — {lastSync.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
                     </span>
                   </div>
@@ -591,7 +594,7 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
       </header>
 
       {/* ===== Content ===== */}
-      <main className="pt-24 pb-4 px-4 sm:px-6 max-w-[1750px] mx-auto flex flex-col min-h-screen">
+      <main className="pt-24 pb-4 px-4 sm:px-6 max-w-[1750px] mx-auto flex flex-col">
         {view === 'dashboard' && <StatsView attendance={attendance} employees={employees} baseValues={baseValues} loading={loading} />}
         {view === 'attendance' && <AttendanceLogs rows={attendance} loading={loading} />}
         {view === 'hr' && <TotalHR rows={employees} loading={loading} onRefresh={load} />}
@@ -795,16 +798,16 @@ function StatsView({ attendance, employees, baseValues, loading }: { attendance:
           </h2>
 
           <div className="mt-4 flex-1 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden rounded-[24px] border border-emerald-400/25 bg-linear-to-b from-[#073b2d] to-[#021d17] shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
-            <table className="h-full w-full min-w-[360px] sm:min-w-[640px] text-left text-[10px] sm:text-sm [&_td]:px-2.5 sm:[&_td]:px-4 [&_td]:py-2.5 sm:[&_td]:py-3 [&_th]:px-2.5 sm:[&_th]:px-4 [&_th]:py-2.5 sm:[&_th]:py-3">
+            <table className="h-full w-full table-fixed sm:table-auto min-w-[320px] sm:min-w-0 lg:min-w-0 text-left text-[10px] sm:text-sm [&_td]:px-2 sm:[&_td]:px-3 xl:[&_td]:px-2.5 [&_td]:py-2 sm:[&_td]:py-2.5 xl:[&_td]:py-3 [&_th]:px-2 sm:[&_th]:px-3 xl:[&_th]:px-2.5 [&_th]:py-2 sm:[&_th]:py-2.5 xl:[&_th]:py-3">
               <thead>
                 <tr className="border-b border-white/10 bg-white/5">
-                  <th className="px-4 py-3 font-bold tracking-widest text-white/70">DESIGNATION</th>
-                  <th className="px-4 py-3 font-bold tracking-widest text-white/70">TOTAL</th>
-                  <th className="px-4 py-3 font-bold tracking-widest text-white/70">HIRED</th>
-                  <th className="px-4 py-3 font-bold tracking-widest text-white/70">CHECKIN</th>
-                  <th className="px-4 py-3 font-bold tracking-widest text-white/70">CHECKOUT</th>
-                  <th className="px-4 py-3 font-bold tracking-widest text-white/70">PRESENT</th>
-                  <th className="px-4 py-3 font-bold tracking-widest text-white/70">ABSENT</th>
+                  <th className="px-2 sm:px-3 xl:px-2.5 py-2 sm:py-2.5 xl:py-3 font-bold tracking-widest text-white/70 whitespace-nowrap">DESIGNATION</th>
+                  <th className="px-2 sm:px-3 xl:px-2.5 py-2 sm:py-2.5 xl:py-3 font-bold tracking-widest text-white/70 whitespace-nowrap">TOTAL</th>
+                  <th className="px-2 sm:px-3 xl:px-2.5 py-2 sm:py-2.5 xl:py-3 font-bold tracking-widest text-white/70 whitespace-nowrap">HIRED</th>
+                  <th className="px-2 sm:px-3 xl:px-2.5 py-2 sm:py-2.5 xl:py-3 font-bold tracking-widest text-white/70 whitespace-nowrap">CHECKIN</th>
+                  <th className="px-2 sm:px-3 xl:px-2.5 py-2 sm:py-2.5 xl:py-3 font-bold tracking-widest text-white/70 whitespace-nowrap">CHECKOUT</th>
+                  <th className="px-2 sm:px-3 xl:px-2.5 py-2 sm:py-2.5 xl:py-3 font-bold tracking-widest text-white/70 whitespace-nowrap">PRESENT</th>
+                  <th className="px-2 sm:px-3 xl:px-2.5 py-2 sm:py-2.5 xl:py-3 font-bold tracking-widest text-white/70 whitespace-nowrap">ABSENT</th>
                 </tr>
               </thead>
               <tbody>
@@ -849,16 +852,16 @@ function StatsView({ attendance, employees, baseValues, loading }: { attendance:
           </h2>
 
           <div className="mt-4 flex-1 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden rounded-[24px] border border-emerald-400/25 bg-linear-to-b from-[#073b2d] to-[#021d17] shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
-            <table className="h-full w-full min-w-[360px] sm:min-w-[640px] xl:min-w-[540px] text-left text-[10px] sm:text-sm [&_td]:px-2.5 sm:[&_td]:px-4 xl:[&_td]:px-3 [&_td]:py-2.5 sm:[&_td]:py-3 [&_th]:px-2.5 sm:[&_th]:px-4 xl:[&_th]:px-3 [&_th]:py-2.5 sm:[&_th]:py-3">
+            <table className="h-full w-full table-fixed sm:table-auto min-w-[320px] sm:min-w-0 lg:min-w-0 text-left text-[10px] sm:text-sm [&_td]:px-2 sm:[&_td]:px-3 xl:[&_td]:px-2.5 [&_td]:py-2 sm:[&_td]:py-2.5 xl:[&_td]:py-3 [&_th]:px-2 sm:[&_th]:px-3 xl:[&_th]:px-2.5 [&_th]:py-2 sm:[&_th]:py-2.5 xl:[&_th]:py-3">
               <thead>
                 <tr className="border-b border-white/10 bg-white/5">
-                  <th className="px-4 py-3 font-bold tracking-widest text-white/70">CATEGORY</th>
-                  <th className="px-4 py-3 font-bold tracking-widest text-white/70">TOTAL</th>
-                  <th className="px-4 py-3 font-bold tracking-widest text-white/70">HIRED</th>
-                  <th className="px-4 py-3 font-bold tracking-widest text-white/70">CHECKIN</th>
-                  <th className="px-4 py-3 font-bold tracking-widest text-white/70">CHECKOUT</th>
-                  <th className="px-4 py-3 font-bold tracking-widest text-white/70">PRESENT</th>
-                  <th className="px-4 py-3 font-bold tracking-widest text-white/70">ABSENT</th>
+                  <th className="px-2 sm:px-3 xl:px-2.5 py-2 sm:py-2.5 xl:py-3 font-bold tracking-widest text-white/70 whitespace-nowrap">CATEGORY</th>
+                  <th className="px-2 sm:px-3 xl:px-2.5 py-2 sm:py-2.5 xl:py-3 font-bold tracking-widest text-white/70 whitespace-nowrap">TOTAL</th>
+                  <th className="px-2 sm:px-3 xl:px-2.5 py-2 sm:py-2.5 xl:py-3 font-bold tracking-widest text-white/70 whitespace-nowrap">HIRED</th>
+                  <th className="px-2 sm:px-3 xl:px-2.5 py-2 sm:py-2.5 xl:py-3 font-bold tracking-widest text-white/70 whitespace-nowrap">CHECKIN</th>
+                  <th className="px-2 sm:px-3 xl:px-2.5 py-2 sm:py-2.5 xl:py-3 font-bold tracking-widest text-white/70 whitespace-nowrap">CHECKOUT</th>
+                  <th className="px-2 sm:px-3 xl:px-2.5 py-2 sm:py-2.5 xl:py-3 font-bold tracking-widest text-white/70 whitespace-nowrap">PRESENT</th>
+                  <th className="px-2 sm:px-3 xl:px-2.5 py-2 sm:py-2.5 xl:py-3 font-bold tracking-widest text-white/70 whitespace-nowrap">ABSENT</th>
                 </tr>
               </thead>
               <tbody>
