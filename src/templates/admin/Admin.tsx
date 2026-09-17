@@ -7,20 +7,21 @@ import Supervisors from './Supervisors'
 import EmployeesStaff from './EmployeesStaff'
 import SupervisorsData from './SupervisorsData'
 import AttendanceSetup from './AttendanceSetup'
-
-type Tab = 'dashboard' | 'employees' | 'supervisors' | 'employees-staff' | 'supervisors-staff' | 'base-values'
+import AttendanceFetchingLogs from './AttendanceFetchingLogs'
+type Tab = 'dashboard' | 'employees' | 'supervisors' | 'employees-staff' | 'supervisors-staff' | 'base-values' | 'fetching-logs'
 
 export default function Admin() {
   const navigate = useNavigate()
   // ✅ Tab persistence: refresh ke baad wahi page khule jo pehle tha
   const [tab, setTab] = useState<Tab>(() => {
     const saved = localStorage.getItem('rto_admin_tab') as Tab | null
-    if (saved && ['dashboard', 'employees', 'supervisors', 'employees-staff', 'supervisors-staff', 'base-values'].includes(saved)) return saved
+    if (saved && ['dashboard', 'employees', 'supervisors', 'employees-staff', 'supervisors-staff', 'base-values', 'fetching-logs'].includes(saved)) return saved
     return 'dashboard'
   })
   const [openUsers, setOpenUsers] = useState(false)
   const [openHr, setOpenHr] = useState(false)
   const [openBase, setOpenBase] = useState(false)
+  const [openFetch, setOpenFetch] = useState(false)
   // ✅ Mobile: sidebar open/close — closed = sirf icons, open = icons + text
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
@@ -29,6 +30,7 @@ export default function Admin() {
     if (tab === 'employees' || tab === 'supervisors') setOpenUsers(true)
     if (tab === 'employees-staff' || tab === 'supervisors-staff') setOpenHr(true)
     if (tab === 'base-values') setOpenBase(true)
+    if (tab === 'fetching-logs') setOpenFetch(true)
   }, [tab])
 
   // ✅ Save tab to localStorage on every change
@@ -211,12 +213,29 @@ export default function Admin() {
               <polyline points="9 18 15 12 9 6" />
             </svg>
           </button>
-          {openBase && (
-            <div className={`ml-5 pl-3 border-l border-white/10 space-y-1 ${blockCls}`}>
-              <button onClick={pick('base-values')} className={subClass(tab === 'base-values')}>Attendance Setup</button>
-            </div>
-          )}
-        </nav>
+            {openBase && (
+              <div className={`ml-5 pl-3 border-l border-white/10 space-y-1 ${blockCls}`}>
+                <button onClick={pick('base-values')} className={subClass(tab === 'base-values')}>Attendance Setup</button>
+              </div>
+            )}
+            {/* 6) Fetching Logs group */}
+            <button onClick={groupClick(() => setOpenFetch(v => !v))} className={groupClass}>
+              <span className="flex items-center gap-3 min-w-0">
+                <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                </svg>
+                <span className={labelCls}>Fetching Logs</span>
+              </span>
+              <svg className={`h-3.5 w-3.5 shrink-0 transition-transform ${blockCls} ${openFetch ? 'rotate-90' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </button>
+              {openFetch && (
+                <div className={`ml-5 pl-3 border-l border-white/10 space-y-1 ${blockCls}`}>
+                  <button onClick={pick('fetching-logs')} className={subClass(tab === 'fetching-logs')}>Attendance Fetch Logs</button>
+                </div>
+              )}
+          </nav>
 
         {/* Logout — bottom */}
         <div className={`p-3 border-t border-white/10 ${sidebarOpen ? '' : 'px-2'} lg:px-3`}>
@@ -245,6 +264,7 @@ export default function Admin() {
           {tab === 'employees-staff' && <EmployeesStaff />}
           {tab === 'supervisors-staff' && <SupervisorsData />}
           {tab === 'base-values' && <AttendanceSetup />}
+          {tab === 'fetching-logs' && <AttendanceFetchingLogs />}
         </div>
       </main>
     </div>
