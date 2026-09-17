@@ -238,7 +238,7 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
   //    - Status portal_error → RED (portal issue message ke sath)
   //    - Naya attendance row aaya → full refresh + success notification
   useEffect(() => {
-    const POLL_MS = 5_000
+    const POLL_MS = 3_000   // ✅ Fast reaction: har 3 sec check
     // ✅ Grace period: portal fetch cycle mein heartbeat kuch der ruk sakti hai (process busy) —
     //    40s tak stale = normal fetch, 90s+ stale = process band
     const HEARTBEAT_MAX_MS = 40_000
