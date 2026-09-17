@@ -258,7 +258,9 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
         const hbTime = hb?.updated_at ? new Date(hb.updated_at).getTime() : 0
         const ageMs = hbTime ? Date.now() - hbTime : Infinity
         const status = String(hb?.status ?? '').toLowerCase()
-        if (ERROR_STATUSES.includes(status)) {
+        if (status === 'stopped') {
+          notifyError('Server Stopped')
+        } else if (ERROR_STATUSES.includes(status)) {
           // ❌ Backend ne khud error report kiya
           notifyError(hb?.message || 'Error in Data Fetching (Portal issue)')
         } else if (!hb || ageMs > HEARTBEAT_HARD_MS) {
@@ -270,7 +272,7 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
         } else if (statusRef.current === 'error') {
           // ✅ Process dobara chalu hua — wapis green + notification
           setStatus('live')
-          pushNotification('success', 'Fetching process start')
+          pushNotification('success', 'Server Started')
         }
 
         // Naya attendance data check
@@ -435,30 +437,30 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
                 )}
 
                 {lastSync && (
-                  <div className="rto-run-border relative hidden lg:flex items-center gap-1 xl:gap-1.5 min-[1700px]:gap-2 rounded-full border border-transparent bg-[#071b15]/80 px-2.5 py-1 xl:px-3 xl:py-1.5 min-[1700px]:px-4 min-[1700px]:py-2">
+                  <div className="rto-run-border relative hidden lg:flex items-center gap-1 xl:gap-1.5 2xl:gap-2 rounded-full border border-transparent bg-[#071b15]/80 px-2.5 py-1 xl:px-3 xl:py-1.5 2xl:px-4 2xl:py-2">
                     {serverStatus === 'live' ? (
-                      <span className="relative flex h-1.5 w-1.5 xl:h-2 xl:w-2 min-[1700px]:h-2.5 min-[1700px]:w-2.5" title="Server live — data fetching OK">
+                      <span className="relative flex h-1.5 w-1.5 xl:h-2 xl:w-2 2xl:h-2.5 2xl:w-2.5" title="Server live — data fetching OK">
                         <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60 animate-ping" />
-                        <span className="relative inline-flex h-1.5 w-1.5 xl:h-2 xl:w-2 min-[1700px]:h-2.5 min-[1700px]:w-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
+                        <span className="relative inline-flex h-1.5 w-1.5 xl:h-2 xl:w-2 2xl:h-2.5 2xl:w-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
                       </span>
                     ) : (
-                      <span className="relative flex h-1.5 w-1.5 xl:h-2 xl:w-2 min-[1700px]:h-2.5 min-[1700px]:w-2.5" title="Server error — data fetching band hai">
-                        <span className="relative inline-flex h-1.5 w-1.5 xl:h-2 xl:w-2 min-[1700px]:h-2.5 min-[1700px]:w-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.9)] animate-pulse" />
+                      <span className="relative flex h-1.5 w-1.5 xl:h-2 xl:w-2 2xl:h-2.5 2xl:w-2.5" title="Server error — data fetching band hai">
+                        <span className="relative inline-flex h-1.5 w-1.5 xl:h-2 xl:w-2 2xl:h-2.5 2xl:w-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.9)] animate-pulse" />
                       </span>
                     )}
-                    <span className={`text-[7px] xl:text-[8px] min-[1700px]:text-[9px] font-bold tracking-[0.12em] xl:tracking-[0.14em] min-[1700px]:tracking-[0.18em] ${serverStatus === 'live' ? 'text-emerald-300' : 'text-red-300'}`}>
+                    <span className={`text-[7px] xl:text-[8px] 2xl:text-[9px] font-bold tracking-[0.12em] xl:tracking-[0.14em] 2xl:tracking-[0.18em] ${serverStatus === 'live' ? 'text-emerald-300' : 'text-red-300'}`}>
                       {serverStatus === 'live' ? 'LIVE' : 'ERROR'}
                     </span>
-                    <div className="h-2 xl:h-2.5 min-[1700px]:h-3 w-px bg-white/15" />
-                    <span className="hidden xl:inline text-[8px] min-[1700px]:text-[9px] font-bold tracking-[0.14em] min-[1700px]:tracking-[0.18em] text-white/45">LAST UPDATED</span>
+                    <div className="h-2 xl:h-2.5 2xl:h-3 w-px bg-white/15" />
+                    <span className="hidden xl:inline text-[8px] 2xl:text-[9px] font-bold tracking-[0.14em] 2xl:tracking-[0.18em] text-white/45">LAST UPDATED</span>
                     <span className="xl:hidden text-[9px] font-bold bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite] whitespace-nowrap">
                       {lastSync.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
                     </span>
-                    <span className="hidden xl:inline min-[1700px]:hidden text-[9px] font-bold bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite] whitespace-nowrap">
+                    <span className="hidden xl:inline 2xl:hidden text-[9px] font-bold bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite] whitespace-nowrap">
                       {lastSync.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
                     </span>
-                    <span className="hidden min-[1700px]:inline text-[11px] font-bold bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite] whitespace-nowrap">
-                      {lastSync.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} — {lastSync.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
+                    <span className="hidden 2xl:inline text-[11px] font-bold bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite] whitespace-nowrap">
+                      {`${String(lastSync.getDate()).padStart(2, '0')}-${String(lastSync.getMonth() + 1).padStart(2, '0')}-${lastSync.getFullYear()}`} — {lastSync.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
                     </span>
                   </div>
                 )}
@@ -701,6 +703,14 @@ function StatsView({ attendance, employees, baseValues, loading }: { attendance:
       absent,
     }
   })
+  // Fixed display order for Designation Wise rows (unknown designations last)
+  const DESIG_ORDER = ['sanitary supervisor', 'sanitary worker', 'helper', 'driver']
+  desigList.sort((a, b) => {
+    const ai = DESIG_ORDER.indexOf(stripFixed(a.desig))
+    const bi = DESIG_ORDER.indexOf(stripFixed(b.desig))
+    return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi)
+  })
+
   const totals = desigList.reduce(
     (acc: { total: number; hired: number; checkin: number; checkout: number; present: number; absent: number }, g: any) => ({
       total: acc.total + g.total,
@@ -772,11 +782,11 @@ function StatsView({ attendance, employees, baseValues, loading }: { attendance:
     <div>
       {/* ✅ Sticky heading block — scroll par cards is ke PEECHE se guzarti hain */}
       <div className="sticky top-[60px] sm:top-[64px] z-30 -mx-4 sm:-mx-6 -mt-8 px-4 sm:px-6 pt-6 sm:pt-8 pb-4 bg-[#021b16]">
-        <h1 className="text-center text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight leading-none">
+        <h1 className="text-center text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight leading-none">
           <span className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Attendance </span>
           <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Dashboard</span>
         </h1>
-        <p className="mt-2 sm:mt-3 text-center text-[13px] font-bold tracking-wide text-emerald-400/70 sm:text-sm sm:font-normal sm:tracking-normal sm:text-white/45">Live monitoring — {showDate}</p>
+        <p className="mt-2 sm:mt-3 text-center text-sm sm:text-[15px] font-semibold tracking-[0.08em] text-white/40">Live monitoring — {showDate}</p>
       </div>
 
       <div className="mt-8 sm:mt-10 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-5">
@@ -801,10 +811,10 @@ function StatsView({ attendance, employees, baseValues, loading }: { attendance:
           </h2>
 
           <div className="mt-4 flex-1 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden rounded-[24px] border border-emerald-400/25 bg-linear-to-b from-[#073b2d] to-[#021d17] shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
-            <table className="h-full w-full table-fixed sm:table-auto min-w-[320px] sm:min-w-0 lg:min-w-0 text-left text-[10px] sm:text-sm [&_td]:px-2 sm:[&_td]:px-3 xl:[&_td]:px-2.5 [&_td]:py-2 sm:[&_td]:py-2.5 xl:[&_td]:py-3 [&_th]:px-2 sm:[&_th]:px-3 xl:[&_th]:px-2.5 [&_th]:py-2 sm:[&_th]:py-2.5 xl:[&_th]:py-3">
+            <table className="h-full w-full table-fixed min-w-[320px] sm:min-w-0 text-left text-[10px] sm:text-sm [&_td]:px-2 sm:[&_td]:px-3 xl:[&_td]:px-1.5 2xl:[&_td]:px-2.5 [&_td]:py-2 sm:[&_td]:py-2.5 [&_th]:px-2 sm:[&_th]:px-3 xl:[&_th]:px-1.5 2xl:[&_th]:px-2.5 [&_th]:py-2 sm:[&_th]:py-2.5 xl:[&_th]:text-[10px] xl:[&_th]:tracking-wider 2xl:[&_th]:text-xs 2xl:[&_th]:tracking-widest [&_th:not(:first-child)]:text-center [&_td:not(:first-child)]:text-center">
               <thead>
                 <tr className="border-b border-white/10 bg-white/5">
-                  <th className="px-2 sm:px-3 xl:px-2.5 py-2 sm:py-2.5 xl:py-3 font-bold tracking-widest text-white/70 whitespace-nowrap">DESIGNATION</th>
+                  <th className="w-[24%] px-2 sm:px-3 xl:px-2.5 py-2 sm:py-2.5 xl:py-3 font-bold tracking-widest text-white/70 whitespace-nowrap">DESIGNATION</th>
                   <th className="px-2 sm:px-3 xl:px-2.5 py-2 sm:py-2.5 xl:py-3 font-bold tracking-widest text-white/70 whitespace-nowrap">TOTAL</th>
                   <th className="px-2 sm:px-3 xl:px-2.5 py-2 sm:py-2.5 xl:py-3 font-bold tracking-widest text-white/70 whitespace-nowrap">HIRED</th>
                   <th className="px-2 sm:px-3 xl:px-2.5 py-2 sm:py-2.5 xl:py-3 font-bold tracking-widest text-white/70 whitespace-nowrap">CHECKIN</th>
@@ -855,10 +865,10 @@ function StatsView({ attendance, employees, baseValues, loading }: { attendance:
           </h2>
 
           <div className="mt-4 flex-1 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden rounded-[24px] border border-emerald-400/25 bg-linear-to-b from-[#073b2d] to-[#021d17] shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
-            <table className="h-full w-full table-fixed sm:table-auto min-w-[320px] sm:min-w-0 lg:min-w-0 text-left text-[10px] sm:text-sm [&_td]:px-2 sm:[&_td]:px-3 xl:[&_td]:px-2.5 [&_td]:py-2 sm:[&_td]:py-2.5 xl:[&_td]:py-3 [&_th]:px-2 sm:[&_th]:px-3 xl:[&_th]:px-2.5 [&_th]:py-2 sm:[&_th]:py-2.5 xl:[&_th]:py-3">
+            <table className="h-full w-full table-fixed sm:table-auto min-w-[320px] sm:min-w-0 lg:min-w-0 text-left text-[10px] sm:text-sm [&_td]:px-2 sm:[&_td]:px-3 xl:[&_td]:px-2.5 [&_td]:py-2 sm:[&_td]:py-2.5 xl:[&_td]:py-3 [&_th]:px-2 sm:[&_th]:px-3 xl:[&_th]:px-2.5 [&_th]:py-2 sm:[&_th]:py-2.5 xl:[&_th]:py-3 [&_th:not(:first-child)]:text-center [&_td:not(:first-child)]:text-center">
               <thead>
                 <tr className="border-b border-white/10 bg-white/5">
-                  <th className="px-2 sm:px-3 xl:px-2.5 py-2 sm:py-2.5 xl:py-3 font-bold tracking-widest text-white/70 whitespace-nowrap">CATEGORY</th>
+                  <th className="w-[24%] px-2 sm:px-3 xl:px-2.5 py-2 sm:py-2.5 xl:py-3 font-bold tracking-widest text-white/70 whitespace-nowrap">CATEGORY</th>
                   <th className="px-2 sm:px-3 xl:px-2.5 py-2 sm:py-2.5 xl:py-3 font-bold tracking-widest text-white/70 whitespace-nowrap">TOTAL</th>
                   <th className="px-2 sm:px-3 xl:px-2.5 py-2 sm:py-2.5 xl:py-3 font-bold tracking-widest text-white/70 whitespace-nowrap">HIRED</th>
                   <th className="px-2 sm:px-3 xl:px-2.5 py-2 sm:py-2.5 xl:py-3 font-bold tracking-widest text-white/70 whitespace-nowrap">CHECKIN</th>
