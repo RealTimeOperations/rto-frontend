@@ -1,39 +1,31 @@
-name: Deploy Frontend to Cloudflare Pages
+name: Deploy to Cloudflare Pages
 
 on:
   push:
-    branches: [main]
-  workflow_dispatch:
+    branches: [ "main" ] # Ya jo bhi aap ki main branch ka naam hai
 
 jobs:
-  build-deploy:
+  deploy:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      deployments: write
     steps:
-      - name: Checkout
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 20 # Node 20 warning khatam karne ke liye explicit version
 
-      - name: Install dependencies
-        run: npm install
+      - name: Install Dependencies & Build
+        run: |
+          npm install
+          npm run build
 
-      - name: Build
-        run: npm run build
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-
+      # ✅ NAYA AUR MODERN CLOUDFLARE ACTION
       - name: Deploy to Cloudflare Pages
-        uses: cloudflare/pages-action@v1
+        uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          projectName: realtimeoperations
-          directory: dist
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          # 'publish' ki jagah ab 'deploy' use hota hai
+          command: pages deploy dist --project-name=realtimeoperations

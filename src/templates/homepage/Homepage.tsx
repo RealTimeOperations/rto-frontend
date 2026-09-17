@@ -8,9 +8,10 @@ type HomepageProps = {
   permissions: Permissions
   permissionsLoaded?: boolean
   onCardClick?: (target: 'attendance' | 'containers' | 'vehicles') => void
+  onAdminClick?: () => void
 }
 
-export default function Homepage({ role, permissions, permissionsLoaded = true, onCardClick }: HomepageProps) {
+export default function Homepage({ role, permissions, permissionsLoaded = true, onCardClick, onAdminClick }: HomepageProps) {
   const navigate = useNavigate()
 
   // Sign out (App redirects to /login automatically)
@@ -193,7 +194,10 @@ export default function Homepage({ role, permissions, permissionsLoaded = true, 
       {role === 'admin' && (
         <button
           type="button"
-          onClick={() => navigate('/admin')}
+          onClick={() => {
+            onAdminClick?.()
+            navigate('/admin')
+          }}
           aria-label="Open admin portal"
           className="fixed bottom-6 left-5 sm:left-8 z-30 hidden sm:flex items-center gap-2 rounded-full border border-emerald-300/20 bg-linear-to-r from-[#00945f] to-[#06ab7b] px-7 py-3 text-sm font-bold text-white shadow-[0_10px_35px_rgba(0,220,150,0.12)] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_25px_rgba(0,255,170,0.2)]"
         >
@@ -207,7 +211,10 @@ export default function Homepage({ role, permissions, permissionsLoaded = true, 
         {role === 'admin' && (
           <button
             type="button"
-            onClick={() => navigate('/admin')}
+            onClick={() => {
+              onAdminClick?.()
+              navigate('/admin')
+            }}
             className="flex-1 flex items-center justify-center gap-2 rounded-full border border-emerald-300/20 bg-linear-to-r from-[#00945f] to-[#06ab7b] px-4 py-2.5 text-xs font-bold text-white shadow-[0_6px_20px_rgba(0,220,150,0.15)]"
           >
             <ShieldIcon />

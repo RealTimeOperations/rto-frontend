@@ -10,7 +10,11 @@ import AttendanceSetup from './AttendanceSetup'
 import AttendanceFetchingLogs from './AttendanceFetchingLogs'
 type Tab = 'dashboard' | 'employees' | 'supervisors' | 'employees-staff' | 'supervisors-staff' | 'base-values' | 'fetching-logs'
 
-export default function Admin() {
+type AdminProps = {
+  onHomeClick?: () => void
+}
+
+export default function Admin({ onHomeClick }: AdminProps) {
   const navigate = useNavigate()
   // ✅ Tab persistence: refresh ke baad wahi page khule jo pehle tha
   const [tab, setTab] = useState<Tab>(() => {
@@ -127,7 +131,10 @@ export default function Admin() {
 
           {/* 1) Home — top par */}
           <button
-            onClick={() => navigate('/home')}
+            onClick={() => {
+              onHomeClick?.()
+              navigate('/home')
+            }}
             className={`w-full flex items-center gap-3 py-2.5 rounded-xl text-sm font-semibold text-emerald-200 bg-emerald-500/10 border border-emerald-400/30 hover:bg-emerald-500/20 hover:shadow-[0_0_18px_rgba(0,255,170,0.15)] transition ${
               sidebarOpen ? 'justify-start px-4' : 'justify-center px-2'
             } lg:justify-start lg:px-4`}

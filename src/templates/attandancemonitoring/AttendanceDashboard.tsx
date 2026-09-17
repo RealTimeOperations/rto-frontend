@@ -435,26 +435,29 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
                 )}
 
                 {lastSync && (
-                  <div className="rto-run-border relative hidden lg:flex items-center gap-1 xl:gap-2 rounded-full border border-transparent bg-[#071b15]/80 px-2.5 py-1 xl:px-4 xl:py-2">
+                  <div className="rto-run-border relative hidden lg:flex items-center gap-1 xl:gap-1.5 min-[1700px]:gap-2 rounded-full border border-transparent bg-[#071b15]/80 px-2.5 py-1 xl:px-3 xl:py-1.5 min-[1700px]:px-4 min-[1700px]:py-2">
                     {serverStatus === 'live' ? (
-                      <span className="relative flex h-1.5 w-1.5 xl:h-2.5 xl:w-2.5" title="Server live — data fetching OK">
+                      <span className="relative flex h-1.5 w-1.5 xl:h-2 xl:w-2 min-[1700px]:h-2.5 min-[1700px]:w-2.5" title="Server live — data fetching OK">
                         <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60 animate-ping" />
-                        <span className="relative inline-flex h-1.5 w-1.5 xl:h-2.5 xl:w-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
+                        <span className="relative inline-flex h-1.5 w-1.5 xl:h-2 xl:w-2 min-[1700px]:h-2.5 min-[1700px]:w-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
                       </span>
                     ) : (
-                      <span className="relative flex h-1.5 w-1.5 xl:h-2.5 xl:w-2.5" title="Server error — data fetching band hai">
-                        <span className="relative inline-flex h-1.5 w-1.5 xl:h-2.5 xl:w-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.9)] animate-pulse" />
+                      <span className="relative flex h-1.5 w-1.5 xl:h-2 xl:w-2 min-[1700px]:h-2.5 min-[1700px]:w-2.5" title="Server error — data fetching band hai">
+                        <span className="relative inline-flex h-1.5 w-1.5 xl:h-2 xl:w-2 min-[1700px]:h-2.5 min-[1700px]:w-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.9)] animate-pulse" />
                       </span>
                     )}
-                    <span className={`text-[7px] xl:text-[9px] font-bold tracking-[0.12em] xl:tracking-[0.18em] ${serverStatus === 'live' ? 'text-emerald-300' : 'text-red-300'}`}>
+                    <span className={`text-[7px] xl:text-[8px] min-[1700px]:text-[9px] font-bold tracking-[0.12em] xl:tracking-[0.14em] min-[1700px]:tracking-[0.18em] ${serverStatus === 'live' ? 'text-emerald-300' : 'text-red-300'}`}>
                       {serverStatus === 'live' ? 'LIVE' : 'ERROR'}
                     </span>
-                    <div className="h-2 xl:h-3 w-px bg-white/15" />
-                    <span className="hidden xl:inline text-[9px] font-bold tracking-[0.18em] text-white/45">LAST UPDATED</span>
+                    <div className="h-2 xl:h-2.5 min-[1700px]:h-3 w-px bg-white/15" />
+                    <span className="hidden xl:inline text-[8px] min-[1700px]:text-[9px] font-bold tracking-[0.14em] min-[1700px]:tracking-[0.18em] text-white/45">LAST UPDATED</span>
                     <span className="xl:hidden text-[9px] font-bold bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite] whitespace-nowrap">
                       {lastSync.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
                     </span>
-                    <span className="hidden xl:inline text-[11px] font-bold bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite] whitespace-nowrap">
+                    <span className="hidden xl:inline min-[1700px]:hidden text-[9px] font-bold bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite] whitespace-nowrap">
+                      {lastSync.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
+                    </span>
+                    <span className="hidden min-[1700px]:inline text-[11px] font-bold bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite] whitespace-nowrap">
                       {lastSync.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} — {lastSync.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
                     </span>
                   </div>
