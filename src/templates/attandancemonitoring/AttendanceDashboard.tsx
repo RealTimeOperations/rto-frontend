@@ -33,8 +33,17 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
   const [slider, setSlider] = useState({ left: 0, width: 0 })
   const [menuOpen, setMenuOpen] = useState(false)
 
-  // ✅ Last sync time + notifications system
-  const [lastSync, setLastSync] = useState<Date | null>(null)
+  // ✅ Last sync time = sirf asal data update ka waqt (localStorage se persist hota hai)
+  const [lastSync, setLastSync] = useState<Date | null>(() => {
+    try {
+      const t = localStorage.getItem('rto_last_data_update')
+      if (t) {
+        const d = new Date(t)
+        if (!isNaN(d.getTime())) return d
+      }
+    } catch {}
+    return null
+  })
   const [notifications, setNotifications] = useState<{ id: number; type: 'success' | 'error'; message: string; time: string; unread?: boolean }[]>(() => {
     try {
       const saved = localStorage.getItem('rto_latest_notification')
@@ -165,6 +174,14 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
   }
   const lastLogIdRef = useRef<string | null>(null)
   const aliveRef = useRef(true)
+  // ✅ Heartbeat event key (updated_at) — har event sirf EK dafa notify hota hai
+  const lastHbKeyRef = useRef<string>((() => {
+    try { return localStorage.getItem('rto_last_hb_key') || '' } catch { return '' }
+  })())
+  function rememberHbKey(key: string) {
+    lastHbKeyRef.current = key
+    try { localStorage.setItem('rto_last_hb_key', key) } catch {}
+  }
 
   useEffect(() => {
     aliveRef.current = true
@@ -216,7 +233,6 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
       setAttendance(att.filter(r => !isStaff(r)))
       setEmployees(emp)
       setBaseValues((bv.data ?? []) as { label: string; value: number; sort_order: number; type: string; present_target?: number | null }[])
-      setLastSync(new Date())
       // ✅ Notification sirf jab naya data aaya ho — refresh/mount par nahi
       if (notify) pushNotification('success', 'Data successfully fetched and updated')
     } catch (e) {
@@ -232,6 +248,36 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
     load()
   }, [load])
 
+  // ✅ Agar lastSync null hai, to DB se time lao (ya fallback use karo) taake pill foran dikhe
+  useEffect(() => {
+    if (lastSync !== null) return
+    ;(async () => {
+      let d: Date | null = null
+      try {
+        const { data: attData } = await supabase
+          .from('attendance_logs')
+          .select('created_at, date_time, date')
+          .order('id', { ascending: false })
+          .limit(1)
+        const row = attData?.[0] as Record<string, any> | undefined
+        const t = row?.created_at || row?.date_time || row?.date
+        if (t) {
+          const parsed = new Date(t)
+          if (!isNaN(parsed.getTime())) d = parsed
+        }
+      } catch (e) {
+        console.warn('DB fetch failed:', e)
+      }
+      
+      // ✅ Fallback: agar DB se time nahi mila, to current time use karo aur foran save kar lo
+      // Is se pill foran show hogi, aur next refresh par clock ka time change nahi hoga
+      if (!d) d = new Date()
+      
+      setLastSync(d)
+      try { localStorage.setItem('rto_last_data_update', d.toISOString()) } catch {}
+    })()
+  }, [lastSync])
+
   // ✅ Heartbeat poll: har 5 second mein backend ki health check karo
   //    - Heartbeat fresh + status running  → GREEN
   //    - Heartbeat purani (>15 sec) / missing → RED (server band) — max ~20 sec mein
@@ -244,7 +290,7 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
     const HEARTBEAT_MAX_MS = 40_000
     const HEARTBEAT_HARD_MS = 90_000
     // ✅ Ye statuses "process alive/busy" count hoti hain (error nahi)
-    const ALIVE_STATUSES = ['running', 'fetching', 'syncing', 'loading']
+    const ALIVE_STATUSES = ['running', 'started', 'fetching', 'syncing', 'loading']
     // ✅ Sirf ye statuses explicit error hain
     const ERROR_STATUSES = ['error', 'portal_error', 'failed', 'stopped']
     async function check() {
@@ -258,21 +304,31 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
         const hbTime = hb?.updated_at ? new Date(hb.updated_at).getTime() : 0
         const ageMs = hbTime ? Date.now() - hbTime : Infinity
         const status = String(hb?.status ?? '').toLowerCase()
+        const hbKey = hb?.updated_at ? String(hb.updated_at) : ''
         if (status === 'stopped') {
-          notifyError('Server Stopped')
+          // 🛑 Server STOP event — sirf ek dafa notify karo
+          if (hbKey && hbKey !== lastHbKeyRef.current) pushNotification('error', 'Server Stopped')
+          if (hbKey) rememberHbKey(hbKey)
+          setStatus('error')
+        } else if (status === 'started') {
+          // 🟢 Server START event — sirf ek dafa notify karo
+          if (hbKey && hbKey !== lastHbKeyRef.current) pushNotification('success', 'Server Started')
+          if (hbKey) rememberHbKey(hbKey)
+          setStatus('live')
         } else if (ERROR_STATUSES.includes(status)) {
-          // ❌ Backend ne khud error report kiya
-          notifyError(hb?.message || 'Error in Data Fetching (Portal issue)')
+          // ❌ Backend ne khud error report kiya (portal issue)
+          if (hbKey) rememberHbKey(hbKey)
+          notifyError(hb?.message || 'Error in Data Fetching: Portal Issue')
         } else if (!hb || ageMs > HEARTBEAT_HARD_MS) {
-          // ❌ Heartbeat missing ya 90s+ purani — server/process band
-          notifyError('Error in data fetch')
+          // ❌ Heartbeat missing ya 90s+ purani — process band
+          notifyError('Server Stopped')
         } else if (ageMs > HEARTBEAT_MAX_MS && !ALIVE_STATUSES.includes(status)) {
           // ❌ 40s+ purani aur status alive nahi — process band
-          notifyError('Error in data fetch')
-        } else if (statusRef.current === 'error') {
-          // ✅ Process dobara chalu hua — wapis green + notification
-          setStatus('live')
-          pushNotification('success', 'Server Started')
+          notifyError('Server Stopped')
+        } else {
+          // ✅ Running — error se recovery par sirf pill green karo (koi notification spam nahi)
+          if (hbKey) rememberHbKey(hbKey)
+          if (statusRef.current === 'error') setStatus('live')
         }
 
         // Naya attendance data check
@@ -288,6 +344,10 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
         } else if (latestId !== lastLogIdRef.current) {
           lastLogIdRef.current = latestId
           setStatus('live')
+          // ✅ Last Updated = asal data update ka waqt (refresh par bhi wahi rahe ga)
+          const now = new Date()
+          setLastSync(now)
+          try { localStorage.setItem('rto_last_data_update', now.toISOString()) } catch {}
           await load(true, true) // ✅ Silent refresh — koi flicker / reload nahi
         }
       } catch (e) {
