@@ -182,6 +182,14 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
     lastHbKeyRef.current = key
     try { localStorage.setItem('rto_last_hb_key', key) } catch {}
   }
+  // ✅ Data-update notification with 20s dedup (double notify se bachat)
+  const lastDataNotifyRef = useRef(0)
+  function notifyDataUpdated() {
+    const nowMs = Date.now()
+    if (nowMs - lastDataNotifyRef.current < 20_000) return
+    lastDataNotifyRef.current = nowMs
+    pushNotification('success', 'Data successfully updated')
+  }
 
   useEffect(() => {
     aliveRef.current = true
@@ -237,7 +245,7 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
       if (notify) pushNotification('success', 'Data successfully fetched and updated')
     } catch (e) {
       console.error('Load error:', e)
-      notifyError('Error in data fetch')
+      notifyError('Error: Portal Issue')
     } finally {
       if (aliveRef.current && !silent) setLoading(false)
     }
@@ -290,7 +298,7 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
     const HEARTBEAT_MAX_MS = 40_000
     const HEARTBEAT_HARD_MS = 90_000
     // ✅ Ye statuses "process alive/busy" count hoti hain (error nahi)
-    const ALIVE_STATUSES = ['running', 'started', 'fetching', 'syncing', 'loading']
+    const ALIVE_STATUSES = ['running', 'started', 'data_updated', 'fetching', 'syncing', 'loading']
     // ✅ Sirf ye statuses explicit error hain
     const ERROR_STATUSES = ['error', 'portal_error', 'failed', 'stopped']
     async function check() {
@@ -315,10 +323,15 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
           if (hbKey && hbKey !== lastHbKeyRef.current) pushNotification('success', 'Server Started')
           if (hbKey) rememberHbKey(hbKey)
           setStatus('live')
-        } else if (ERROR_STATUSES.includes(status)) {
-          // ❌ Backend ne khud error report kiya (portal issue)
+        } else if (status === 'data_updated') {
+          // 📦 Backend data-update event (dedup ke sath)
           if (hbKey) rememberHbKey(hbKey)
-          notifyError(hb?.message || 'Error in Data Fetching: Portal Issue')
+          notifyDataUpdated()
+          setStatus('live')
+        } else if (ERROR_STATUSES.includes(status)) {
+          // ❌ Portal issue — ek hi unified message (notifyError dedup karta hai)
+          if (hbKey) rememberHbKey(hbKey)
+          notifyError('Error: Portal Issue')
         } else if (!hb || ageMs > HEARTBEAT_HARD_MS) {
           // ❌ Heartbeat missing ya 90s+ purani — process band
           notifyError('Server Stopped')
@@ -331,28 +344,27 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
           if (statusRef.current === 'error') setStatus('live')
         }
 
-        // Naya attendance data check
-        const { data: latest, error: latErr } = await supabase
+        // Naya attendance data check — count-based (re-upload same ids use karta hai, max-id kabhi nahi badalta)
+        const { count, error: cntErr } = await supabase
           .from('attendance_logs')
-          .select('id')
-          .order('id', { ascending: false })
-          .limit(1)
-        if (latErr) throw latErr
-        const latestId = (latest?.[0]?.id as string | undefined) ?? null
+          .select('id', { count: 'exact', head: true })
+        if (cntErr) throw cntErr
+        const cnt = String(count ?? 0)
         if (lastLogIdRef.current === null) {
-          lastLogIdRef.current = latestId
-        } else if (latestId !== lastLogIdRef.current) {
-          lastLogIdRef.current = latestId
+          lastLogIdRef.current = cnt
+        } else if (cnt !== lastLogIdRef.current) {
+          lastLogIdRef.current = cnt
           setStatus('live')
           // ✅ Last Updated = asal data update ka waqt (refresh par bhi wahi rahe ga)
           const now = new Date()
           setLastSync(now)
           try { localStorage.setItem('rto_last_data_update', now.toISOString()) } catch {}
-          await load(true, true) // ✅ Silent refresh — koi flicker / reload nahi
+          notifyDataUpdated()
+          await load(false, true) // ✅ Silent refresh
         }
       } catch (e) {
-        // ❌ Supabase se connect hi nahi ho raha (internet down)
-        notifyError('Error in data fetch')
+        // ❌ Supabase se connect hi nahi ho raha
+        notifyError('Error: Portal Issue')
       }
     }
     check()   // ✅ Mount par FORAN check — 5 second ka intezar nahi

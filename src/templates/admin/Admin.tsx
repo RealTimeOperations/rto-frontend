@@ -8,7 +8,9 @@ import EmployeesStaff from './EmployeesStaff'
 import SupervisorsData from './SupervisorsData'
 import AttendanceSetup from './AttendanceSetup'
 import AttendanceFetchingLogs from './AttendanceFetchingLogs'
-type Tab = 'dashboard' | 'employees' | 'supervisors' | 'employees-staff' | 'supervisors-staff' | 'base-values' | 'fetching-logs'
+import ContainersFetchLogs from './ContainersFetchLogs'
+import ContainersLocations from './ContainersLocations'
+type Tab = 'dashboard' | 'employees' | 'supervisors' | 'employees-staff' | 'supervisors-staff' | 'base-values' | 'containers-locations' | 'fetching-logs' | 'containers-logs'
 
 type AdminProps = {
   onHomeClick?: () => void
@@ -19,7 +21,7 @@ export default function Admin({ onHomeClick }: AdminProps) {
   // ✅ Tab persistence: refresh ke baad wahi page khule jo pehle tha
   const [tab, setTab] = useState<Tab>(() => {
     const saved = localStorage.getItem('rto_admin_tab') as Tab | null
-    if (saved && ['dashboard', 'employees', 'supervisors', 'employees-staff', 'supervisors-staff', 'base-values', 'fetching-logs'].includes(saved)) return saved
+    if (saved && ['dashboard', 'employees', 'supervisors', 'employees-staff', 'supervisors-staff', 'base-values', 'containers-locations', 'fetching-logs', 'containers-logs'].includes(saved)) return saved
     return 'dashboard'
   })
   const [openUsers, setOpenUsers] = useState(false)
@@ -33,8 +35,8 @@ export default function Admin({ onHomeClick }: AdminProps) {
   useEffect(() => {
     if (tab === 'employees' || tab === 'supervisors') setOpenUsers(true)
     if (tab === 'employees-staff' || tab === 'supervisors-staff') setOpenHr(true)
-    if (tab === 'base-values') setOpenBase(true)
-    if (tab === 'fetching-logs') setOpenFetch(true)
+    if (tab === 'base-values' || tab === 'containers-locations') setOpenBase(true)
+    if (tab === 'fetching-logs' || tab === 'containers-logs') setOpenFetch(true)
   }, [tab])
 
   // ✅ Save tab to localStorage on every change
@@ -223,6 +225,7 @@ export default function Admin({ onHomeClick }: AdminProps) {
             {openBase && (
               <div className={`ml-5 pl-3 border-l border-white/10 space-y-1 ${blockCls}`}>
                 <button onClick={pick('base-values')} className={subClass(tab === 'base-values')}>Attendance Setup</button>
+                <button onClick={pick('containers-locations')} className={subClass(tab === 'containers-locations')}>Containers Locations</button>
               </div>
             )}
             {/* 6) Fetching Logs group */}
@@ -240,6 +243,7 @@ export default function Admin({ onHomeClick }: AdminProps) {
               {openFetch && (
                 <div className={`ml-5 pl-3 border-l border-white/10 space-y-1 ${blockCls}`}>
                   <button onClick={pick('fetching-logs')} className={subClass(tab === 'fetching-logs')}>Attendance Fetch Logs</button>
+                  <button onClick={pick('containers-logs')} className={subClass(tab === 'containers-logs')}>Containers Fetch Logs</button>
                 </div>
               )}
           </nav>
@@ -271,7 +275,9 @@ export default function Admin({ onHomeClick }: AdminProps) {
           {tab === 'employees-staff' && <EmployeesStaff />}
           {tab === 'supervisors-staff' && <SupervisorsData />}
           {tab === 'base-values' && <AttendanceSetup />}
+        {tab === 'containers-locations' && <ContainersLocations />}
           {tab === 'fetching-logs' && <AttendanceFetchingLogs />}
+          {tab === 'containers-logs' && <ContainersFetchLogs />}
         </div>
       </main>
     </div>
