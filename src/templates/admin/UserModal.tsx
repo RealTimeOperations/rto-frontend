@@ -9,13 +9,10 @@ type Props = {
   onSaved: () => void
 }
 
-// ✅ Strict email format check
 function isValidEmailFormat(v: string) {
   return /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(v)
 }
 
-// ✅ Domain MX record check — email domain must really exist and receive mail
-// (network fail ho to block nahi karte, taake admin offline kaam kar sake)
 async function domainHasMx(domain: string): Promise<boolean> {
   try {
     const res = await fetch(`https://dns.google/resolve?name=${encodeURIComponent(domain)}&type=MX`)
@@ -27,7 +24,6 @@ async function domainHasMx(domain: string): Promise<boolean> {
   }
 }
 
-// Auto-format CNIC while typing: 31104-1234567-8
 function formatCnic(v: string) {
   const d = v.replace(/\D/g, '').slice(0, 13)
   if (d.length <= 5) return d
@@ -42,22 +38,25 @@ export default function UserModal({ state, onClose, onSaved, lockRole }: Props) 
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [role, setRole] = useState(lockRole ?? editing?.role ?? 'employee')
-    const [status, setStatus] = useState(editing?.status ?? 'active')
+  const [status, setStatus] = useState(editing?.status ?? 'active')
   const [cnic, setCnic] = useState(editing?.cnic ?? '')
   const [email, setEmail] = useState('')
-  // Permissions (only relevant when role is employee)
+  
   const [permAttendance, setPermAttendance] = useState(editing?.can_attendance ?? false)
-  const [permVehicles, setPermVehicles]       = useState(editing?.can_vehicles    ?? false)
-  const [permContainers, setPermContainers] = useState(editing?.can_containers  ?? false)
+  const [permVehicles, setPermVehicles] = useState(editing?.can_vehicles ?? false)
+  const [permContainers, setPermContainers] = useState(editing?.can_containers ?? false)
+  const [permPenalties, setPermPenalties] = useState(editing?.can_penalties ?? false)
+  const [permPenaltiesHnd, setPermPenaltiesHnd] = useState(editing?.penalties_hnd_office ?? false)
+  const [permPenaltiesFaqirwali, setPermPenaltiesFaqirwali] = useState(editing?.penalties_faqirwali_office ?? false)
+  
   const [loadedPassword, setLoadedPassword] = useState('')
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
-  // ✅ Track: value user ne type ki ya browser ne autofill ki
+  
   const typedUsername = useRef(false)
   const typedPassword = useRef(false)
   const typedEmail = useRef(false)
 
-  // Load stored CNIC and permissions when opening edit/view mode
   useEffect(() => {
     const target = editing ?? viewing
     if (!target) return
@@ -65,13 +64,12 @@ export default function UserModal({ state, onClose, onSaved, lockRole }: Props) 
     ;(async () => {
       const { data } = await supabase
         .from('profiles')
-        .select('cnic, email, can_attendance, can_vehicles, can_containers, password_plain')
+        .select('cnic, email, can_attendance, can_vehicles, can_containers, can_penalties, penalties_hnd_office, penalties_faqirwali_office, password_plain')
         .eq('id', target.id)
         .maybeSingle()
       if (!alive) return
       if (data?.cnic) setCnic(data.cnic)
       if (data?.email) setEmail(data.email)
-      // ✅ Password sirf edit mode mein load ho (view mode mein hidden)
       if (editing && data?.password_plain) {
         setPassword(data.password_plain)
         setLoadedPassword(data.password_plain)
@@ -80,22 +78,25 @@ export default function UserModal({ state, onClose, onSaved, lockRole }: Props) 
         setPermAttendance(Boolean(data.can_attendance))
         setPermVehicles(Boolean(data.can_vehicles))
         setPermContainers(Boolean(data.can_containers))
+        setPermPenalties(Boolean(data.can_penalties))
+        setPermPenaltiesHnd(Boolean(data.penalties_hnd_office))
+        setPermPenaltiesFaqirwali(Boolean(data.penalties_faqirwali_office))
       }
     })()
     return () => { alive = false }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // ✅ Supervisor add mode: default sab modules OFF (admin zaroorat par ON kare)
   useEffect(() => {
     if (state.mode === 'add' && lockRole === 'supervisor') {
       setPermAttendance(false)
       setPermVehicles(false)
       setPermContainers(false)
+      setPermPenalties(false)
+      setPermPenaltiesHnd(false)
+      setPermPenaltiesFaqirwali(false)
     }
   }, [state.mode, lockRole])
 
-  // ✅ Browser autofill ko clear karein (Add mode mein fields khali honi chahiye)
   useEffect(() => {
     if (state.mode !== 'add') return
     const timers = [100, 400, 900].map(ms =>
@@ -106,10 +107,8 @@ export default function UserModal({ state, onClose, onSaved, lockRole }: Props) 
       }, ms)
     )
     return () => timers.forEach(t => clearTimeout(t))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Dynamic titles based on locked role
   const roleLabel = lockRole === 'employee' ? 'Employee' : lockRole === 'supervisor' ? 'Supervisor' : 'User'
   const addLabel = lockRole ? `Add ${roleLabel} Login` : 'Add User'
   const title =
@@ -126,18 +125,11 @@ export default function UserModal({ state, onClose, onSaved, lockRole }: Props) 
     return msg
   }
 
-  // Save CNIC directly on the profiles table
-  async function saveCnic(userId: string, value: string) {
-    const { error: err } = await supabase.from('profiles').update({ cnic: value || null }).eq('id', userId)
-    if (err) console.error('CNIC save error:', err)
-  }
-
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError('')
 
     const roleNow = lockRole ?? role
-    // CNIC validation (supervisor only)
     const cnicValue = cnic.trim()
     if (roleNow === 'supervisor' && !cnicValue) {
       setError('CNIC is required for Supervisor login.')
@@ -147,26 +139,23 @@ export default function UserModal({ state, onClose, onSaved, lockRole }: Props) 
       setError('Please enter a valid CNIC format: 31104-1234567-8')
       return
     }
-    // ✅ Email validation (employee only) — user banane se PEHLE sab checks
+    
     const emailValue = email.trim().toLowerCase()
     if (roleNow === 'employee') {
       if (!emailValue) {
         setError('Email is required for Employee login.')
         return
       }
-      // 1) Format check
       if (!isValidEmailFormat(emailValue)) {
         setError('Enter valid email')
         return
       }
-      // 2) Domain existence check (MX record) — email domain real hona chahiye
       const domain = emailValue.split('@')[1]
       const mxOk = await domainHasMx(domain)
       if (!mxOk) {
         setError('Enter valid email — this email domain does not exist')
         return
       }
-      // 3) Duplicate check — email pehle se registered na ho
       const { data: available, error: chkErr } = await supabase.rpc('check_email_available', {
         p_email: emailValue,
         p_exclude_id: state.mode === 'edit' && editing ? editing.id : null,
@@ -194,17 +183,19 @@ export default function UserModal({ state, onClose, onSaved, lockRole }: Props) 
         setSaving(false)
         return
       }
-      // Save CNIC and permissions against the newly created login account
       const { data: allUsers } = await supabase.rpc('admin_list_users')
       const created = ((allUsers as Profile[]) ?? []).find(u => u.username === username.trim())
       if (created) {
-      const upd: Record<string, any> = { password_plain: password }
-      if (finalRole === 'supervisor') upd.cnic = cnicValue || null
-      if (finalRole === 'employee') upd.email = emailValue || null
-      if (finalRole === 'employee' || finalRole === 'supervisor') {
+        const upd: Record<string, any> = { password_plain: password }
+        if (finalRole === 'supervisor') upd.cnic = cnicValue || null
+        if (finalRole === 'employee') upd.email = emailValue || null
+        if (finalRole === 'employee' || finalRole === 'supervisor') {
           upd.can_attendance = permAttendance
           upd.can_vehicles = permVehicles
           upd.can_containers = permContainers
+          upd.can_penalties = permPenalties
+          upd.penalties_hnd_office = permPenaltiesHnd
+          upd.penalties_faqirwali_office = permPenaltiesFaqirwali
         }
         await supabase.from('profiles').update(upd).eq('id', created.id)
       }
@@ -224,7 +215,6 @@ export default function UserModal({ state, onClose, onSaved, lockRole }: Props) 
         setSaving(false)
         return
       }
-      // Save CNIC, password copy and permissions in one update
       const upd: Record<string, any> = {}
       if (finalRole === 'supervisor') upd.cnic = cnicValue || null
       if (finalRole === 'employee') upd.email = emailValue || null
@@ -233,6 +223,9 @@ export default function UserModal({ state, onClose, onSaved, lockRole }: Props) 
         upd.can_attendance = permAttendance
         upd.can_vehicles = permVehicles
         upd.can_containers = permContainers
+        upd.can_penalties = permPenalties
+        upd.penalties_hnd_office = permPenaltiesHnd
+        upd.penalties_faqirwali_office = permPenaltiesFaqirwali
       }
       await supabase.from('profiles').update(upd).eq('id', editing.id)
       setPassword('')
@@ -242,8 +235,6 @@ export default function UserModal({ state, onClose, onSaved, lockRole }: Props) 
   }
 
   const inputClass = 'w-full h-9 sm:h-11 px-3 sm:px-4 bg-white/5 border border-white/15 rounded-xl text-white text-sm outline-none focus:border-emerald-500 transition'
-
-  // Final role used for conditional rendering in the form
   const finalRole = lockRole ?? role
 
   return (
@@ -265,98 +256,41 @@ export default function UserModal({ state, onClose, onSaved, lockRole }: Props) 
           </div>
         ) : (
           <form onSubmit={handleSubmit} autoComplete="off" autoCapitalize="off" autoCorrect="off" spellCheck="false" className="space-y-3 sm:space-y-4">
-            {/* Honeypot fields — browser autofill inhein fill karega, asli fields safe rahengi */}
             <input type="text" name="hf_username" autoComplete="username" tabIndex={-1} aria-hidden="true" className="absolute -left-248 h-0 w-0 opacity-0" />
             <input type="password" name="hf_password" autoComplete="current-password" tabIndex={-1} aria-hidden="true" className="absolute -left-248 h-0 w-0 opacity-0" />  
             {error && (
               <div className="bg-red-500/10 border border-red-500/40 text-red-300 text-sm p-3 rounded-xl text-center">{error}</div>
             )}
-            {/* 1. Username (first field) */}
             <div>
               <label className="block text-xs font-semibold text-white/70 mb-1.5">Username</label>
-              <input
-                required
-                value={username}
-                onChange={e => { typedUsername.current = true; setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '')) }}
-                placeholder="e.g. ali_123"
-                maxLength={30}
-                autoComplete="off"
-                className={inputClass}
-              />
+              <input required value={username} onChange={e => { typedUsername.current = true; setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '')) }} placeholder="e.g. ali_123" maxLength={30} autoComplete="off" className={inputClass} />
               <p className="text-white/40 text-xs mt-1">3-30 characters, letters, numbers, underscore only</p>
             </div>
-            {/* 2a. Email (employee only — login identifier) */}
             {finalRole === 'employee' && (
               <div>
-                <label className="block text-xs font-semibold text-white/70 mb-1.5">
-                  Email <span className="text-red-300">*</span> <span className="text-white/40">(used for login)</span>
-                </label>
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={e => { typedEmail.current = true; setEmail(e.target.value) }}
-                  placeholder="e.g. ali@gmail.com"
-                  autoComplete="off"
-                  className={inputClass}
-                />
+                <label className="block text-xs font-semibold text-white/70 mb-1.5">Email <span className="text-red-300">*</span> <span className="text-white/40">(used for login)</span></label>
+                <input type="email" required value={email} onChange={e => { typedEmail.current = true; setEmail(e.target.value) }} placeholder="e.g. ali@gmail.com" autoComplete="off" className={inputClass} />
               </div>
             )}
-            {/* 2b. CNIC (supervisor only — login identifier) */}
             {finalRole === 'supervisor' && (
               <div>
-                <label className="block text-xs font-semibold text-white/70 mb-1.5">
-                  CNIC <span className="text-red-300">*</span> <span className="text-white/40">(used for login)</span>
-                </label>
-                <input
-                  required
-                  value={cnic}
-                  onChange={e => setCnic(formatCnic(e.target.value))}
-                  placeholder="31104-1234567-8"
-                  inputMode="numeric"
-                  className={inputClass}
-                />
+                <label className="block text-xs font-semibold text-white/70 mb-1.5">CNIC <span className="text-red-300">*</span> <span className="text-white/40">(used for login)</span></label>
+                <input required value={cnic} onChange={e => setCnic(formatCnic(e.target.value))} placeholder="31104-1234567-8" inputMode="numeric" className={inputClass} />
               </div>
             )}
-            {/* 3. Password (third field) */}
             <div>
-              <label className="block text-xs font-semibold text-white/70 mb-1.5">
-                Password {state.mode === 'edit' && <span className="text-white/40">(leave blank to keep current)</span>}
-              </label>
+              <label className="block text-xs font-semibold text-white/70 mb-1.5">Password {state.mode === 'edit' && <span className="text-white/40">(leave blank to keep current)</span>}</label>
               <div className="relative">
-                <input
-                  type="text"
-                  required={state.mode === 'add'}
-                  autoComplete="off"
-                  value={password}
-                  onChange={e => { typedPassword.current = true; setPassword(e.target.value) }}
-                  placeholder="••••••••"
-                  style={{ WebkitTextSecurity: showPassword ? 'none' : 'disc' } as CSSProperties}
-                  className={`${inputClass} pr-12`}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(v => !v)}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 transition"
-                >
+                <input type="text" required={state.mode === 'add'} autoComplete="off" value={password} onChange={e => { typedPassword.current = true; setPassword(e.target.value) }} placeholder="••••••••" style={{ WebkitTextSecurity: showPassword ? 'none' : 'disc' } as CSSProperties} className={`${inputClass} pr-12`} />
+                <button type="button" onClick={() => setShowPassword(v => !v)} aria-label={showPassword ? 'Hide password' : 'Show password'} className="absolute right-3 top-1/2 -translate-y-1/2 transition">
                   {showPassword ? (
-                    <svg className="h-5 w-5 animate-[eye-stroke-cycle_6s_ease-in-out_infinite]" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
-                      <path d="M9.9 4.24A9.12 4.24 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
-                      <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" />
-                      <line x1="1" y1="1" x2="23" y2="23" />
-                    </svg>
+                    <svg className="h-5 w-5 animate-[eye-stroke-cycle_6s_ease-in-out_infinite]" viewBox="0 0 24 24" fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" /><path d="M9.9 4.24A9.12 4.24 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" /><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" /><line x1="1" y1="1" x2="23" y2="23" /></svg>
                   ) : (
-                    <svg className="h-5 w-5 animate-[eye-stroke-cycle_6s_ease-in-out_infinite]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                      <circle cx="12" cy="12" r="3" />
-                    </svg>
+                    <svg className="h-5 w-5 animate-[eye-stroke-cycle_6s_ease-in-out_infinite]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
                   )}
                 </button>
               </div>
             </div>
-            {/* User Type is hidden when role is locked; only Status remains */}
             <div className={lockRole ? '' : 'grid grid-cols-2 gap-3'}>
               {!lockRole && (
                 <div>
@@ -375,58 +309,44 @@ export default function UserModal({ state, onClose, onSaved, lockRole }: Props) 
                 </select>
               </div>
             </div>
-            {/* ✅ Permission toggles — visible ONLY in Edit mode for Employees (Admin gets full access by default) */}
+            
             {((finalRole === 'employee' || finalRole === 'supervisor') && state.mode === 'edit') && (
               <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
                 <div className="text-xs font-bold tracking-widest text-white/60 uppercase">Dashboard Access</div>
                 {[
-                  {
-                    key: 'attendance',
-                    label: 'Attendance',
-                    value: permAttendance,
-                    set: setPermAttendance,
-                    onTrack: 'bg-emerald-500/30 border-emerald-400/60',
-                    onKnob: 'translate-x-5 bg-emerald-300',
-                  },
-                  {
-                    key: 'vehicles',
-                    label: 'Vehicles',
-                    value: permVehicles,
-                    set: setPermVehicles,
-                    onTrack: 'bg-sky-500/30 border-sky-400/60',
-                    onKnob: 'translate-x-5 bg-sky-300',
-                  },
-                  {
-                    key: 'containers',
-                    label: 'Containers',
-                    value: permContainers,
-                    set: setPermContainers,
-                    onTrack: 'bg-lime-500/30 border-lime-400/60',
-                    onKnob: 'translate-x-5 bg-lime-300',
-                  },
+                  { key: 'attendance', label: 'Attendance', value: permAttendance, set: setPermAttendance, onTrack: 'bg-emerald-500/30 border-emerald-400/60', onKnob: 'translate-x-5 bg-emerald-300' },
+                  { key: 'vehicles', label: 'Vehicles', value: permVehicles, set: setPermVehicles, onTrack: 'bg-sky-500/30 border-sky-400/60', onKnob: 'translate-x-5 bg-sky-300' },
+                  { key: 'containers', label: 'Containers', value: permContainers, set: setPermContainers, onTrack: 'bg-lime-500/30 border-lime-400/60', onKnob: 'translate-x-5 bg-lime-300' },
+                  { key: 'penalties', label: 'Penalties', value: permPenalties, set: setPermPenalties, onTrack: 'bg-amber-500/30 border-amber-400/60', onKnob: 'translate-x-5 bg-amber-300' },
                 ].map(t => (
                   <label key={t.key} className="flex items-center justify-between cursor-pointer group">
                     <span className="text-sm text-white/80 font-medium">{t.label}</span>
-                    <button
-                      type="button"
-                      onClick={() => t.set(!t.value)}
-                      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border transition-colors duration-200 ${
-                        t.value ? t.onTrack : 'bg-white/10 border-white/20'
-                      }`}
-                    >
-                      <span
-                        className={`inline-block h-5 w-5 rounded-full shadow transition-transform duration-200 ${
-                          t.value ? t.onKnob : 'translate-x-0.5 bg-white/70'
-                        }`}
-                      />
+                    <button type="button" onClick={() => t.set(!t.value)} className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full border transition-colors duration-200 ${t.value ? t.onTrack : 'bg-white/10 border-white/20'}`}>
+                      <span className={`inline-block h-5 w-5 rounded-full shadow transition-transform duration-200 ${t.value ? t.onKnob : 'translate-x-0.5 bg-white/70'}`} />
                     </button>
                   </label>
                 ))}
-                <p className="text-[11px] text-white/40">
-                  Selected dashboards will be visible to this employee after login.
-                </p>
+                
+                {permPenalties && (
+                  <div className="ml-4 mt-2 space-y-2 border-l-2 border-amber-400/30 pl-3">
+                    <label className="flex items-center justify-between cursor-pointer group">
+                      <span className="text-xs text-white/60 font-medium">HND Office Access</span>
+                      <button type="button" onClick={() => setPermPenaltiesHnd(!permPenaltiesHnd)} className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors duration-200 ${permPenaltiesHnd ? 'bg-amber-500/30 border-amber-400/60' : 'bg-white/10 border-white/20'}`}>
+                        <span className={`inline-block h-4 w-4 rounded-full shadow transition-transform duration-200 ${permPenaltiesHnd ? 'translate-x-4 bg-amber-300' : 'translate-x-0.5 bg-white/70'}`} />
+                      </button>
+                    </label>
+                    <label className="flex items-center justify-between cursor-pointer group">
+                      <span className="text-xs text-white/60 font-medium">FaqirWali Office Access</span>
+                      <button type="button" onClick={() => setPermPenaltiesFaqirwali(!permPenaltiesFaqirwali)} className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors duration-200 ${permPenaltiesFaqirwali ? 'bg-amber-500/30 border-amber-400/60' : 'bg-white/10 border-white/20'}`}>
+                        <span className={`inline-block h-4 w-4 rounded-full shadow transition-transform duration-200 ${permPenaltiesFaqirwali ? 'translate-x-4 bg-amber-300' : 'translate-x-0.5 bg-white/70'}`} />
+                      </button>
+                    </label>
+                  </div>
+                )}
+                <p className="text-[11px] text-white/40">Selected dashboards will be visible to this employee after login.</p>
               </div>
             )}
+            
             <div className="flex gap-3 pt-1">
               <button type="button" onClick={() => { setPassword(''); onClose() }} className="flex-1 py-2 sm:py-2.5 bg-white/5 border border-white/15 rounded-full text-white/70 text-sm font-semibold hover:bg-white/10 transition">Cancel</button>
               <button type="submit" disabled={saving} className="running-button flex-1 py-2 sm:py-2.5 rounded-full text-white text-sm font-bold hover:opacity-90 transition disabled:opacity-50">

@@ -20,7 +20,8 @@ import VehiclesTransition from './templates/animations/VehiclesTransition'
 import HomeTransition from './templates/animations/HomeTransition'
 import AdminTransition from './templates/animations/AdminTransition'
 import DashboardAttendance from './templates/SupervisorsMonitoring/supervisorsattendance/DashboardAttendance'
-
+import PenaltiesDashboard from './templates/penaltiesmonitoring/PenaltiesDashboard'
+import PenaltiesTransition from './templates/animations/PenaltiesTransition'
 export default function App() {
   const [session, setSession] = useState<Session | null>(null)
   const [role, setRole] = useState<string | null>(null)
@@ -32,7 +33,7 @@ export default function App() {
   const [welcome, setWelcome] = useState(false)
   const [loginTransition, setLoginTransition] = useState(false)
   const [goodbye, setGoodbye] = useState(false)
-  const [dashboardTransition, setDashboardTransition] = useState<'attendance' | 'containers' | 'vehicles' | 'home' | 'admin' | null>(null)
+  const [dashboardTransition, setDashboardTransition] = useState<'attendance' | 'containers' | 'vehicles' | 'home' | 'admin' | 'penalties' | null>(null)
 
   async function loadRole(userId: string) {
     // Role load (with cache)
@@ -58,19 +59,27 @@ export default function App() {
         attendance: true,
         vehicles:   true,
         containers: true,
+        penalties:  true,
+        penalties_hnd: true,
+        penalties_faqirwali: true,
+        isAdmin: true,
       })
       return
     }
     // Other users: permissions from profiles table
     const { data: prof } = await supabase
       .from('profiles')
-      .select('can_attendance, can_vehicles, can_containers')
+      .select('can_attendance, can_vehicles, can_containers, can_penalties, penalties_hnd_office, penalties_faqirwali_office')
       .eq('id', userId)
       .maybeSingle()
     setPermissions({
       attendance: Boolean(prof?.can_attendance),
       vehicles:   Boolean(prof?.can_vehicles),
       containers: Boolean(prof?.can_containers),
+      penalties:  Boolean(prof?.can_penalties),
+      penalties_hnd: Boolean(prof?.penalties_hnd_office),
+      penalties_faqirwali: Boolean(prof?.penalties_faqirwali_office),
+      isAdmin: false,
     })
   }
 
@@ -210,7 +219,7 @@ export default function App() {
             ) : (
               <Homepage
                 role={role}
-                permissions={permissions ?? { attendance: false, vehicles: false, containers: false }}
+                permissions={permissions ?? { attendance: false, vehicles: false, containers: false, penalties: false, penalties_hnd: false, penalties_faqirwali: false, isAdmin: false }}
                 permissionsLoaded={permissions !== null}
                 onCardClick={(target) => setDashboardTransition(target)}
                 onAdminClick={() => setDashboardTransition('admin')}
@@ -276,6 +285,23 @@ export default function App() {
         <Route path="/admin" element={isAdmin ? <Admin onHomeClick={() => setDashboardTransition('home')} /> : <Navigate to="/login" replace />} />
         <Route path="*" element={<Navigate to={isLoggedIn ? '/home' : '/login'} replace />} />
         <Route path="/supervisors/attendance" element={<SupervisorModule module="attendance" />} />
+        <Route
+          path="/penalties"
+          element={
+            !isLoggedIn ? (
+              <Navigate to="/login" replace />
+            ) : permissions === null ? (
+              <div className="min-h-screen flex items-center justify-center text-white/60">Loading…</div>
+            ) : role !== 'admin' && !permissions?.penalties ? (
+              <Navigate to={role === 'supervisor' ? '/supervisors' : '/home'} replace />
+            ) : (
+              <PenaltiesDashboard 
+                permissions={permissions} 
+                onHomeClick={() => setDashboardTransition('home')}
+              />
+            )
+          }
+        />
         </Routes>
 
         {welcome && (
@@ -303,6 +329,9 @@ export default function App() {
         )}
         {dashboardTransition === 'admin' && (
           <AdminTransition onDone={() => setDashboardTransition(null)} />
+        )}
+        {dashboardTransition === 'penalties' && (
+          <PenaltiesTransition onDone={() => setDashboardTransition(null)} />
         )}
       </div>
     </BrowserRouter>

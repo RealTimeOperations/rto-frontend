@@ -19,6 +19,9 @@ export type Profile = {
   can_attendance?: boolean
   can_vehicles?: boolean
   can_containers?: boolean
+  can_penalties?: boolean
+  penalties_hnd_office?: boolean         
+  penalties_faqirwali_office?: boolean
 }
 
 // Permission set for the currently logged-in user
@@ -26,6 +29,10 @@ export type Permissions = {
   attendance: boolean
   vehicles: boolean
   containers: boolean
+  penalties: boolean
+  penalties_hnd: boolean      
+  penalties_faqirwali: boolean
+  isAdmin: boolean 
 }
 
 export type ModalState =

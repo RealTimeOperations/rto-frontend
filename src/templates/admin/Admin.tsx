@@ -9,8 +9,10 @@ import SupervisorsData from './SupervisorsData'
 import AttendanceSetup from './AttendanceSetup'
 import AttendanceFetchingLogs from './AttendanceFetchingLogs'
 import ContainersFetchLogs from './ContainersFetchLogs'
+import PenaltiesFetchLogs from './PenaltiesFetchLogs'
 import ContainersLocations from './ContainersLocations'
-type Tab = 'dashboard' | 'employees' | 'supervisors' | 'employees-staff' | 'supervisors-staff' | 'base-values' | 'containers-locations' | 'fetching-logs' | 'containers-logs'
+import PenaltiesFMODetails from './PenaltiesFMODetails'
+type Tab = 'dashboard' | 'employees' | 'supervisors' | 'employees-staff' | 'supervisors-staff' | 'base-values' | 'containers-locations' | 'fmo-details' | 'fetching-logs' | 'containers-logs' | 'penalties-logs'
 
 type AdminProps = {
   onHomeClick?: () => void
@@ -20,9 +22,9 @@ export default function Admin({ onHomeClick }: AdminProps) {
   const navigate = useNavigate()
   // ✅ Tab persistence: refresh ke baad wahi page khule jo pehle tha
   const [tab, setTab] = useState<Tab>(() => {
-    const saved = localStorage.getItem('rto_admin_tab') as Tab | null
-    if (saved && ['dashboard', 'employees', 'supervisors', 'employees-staff', 'supervisors-staff', 'base-values', 'containers-locations', 'fetching-logs', 'containers-logs'].includes(saved)) return saved
-    return 'dashboard'
+  const saved = localStorage.getItem('rto_admin_tab') as Tab | null
+  if (saved && ['dashboard', 'employees', 'supervisors', 'employees-staff', 'supervisors-staff', 'base-values', 'containers-locations', 'fmo-details', 'fetching-logs', 'containers-logs', 'penalties-logs'].includes(saved)) return saved
+  return 'dashboard'
   })
   const [openUsers, setOpenUsers] = useState(false)
   const [openHr, setOpenHr] = useState(false)
@@ -36,7 +38,7 @@ export default function Admin({ onHomeClick }: AdminProps) {
     if (tab === 'employees' || tab === 'supervisors') setOpenUsers(true)
     if (tab === 'employees-staff' || tab === 'supervisors-staff') setOpenHr(true)
     if (tab === 'base-values' || tab === 'containers-locations') setOpenBase(true)
-    if (tab === 'fetching-logs' || tab === 'containers-logs') setOpenFetch(true)
+    if (tab === 'fetching-logs' || tab === 'containers-logs' || tab === 'penalties-logs') setOpenFetch(true)
   }, [tab])
 
   // ✅ Save tab to localStorage on every change
@@ -226,6 +228,7 @@ export default function Admin({ onHomeClick }: AdminProps) {
               <div className={`ml-5 pl-3 border-l border-white/10 space-y-1 ${blockCls}`}>
                 <button onClick={pick('base-values')} className={subClass(tab === 'base-values')}>Attendance Setup</button>
                 <button onClick={pick('containers-locations')} className={subClass(tab === 'containers-locations')}>Containers Locations</button>
+                <button onClick={pick('fmo-details')} className={subClass(tab === 'fmo-details')}>Penalties FMO Details</button>
               </div>
             )}
             {/* 6) Fetching Logs group */}
@@ -244,6 +247,7 @@ export default function Admin({ onHomeClick }: AdminProps) {
                 <div className={`ml-5 pl-3 border-l border-white/10 space-y-1 ${blockCls}`}>
                   <button onClick={pick('fetching-logs')} className={subClass(tab === 'fetching-logs')}>Attendance Fetch Logs</button>
                   <button onClick={pick('containers-logs')} className={subClass(tab === 'containers-logs')}>Containers Fetch Logs</button>
+                  <button onClick={pick('penalties-logs')} className={subClass(tab === 'penalties-logs')}>Penalties Fetch Logs</button>
                 </div>
               )}
           </nav>
@@ -275,9 +279,11 @@ export default function Admin({ onHomeClick }: AdminProps) {
           {tab === 'employees-staff' && <EmployeesStaff />}
           {tab === 'supervisors-staff' && <SupervisorsData />}
           {tab === 'base-values' && <AttendanceSetup />}
-        {tab === 'containers-locations' && <ContainersLocations />}
+          {tab === 'containers-locations' && <ContainersLocations />}
+          {tab === 'fmo-details' && <PenaltiesFMODetails />}
           {tab === 'fetching-logs' && <AttendanceFetchingLogs />}
           {tab === 'containers-logs' && <ContainersFetchLogs />}
+          {tab === 'penalties-logs' && <PenaltiesFetchLogs />}
         </div>
       </main>
     </div>

@@ -122,8 +122,6 @@ export default function AttendanceSetup() {
     load()
   }
 
-  // ✅ Drag & drop — sort_order swap
-
   async function handleDelete() {
     if (!deleteTarget) return
     setDeleting(true)

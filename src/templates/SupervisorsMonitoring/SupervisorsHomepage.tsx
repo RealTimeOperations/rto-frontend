@@ -8,7 +8,7 @@ export default function SupervisorsHomepage() {
   const [cnic, setCnic] = useState('')
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [permissions, setPermissions] = useState<{ attendance: boolean; vehicles: boolean; containers: boolean }>({ attendance: true, vehicles: true, containers: true })
+  const [permissions, setPermissions] = useState<{ attendance: boolean; vehicles: boolean; containers: boolean; penalties: boolean }>({ attendance: true, vehicles: true, containers: true, penalties: true })
 
   // Verify supervisor role and load the logged-in user's name
   useEffect(() => {
@@ -42,16 +42,17 @@ export default function SupervisorsHomepage() {
       setUsername(name)
       const { data: prof } = await supabase
         .from('profiles')
-        .select('can_attendance, can_vehicles, can_containers, cnic')
+        .select('can_attendance, can_vehicles, can_containers, can_penalties, cnic')
         .eq('id', userId)
         .maybeSingle()
       if (prof?.cnic && alive) setCnic(String(prof.cnic))
       if (prof) {
-        setPermissions({
-          attendance: Boolean(prof.can_attendance),
-          vehicles: Boolean(prof.can_vehicles),
-          containers: Boolean(prof.can_containers),
-        })
+      setPermissions({
+        attendance: Boolean(prof.can_attendance),
+        vehicles: Boolean(prof.can_vehicles),
+        containers: Boolean(prof.can_containers),
+        penalties: Boolean(prof.can_penalties),
+      })
       }
       setLoading(false)
 
@@ -68,6 +69,7 @@ export default function SupervisorsHomepage() {
                 attendance: Boolean(rec.can_attendance),
                 vehicles: Boolean(rec.can_vehicles),
                 containers: Boolean(rec.can_containers),
+                penalties: Boolean(rec.can_penalties),
               })
             }
           }
@@ -129,6 +131,20 @@ export default function SupervisorsHomepage() {
         </>
       ),
     },
+    {
+      key: 'penalties',
+      title: 'Penalties',
+      desc: 'Penalty records, violations & enforcement monitoring',
+      path: '/penalties',
+      accent: 'amber' as const,
+      icon: (
+        <>
+          <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+          <line x1="12" y1="9" x2="12" y2="13" />
+          <line x1="12" y1="17" x2="12.01" y2="17" />
+        </>
+      ),
+    },
   ]
 
   // ✅ Sirf wahi modules dikhao jinke permissions admin ne ON ki hain
@@ -136,6 +152,7 @@ export default function SupervisorsHomepage() {
     if (m.key === 'attendance') return permissions.attendance
     if (m.key === 'vehicles') return permissions.vehicles
     if (m.key === 'containers') return permissions.containers
+    if (m.key === 'penalties') return permissions.penalties
     return false
   })
 
@@ -163,6 +180,14 @@ export default function SupervisorsHomepage() {
       hoverBorder: 'hover:border-lime-400/50',
       line: 'bg-lime-400/60 shadow-[0_0_12px_2px_rgba(163,230,53,0.7)]',
       run: 'bg-[linear-gradient(90deg,transparent,#fef9c3,transparent)]',
+    },
+    amber: {
+      box: 'border-amber-400/40 bg-amber-500/15 text-amber-300',
+      glow: 'bg-amber-500/10 group-hover:bg-amber-500/25',
+      text: 'text-amber-300',
+      hoverBorder: 'hover:border-amber-400/50',
+      line: 'bg-amber-400/60 shadow-[0_0_12px_2px_rgba(251,191,36,0.7)]',
+      run: 'bg-[linear-gradient(90deg,transparent,#fef3c7,transparent)]',
     },
   }
 
