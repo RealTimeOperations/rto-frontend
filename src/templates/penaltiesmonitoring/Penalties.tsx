@@ -62,8 +62,8 @@ function fmtDate(v: any) {
   if (isNaN(d.getTime())) return s
   return d.toLocaleString('en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })
 }
-// ✅ 13 columns ki fixed widths (header + body dono mein same → alignment barqarar)
-const COL_WIDTHS = ['2%','9%','10%','10%','7%','8%','7%','5%','9%','8%','9%','9%','7%']
+// ✅ 11 columns ki fixed widths (total = 100%) — header + body dono mein same → alignment barqarar
+const COL_WIDTHS = ['3%','10%','10%','12%','6%','10%','8%','4%','12%','12%','13%']
 export default function Penalties({ penalties, loading = false, permissions }: Props) {
   const [search, setSearch] = useState('')
   const [fType, setFType] = useState('')
@@ -161,9 +161,9 @@ export default function Penalties({ penalties, loading = false, permissions }: P
                   {COL_WIDTHS.map((w, i) => <col key={i} style={{ width: w }} />)}
                 </colgroup>
                 <thead>
-                  <tr className="text-left text-[10px] sm:text-xs font-bold tracking-wider text-emerald-200/90 uppercase border-b border-emerald-400/20">
-                    <th className="px-2 sm:px-3 py-3">Sr#</th>
-                    <th className="px-2 sm:px-3 py-3">Penalty ID</th>
+                  <tr className="text-center text-[10px] sm:text-xs font-bold tracking-wider text-emerald-200/90 uppercase border-b border-emerald-400/20">
+                    <th className="px-2 sm:px-3 py-3 text-left">Sr#</th>
+                    <th className="px-2 sm:px-3 py-3 text-left">Penalty ID</th>
                     <th className="px-2 sm:px-3 py-3">Penalty Type</th>
                     <th className="px-2 sm:px-3 py-3">Penalty Sub Type</th>
                     <th className="px-2 sm:px-3 py-3">Amount (Rs.)</th>
@@ -173,8 +173,6 @@ export default function Penalties({ penalties, loading = false, permissions }: P
                     <th className="px-2 sm:px-3 py-3">Added By</th>
                     <th className="px-2 sm:px-3 py-3">UC / Ward</th>
                     <th className="px-2 sm:px-3 py-3">Created Date & Time</th>
-                    <th className="px-2 sm:px-3 py-3">Final Action Time</th>
-                    <th className="px-2 sm:px-3 py-3">Can Auto Imposed</th>
                   </tr>
                 </thead>
               </table>
@@ -188,27 +186,24 @@ export default function Penalties({ penalties, loading = false, permissions }: P
                 </colgroup>
                 <tbody>
                   {loading ? (
-                    <tr><td colSpan={13} className="px-4 py-10 text-center text-white/50 text-xs">Loading penalties…</td></tr>
+                    <tr><td colSpan={11} className="px-4 py-10 text-center text-white/50 text-xs">Loading penalties…</td></tr>
                   ) : filtered.length === 0 ? (
-                    <tr><td colSpan={13} className="px-4 py-10 text-center text-white/50 text-xs">{filteredPenalties.length === 0 ? 'No penalties found' : 'No matching penalties'}</td></tr>
+                    <tr><td colSpan={11} className="px-4 py-10 text-center text-white/50 text-xs">{filteredPenalties.length === 0 ? 'No penalties found' : 'No matching penalties'}</td></tr>
                   ) : (
                     filtered.map((p: Row, i: number) => {
-                      const autoYes = String(p.can_auto_imposed ?? '').trim() === '1' || /yes|true/i.test(String(p.can_auto_imposed ?? ''))
                       return (
-                        <tr key={String(p.id ?? i)} className="border-b border-white/5 last:border-0 hover:bg-white/5 transition">
-                          <td className="px-2 sm:px-3 py-2.5 text-white/50 text-[11px]">{i + 1}</td>
-                          <td className="px-2 sm:px-3 py-2.5 text-amber-300 font-mono text-[11px] font-bold">{p.id}</td>
+                        <tr key={String(p.id ?? i)} className="border-b border-white/5 last:border-0 hover:bg-white/5 transition text-center">
+                          <td className="px-2 sm:px-3 py-2.5 text-white/50 text-[11px] text-left">{i + 1}</td>
+                          <td className="px-2 sm:px-3 py-2.5 text-amber-300 font-mono text-[11px] font-bold text-left">{p.id}</td>
                           <td className="px-2 sm:px-3 py-2.5 text-white/90 text-[11px] font-semibold">{p.penalty_type || '—'}</td>
                           <td className="px-2 sm:px-3 py-2.5 text-white/70 text-[11px]">{p.penalty_sub_type || '—'}</td>
                           <td className="px-2 sm:px-3 py-2.5 text-emerald-300 text-[11px] font-bold whitespace-nowrap">{Number(p.penalty_amount || 0).toLocaleString()}</td>
-                          <td className="px-2 sm:px-3 py-2.5"><span className={`px-2 py-1 rounded-full text-[10px] font-bold border whitespace-nowrap ${statusBadge(p.status)}`}>{p.status || '—'}</span></td>
-                          <td className="px-2 sm:px-3 py-2.5"><span className={`px-2 py-1 rounded-full text-[10px] font-bold border whitespace-nowrap ${isYes(p.tm_imposed) ? 'bg-purple-500/15 text-purple-300 border-purple-400/40' : 'bg-white/5 text-white/50 border-white/15'}`}>{isYes(p.tm_imposed) ? 'Yes' : 'No'}</span></td>
+                          <td className="px-2 sm:px-3 py-2.5"><span title={String(p.status || '—')} className={`inline-block max-w-full truncate px-2 py-1 rounded-full text-[10px] font-bold border ${statusBadge(p.status)}`}>{p.status || '—'}</span></td>
+                          <td className="px-2 sm:px-3 py-2.5"><span className={`inline-block max-w-full truncate px-2 py-1 rounded-full text-[10px] font-bold border ${isYes(p.tm_imposed) ? 'bg-purple-500/15 text-purple-300 border-purple-400/40' : 'bg-white/5 text-white/50 border-white/15'}`}>{isYes(p.tm_imposed) ? 'Yes' : 'No'}</span></td>
                           <td className="px-2 sm:px-3 py-2.5 text-white/70 text-[11px]">{p.tat || '—'}</td>
                           <td className="px-2 sm:px-3 py-2.5 text-white/80 text-[11px]">{p.added_by || '—'}</td>
                           <td className="px-2 sm:px-3 py-2.5 text-white/60 text-[11px]">{p.uc_ward || '—'}</td>
                           <td className="px-2 sm:px-3 py-2.5 text-white/60 text-[10px]">{fmtDate(p.created_at)}</td>
-                          <td className="px-2 sm:px-3 py-2.5 text-white/60 text-[10px]">{fmtDate(p.final_action_time)}</td>
-                          <td className="px-2 sm:px-3 py-2.5"><span className={`px-2 py-1 rounded-full text-[10px] font-bold border whitespace-nowrap ${autoYes ? 'bg-emerald-500/15 text-emerald-300 border-emerald-400/40' : 'bg-white/5 text-white/50 border-white/15'}`}>{autoYes ? 'Yes' : 'No'}</span></td>
                         </tr>
                       )
                     })

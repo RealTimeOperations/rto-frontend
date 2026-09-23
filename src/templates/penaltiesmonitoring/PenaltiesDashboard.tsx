@@ -737,7 +737,7 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
                                 <th className="w-[18%] sm:w-[20%] px-1.5 sm:px-2 py-2 sm:py-3 uppercase whitespace-nowrap">Sub Type</th>
                                 {subTypeFmoMatrix.fmos.map(f => (
                                   <th key={f} title={titleCase(f)} className="px-1 sm:px-2 py-2 sm:py-3 text-center border-l border-white/10">
-                                    <span className="block leading-tight whitespace-nowrap overflow-hidden text-ellipsis text-[7px] sm:text-[8px] md:text-[10px]">{titleCase(f)}</span>
+                                    <span className="block leading-tight break-words md:[overflow-wrap:normal] text-[6px] lg:text-[7px] xl:text-[8px] 2xl:text-[10px]">{titleCase(f)}</span>
                                   </th>
                                 ))}
                                 <th className="w-[10%] sm:w-[8%] px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40 uppercase text-emerald-300 whitespace-nowrap">Total</th>
@@ -748,7 +748,7 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
                                 const rowTotal = subTypeFmoMatrix.fmos.reduce((sum, f) => sum + (subTypeFmoMatrix.cells.get(s)?.get(f) || 0), 0)
                                 return (
                                   <tr key={s} className="border-b border-white/10 last:border-0 hover:bg-white/5 transition">
-                                    <td className="px-1.5 sm:px-2 py-1.5 sm:py-2.5 font-semibold text-white/85 whitespace-nowrap overflow-hidden text-ellipsis">
+                                    <td className="px-1.5 sm:px-2 py-1.5 sm:py-2.5 font-semibold text-white/85 break-words">
                                       <span className="text-white/40 font-bold">{i + 1}.</span> {s}
                                     </td>
                                     {subTypeFmoMatrix.fmos.map(f => {
@@ -855,8 +855,8 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
                               <tr className="text-left font-bold tracking-wider text-emerald-200/90 bg-[#0a4038] border-b border-emerald-400/20">
                                 <th className="w-[18%] sm:w-[20%] px-1.5 sm:px-2 py-2 sm:py-3 uppercase whitespace-nowrap">Sub Type</th>
                                 {hndSubTypeFmoMatrix.fmos.map(f => (
-                                  <th key={f} title={titleCase(f)} className="px-1 sm:px-2 py-2 sm:py-3 text-center border-l border-white/10">
-                                    <span className="block leading-tight whitespace-nowrap overflow-hidden text-ellipsis text-[7px] sm:text-[8px] md:text-[10px]">{titleCase(f)}</span>
+                                  <th key={f} title={titleCase(f)} className="px-0.5 sm:px-1 py-2 sm:py-3 text-center border-l border-white/10 align-top">
+                                    <span className="block leading-tight break-words md:[overflow-wrap:normal] text-[6px] lg:text-[7px] xl:text-[8px] 2xl:text-[10px]">{titleCase(f)}</span>
                                   </th>
                                 ))}
                                 <th className="w-[10%] sm:w-[8%] px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40 uppercase text-emerald-300 whitespace-nowrap">Total</th>
@@ -867,7 +867,7 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
                                 const rowTotal = hndSubTypeFmoMatrix.fmos.reduce((sum, f) => sum + (hndSubTypeFmoMatrix.cells.get(s)?.get(f) || 0), 0)
                                 return (
                                   <tr key={s} className="border-b border-white/10 last:border-0 hover:bg-white/5 transition">
-                                    <td className="px-1.5 sm:px-2 py-1.5 sm:py-2.5 font-semibold text-white/85 whitespace-nowrap overflow-hidden text-ellipsis">
+                                    <td className="px-1.5 sm:px-2 py-1.5 sm:py-2.5 font-semibold text-white/85 break-words">
                                       <span className="text-white/40 font-bold">{i + 1}.</span> {s}
                                     </td>
                                     {hndSubTypeFmoMatrix.fmos.map(f => {
@@ -975,7 +975,7 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
                                 <th className="w-[18%] sm:w-[20%] px-1.5 sm:px-2 py-2 sm:py-3 uppercase whitespace-nowrap">Sub Type</th>
                                 {faqirwaliSubTypeFmoMatrix.fmos.map(f => (
                                   <th key={f} title={titleCase(f)} className="px-1 sm:px-2 py-2 sm:py-3 text-center border-l border-white/10">
-                                    <span className="block leading-tight whitespace-nowrap overflow-hidden text-ellipsis text-[7px] sm:text-[8px] md:text-[10px]">{titleCase(f)}</span>
+                                    <span className="block leading-tight break-words md:[overflow-wrap:normal] text-[6px] lg:text-[7px] xl:text-[8px] 2xl:text-[10px]">{titleCase(f)}</span>
                                   </th>
                                 ))}
                                 <th className="w-[10%] sm:w-[8%] px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40 uppercase text-emerald-300 whitespace-nowrap">Total</th>
@@ -986,7 +986,7 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
                                 const rowTotal = faqirwaliSubTypeFmoMatrix.fmos.reduce((sum, f) => sum + (faqirwaliSubTypeFmoMatrix.cells.get(s)?.get(f) || 0), 0)
                                 return (
                                   <tr key={s} className="border-b border-white/10 last:border-0 hover:bg-white/5 transition">
-                                    <td className="px-1.5 sm:px-2 py-1.5 sm:py-2.5 font-semibold text-white/85 whitespace-nowrap overflow-hidden text-ellipsis">
+                                    <td className="px-1.5 sm:px-2 py-1.5 sm:py-2.5 font-semibold text-white/85 break-words">
                                       <span className="text-white/40 font-bold">{i + 1}.</span> {s}
                                     </td>
                                     {faqirwaliSubTypeFmoMatrix.fmos.map(f => {
@@ -1099,7 +1099,7 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
                                 <th className="w-[18%] sm:w-[20%] px-1.5 sm:px-2 py-2 sm:py-3 uppercase whitespace-nowrap">Sub Type</th>
                                 {subTypeFmoMatrix.fmos.map(f => (
                                   <th key={f} title={titleCase(f)} className="px-1 sm:px-2 py-2 sm:py-3 text-center border-l border-white/10">
-                                    <span className="block leading-tight whitespace-nowrap overflow-hidden text-ellipsis text-[7px] sm:text-[8px] md:text-[10px]">{titleCase(f)}</span>
+                                    <span className="block leading-tight break-words md:[overflow-wrap:normal] text-[6px] lg:text-[7px] xl:text-[8px] 2xl:text-[10px]">{titleCase(f)}</span>
                                   </th>
                                 ))}
                                 <th className="w-[10%] sm:w-[8%] px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40 uppercase text-emerald-300 whitespace-nowrap">Total</th>
@@ -1110,7 +1110,7 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
                                 const rowTotal = subTypeFmoMatrix.fmos.reduce((sum, f) => sum + (subTypeFmoMatrix.cells.get(s)?.get(f) || 0), 0)
                                 return (
                                   <tr key={s} className="border-b border-white/10 last:border-0 hover:bg-white/5 transition">
-                                    <td className="px-1.5 sm:px-2 py-1.5 sm:py-2.5 font-semibold text-white/85 whitespace-nowrap overflow-hidden text-ellipsis">
+                                    <td className="px-1.5 sm:px-2 py-1.5 sm:py-2.5 font-semibold text-white/85 break-words">
                                       <span className="text-white/40 font-bold">{i + 1}.</span> {s}
                                     </td>
                                     {subTypeFmoMatrix.fmos.map(f => {
