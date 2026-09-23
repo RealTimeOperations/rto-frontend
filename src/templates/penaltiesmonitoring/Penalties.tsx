@@ -6,10 +6,6 @@ type Row = Record<string, any>
 type Props = {
   penalties: Row[]
   loading?: boolean
-  histDate: string | null
-  fetching: boolean
-  onFetchDate: (date: string) => void
-  onResetDate: () => void
   permissions?: any
 }
 
@@ -67,19 +63,14 @@ function fmtDate(v: any) {
   return d.toLocaleString('en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })
 }
 
-export default function Penalties({
-  penalties, loading = false, histDate, fetching, onFetchDate, onResetDate, permissions
-}: Props) {
+export default function Penalties({ penalties, loading = false, permissions }: Props) {
   const [search, setSearch] = useState('')
   const [fType, setFType] = useState('')
   const [fStatus, setFStatus] = useState('')
   const [fImposed, setFImposed] = useState('')
   const [fAddedBy, setFAddedBy] = useState('')
-  const [pickerDate, setPickerDate] = useState<string>(histDate ?? '')
-  
-  useEffect(() => { setPickerDate(histDate ?? '') }, [histDate])
 
-  // ✅ 1. Office-wise FMO assignments (Ab component ke ANDAR hai)
+  // ✅ 1. Office-wise FMO assignments
   const [fmoAssignments, setFmoAssignments] = useState<{ fmo_name: string; hnd_office: boolean; faqirwali_office: boolean }[]>([])
   useEffect(() => {
     async function loadAssignments() {
@@ -95,7 +86,7 @@ export default function Penalties({
     const offices = []
     if (permissions.penalties_hnd) offices.push('hnd')
     if (permissions.penalties_faqirwali) offices.push('faqirwali')
-    return offices
+    return offices 
   }, [permissions])
 
   // ✅ 3. Penalties ko filter karein sirf allowed offices ke FMOs ke liye
@@ -113,7 +104,6 @@ export default function Penalties({
   const typeOptions = useMemo(() => [...new Set(filteredPenalties.map((p: Row) => String(p.penalty_type || '').trim()).filter(Boolean))].sort(), [filteredPenalties])
   const statusOptions = useMemo(() => [...new Set(filteredPenalties.map((p: Row) => String(p.status || '').trim()).filter(Boolean))].sort(), [filteredPenalties])
   const addedByOptions = useMemo(() => [...new Set(filteredPenalties.map((p: Row) => String(p.added_by || '').trim()).filter(Boolean))].sort(), [filteredPenalties])
-  // ✅ 3 Options: TM Imposed, FMO Imposed, None (All already handled by dropdown default)
   const imposedOptions = ['TM Imposed', 'FMO Imposed', 'No']
 
   const filtered = useMemo(() => {
@@ -122,21 +112,13 @@ export default function Penalties({
       if (s && !String(p.id || '').toLowerCase().includes(s)) return false
       if (fType && String(p.penalty_type || '').trim() !== fType) return false
       if (fStatus && String(p.status || '').trim() !== fStatus) return false
-      
-      // ✅ Updated Imposed Filter Logic
       if (fImposed === 'TM Imposed' && !isYes(p.tm_imposed)) return false
       if (fImposed === 'FMO Imposed' && !isYes(p.penalty_imposed)) return false
       if (fImposed === 'No' && (isYes(p.tm_imposed) || isYes(p.penalty_imposed))) return false
-      
       if (fAddedBy && String(p.added_by || '').trim() !== fAddedBy) return false
       return true
     })
   }, [filteredPenalties, search, fType, fStatus, fImposed, fAddedBy])
-
-  const now = new Date()
-  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-  const showFetch = !!pickerDate && pickerDate !== histDate
-  const showReset = !!histDate && (pickerDate === '' || pickerDate === histDate)
 
   return (
     <div className="flex flex-col gap-3 h-[calc(100dvh-190px)] min-h-[340px]">
@@ -146,34 +128,14 @@ export default function Penalties({
           <span className="px-2 sm:px-3 py-0.5 sm:py-1 rounded-full bg-amber-500/15 border border-amber-400/40 text-amber-300 text-[9px] sm:text-xs font-bold whitespace-nowrap">
             Total: {loading ? '…' : filtered.length}
           </span>
-          {histDate && (
-            <span className="px-2 sm:px-3 py-0.5 sm:py-1 rounded-full bg-sky-500/15 border border-sky-400/40 text-sky-300 text-[9px] sm:text-xs font-bold whitespace-nowrap">Date: {histDate}</span>
-          )}
         </div>
-
+        
         <div className="flex flex-wrap items-center gap-2">
           <Dropdown label="Penalty Type" value={fType} options={typeOptions} onChange={setFType} />
           <Dropdown label="Status" value={fStatus} options={statusOptions} onChange={setFStatus} width="w-32 sm:w-40" />
           <Dropdown label="Penalty Imposed" value={fImposed} options={imposedOptions} onChange={setFImposed} />
           <Dropdown label="Added By" value={fAddedBy} options={addedByOptions} onChange={setFAddedBy} />
-
-          {/* ✅ Date feature sirf Admin ko nazar aayega */}
-          {permissions?.isAdmin && (
-            <div className="flex items-center gap-2">
-              <input type="date" value={pickerDate} max={today} disabled={fetching} onChange={e => setPickerDate(e.target.value)} className="h-9 sm:h-10 px-3 rounded-xl border border-emerald-400/25 bg-[#071b15]/80 backdrop-blur-md text-[11px] sm:text-xs font-medium text-white outline-none focus:ring-2 focus:ring-emerald-400/50 disabled:opacity-50 transition" />
-              {showFetch && (
-                <button type="button" onClick={() => onFetchDate(pickerDate)} disabled={fetching} className="h-9 sm:h-10 px-3 sm:px-4 rounded-xl border border-sky-400/40 bg-sky-500/15 text-sky-300 text-[11px] sm:text-xs font-bold hover:bg-sky-500/25 disabled:opacity-50 transition whitespace-nowrap">
-                  {fetching ? 'Fetching…' : 'Fetch'}
-                </button>
-              )}
-              {showReset && (
-                <button type="button" onClick={onResetDate} disabled={fetching} className="h-9 sm:h-10 px-3 sm:px-4 rounded-xl border border-amber-400/40 bg-amber-500/15 text-amber-300 text-[11px] sm:text-xs font-bold hover:bg-amber-500/25 disabled:opacity-50 transition whitespace-nowrap">
-                  {fetching ? 'Resetting…' : 'Reset'}
-                </button>
-              )}
-            </div>
-          )}
-
+          
           <div className="relative w-40 sm:w-52">
             <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search Penalty ID..." className="w-full h-9 sm:h-10 pl-9 pr-9 rounded-xl border border-emerald-400/25 bg-[#071b15]/80 backdrop-blur-md text-[11px] sm:text-xs font-medium text-white placeholder-white/40 outline-none focus:ring-2 focus:ring-emerald-400/50 focus:border-emerald-400/50 transition" />
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" strokeWidth="2" /><line x1="21" y1="21" x2="16.65" y2="16.65" strokeWidth="2" /></svg>
@@ -185,13 +147,6 @@ export default function Penalties({
           </div>
         </div>
       </div>
-
-      {fetching && (
-        <div className="flex items-center gap-2 px-4 py-2 rounded-xl border border-sky-400/40 bg-sky-500/15 text-sky-300 text-xs font-semibold">
-          <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
-          <span>{showReset ? 'Resetting to today…' : `Fetching data for ${pickerDate}…`}</span>
-        </div>
-      )}
 
       <div className="flex-1 min-h-0 rounded-2xl border border-emerald-400/25 bg-[#04231c]/60 overflow-hidden shadow-[0_15px_40px_rgba(0,0,0,0.35)]">
         <div className="h-full overflow-auto [scrollbar-width:thin] [scrollbar-color:rgba(16,185,129,0.45)_rgba(2,27,22,0.6)]">

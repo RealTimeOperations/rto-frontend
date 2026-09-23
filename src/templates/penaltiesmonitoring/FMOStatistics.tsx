@@ -7,7 +7,6 @@ type Row = Record<string, any>
 type Props = {
   penalties: Row[]
   loading?: boolean
-  dataDate?: string | null
   permissions?: any
 }
 
@@ -16,7 +15,7 @@ function isYes(v: any) {
   return s === 'yes' || s === '1' || s === 'true' || s === 'y'
 }
 
-export default function FMOStatistics({ penalties, loading = false, dataDate = null, permissions }: Props) {
+export default function FMOStatistics({ penalties, loading = false, permissions }: Props) {
   const [detailFmo, setDetailFmo] = useState<string | null>(null)
   const [imposedOpen, setImposedOpen] = useState(false)
   const [copying, setCopying] = useState(false)
@@ -38,7 +37,7 @@ export default function FMOStatistics({ penalties, loading = false, dataDate = n
     const offices = []
     if (permissions.penalties_hnd) offices.push('hnd')
     if (permissions.penalties_faqirwali) offices.push('faqirwali')
-    return offices
+    return offices 
   }, [permissions])
 
   // ✅ 3. Penalties ko filter karein
@@ -127,11 +126,11 @@ export default function FMOStatistics({ penalties, loading = false, dataDate = n
     return [...map.entries()].sort((a, b) => b[1].total - a[1].total)
   }, [filteredPenalties])
 
+  // ✅ Date Label (Always Today)
   const dateLabel = useMemo(() => {
-    const d = dataDate ? new Date(`${dataDate}T00:00:00`) : new Date()
-    if (isNaN(d.getTime())) return dataDate || ''
+    const d = new Date()
     return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-  }, [dataDate])
+  }, [])
 
   const detail = detailFmo ? fmoStats.find(([n]) => n === detailFmo) : null
   const ucCount = detail ? detail[1].ucs.size : 0
@@ -153,7 +152,6 @@ export default function FMOStatistics({ penalties, loading = false, dataDate = n
           </span>
         </h2>
         
-        {/* ✅ Imposed Report button sirf tab dikhaye jab allowed ho */}
         {showImposedReport && (
           <button type="button" onClick={() => setImposedOpen(true)} className="h-9 sm:h-10 px-4 rounded-xl border border-emerald-400/40 bg-emerald-500/15 text-emerald-300 text-[11px] sm:text-xs font-bold hover:bg-emerald-500/25 hover:text-white transition flex items-center gap-2 whitespace-nowrap">
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>
@@ -265,7 +263,6 @@ export default function FMOStatistics({ penalties, loading = false, dataDate = n
                     <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
                     {copying ? 'Copying…' : 'Copy as Image'}
                   </button>
-                  {/* ✅ Close Button (Fix kiya gaya) */}
                   <button type="button" onClick={() => setImposedOpen(false)} aria-label="Close imposed report" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/5 text-white/70 hover:bg-red-500/15 hover:border-red-400/40 hover:text-red-300 transition">
                     <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
                   </button>

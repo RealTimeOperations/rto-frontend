@@ -177,82 +177,17 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
     pushNotification('success', 'Data successfully updated', at)
   }
 
-  // ---- Historical mode (sirf ISI device par) — localStorage flag se yaad rehta hai
-  const [histDate, setHistDate] = useState<string | null>(() => {
-    try { return localStorage.getItem('rto_pen_hist_date') } catch { return null }
-  })
-  const [fetching, setFetching] = useState(false)
-  const API = 'http://localhost:8000'
-
-  useEffect(() => {
-    try {
-      if (histDate) localStorage.setItem('rto_pen_hist_date', histDate)
-      else localStorage.removeItem('rto_pen_hist_date')
-    } catch {}
-  }, [histDate])
-
-  // ✅ Fetch — data sirf penaltiesdata_hist mein jata hai (baki devices safe)
-  async function handleFetchDate(date: string) {
-    setFetching(true)
-    try {
-      const res = await fetch(`${API}/penalties/fetch-date`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date })
-      })
-      const raw = await res.text()
-      let data: any = null
-      try { data = JSON.parse(raw) } catch {}
-      if (data && data.ok) {
-        setHistDate(date)
-        pushNotification('error', 'PAUSED - historical date mode active')
-      } else if (res.status === 404) {
-        alert('HTTP 404: /penalties/fetch-date endpoint not found - restart backend (python main.py)')
-      } else {
-        alert(`Fetch failed (HTTP ${res.status}): ${data?.message ?? data?.detail ?? raw.slice(0, 300)}`)
-      }
-    } catch (e: any) {
-      alert(`Error: ${e.message}`)
-    } finally {
-      setFetching(false)
-    }
-  }
-
-  // ✅ Reset — hist mode khatam, today ka data + auto sync resume
-  async function handleResetDate() {
-    setFetching(true)
-    try {
-      const res = await fetch(`${API}/penalties/reset`, { method: 'POST' })
-      const raw = await res.text()
-      let data: any = null
-      try { data = JSON.parse(raw) } catch {}
-      if (data && data.ok) {
-        setHistDate(null)
-        pushNotification('success', 'RESUMED - today\'s data restored, auto sync restarted')
-      } else if (res.status === 404) {
-        alert('HTTP 404: /penalties/reset endpoint not found - restart backend (python main.py)')
-      } else {
-        alert(`Reset failed (HTTP ${res.status}): ${data?.message ?? data?.detail ?? raw.slice(0, 300)}`)
-      }
-    } catch (e: any) {
-      alert(`Error: ${e.message}`)
-    } finally {
-      setFetching(false)
-    }
-  }
-
   // ---- Load penalties + heartbeat (id = 3)
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
     try {
       const now = new Date()
       const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-      // ✅ Historical mode (isi device par): penaltiesdata_hist parho; warna main table (today)
-      const table = histDate ? 'penaltiesdata_hist' : 'penaltiesdata'
+      
       const query = supabase
-        .from(table)
+        .from('penaltiesdata')
         .select('*')
-        .eq('penalty_date', histDate || today)
+        .eq('penalty_date', today)
         .order('created_at', { ascending: false })
       
       const [pen, hb] = await Promise.all([
@@ -313,7 +248,7 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
       if (!silent) setLoading(false)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [histDate])
+  }, [])
 
   useEffect(() => {
     load(false)
@@ -440,7 +375,7 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
     const fmos = [...fmoTotals.entries()].sort((a, b) => b[1] - a[1]).map(([n]) => n)
     const subs = [...subTotals.entries()].sort((a, b) => b[1] - a[1]).map(([s]) => s)
     return { fmos, subs, cells, fmoTotals, subTotals }
-  }, [filteredPenalties]) // ✅ Yahan [filteredPenalties] hona chahiye
+  }, [filteredPenalties])
 
   // ✅ HND Office Penalty Sub Type × FMO matrix
   const hndSubTypeFmoMatrix = useMemo(() => {
@@ -504,8 +439,8 @@ const cardCls = 'rounded-[24px] border border-emerald-400/25 bg-linear-to-b from
           <div className="flex-1 flex justify-start pointer-events-auto">
           <button
             onClick={() => {
-              onHomeClick?.()   
-              navigate('/home') 
+              onHomeClick?.() 
+              navigate('/home')
             }}
             aria-label="Back to Home"
             className="relative flex items-center gap-2 rounded-full border border-emerald-400/40 bg-[#021b16]/60 px-4 py-2.5 text-xs sm:text-sm font-bold text-emerald-200 transition-all duration-300 hover:bg-emerald-500/15 hover:shadow-[0_0_25px_rgba(0,255,170,0.25)]"
@@ -1370,10 +1305,6 @@ const cardCls = 'rounded-[24px] border border-emerald-400/25 bg-linear-to-b from
           <Penalties
             penalties={penalties}
             loading={loading}
-            histDate={histDate}
-            fetching={fetching}
-            onFetchDate={handleFetchDate}
-            onResetDate={handleResetDate}
             permissions={permissions}
           />
         )}
@@ -1383,7 +1314,6 @@ const cardCls = 'rounded-[24px] border border-emerald-400/25 bg-linear-to-b from
           <FMOStatistics
             penalties={penalties}
             loading={loading}
-            dataDate={histDate || `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`}
             permissions={permissions}
           />
         )}
