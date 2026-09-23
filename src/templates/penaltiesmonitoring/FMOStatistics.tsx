@@ -307,7 +307,30 @@ export default function FMOStatistics({ penalties, loading = false, permissions 
         <>
           <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" onClick={closeImposed} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
-            <div className="pointer-events-auto w-full max-w-7xl max-h-[92vh] overflow-y-auto rounded-2xl border border-emerald-400/30 bg-[#04231c] shadow-[0_30px_80px_rgba(0,0,0,0.6)] [scrollbar-width:thin] [scrollbar-color:rgba(16,185,129,0.4)_transparent]">
+            <div className={`pointer-events-auto relative w-full max-w-7xl max-h-[92vh] rounded-2xl border border-emerald-400/30 bg-[#04231c] shadow-[0_30px_80px_rgba(0,0,0,0.6)] [scrollbar-width:thin] [scrollbar-color:rgba(16,185,129,0.4)_transparent] ${searching ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+              {/* ✅ Full-popup loading overlay — report ke andar nahi, pooray popup par */}
+              {searching && (
+                <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-4 sm:gap-5 rounded-2xl bg-[#04231c]/90 backdrop-blur-md select-none">
+                  {/* Pulsing logo with glow */}
+                  <div className="relative h-16 w-16 sm:h-20 sm:w-20">
+                    <div aria-hidden="true" className="absolute inset-0 scale-125 rounded-full bg-emerald-400/20 blur-2xl" />
+                    <img
+                      src="/logos/loginform-logo.png"
+                      alt="Real Time Operations"
+                      className="relative h-16 w-16 sm:h-20 sm:w-20 object-contain drop-shadow-[0_0_25px_rgba(0,255,170,0.45)] animate-[logo-pulse_4s_ease-in-out_infinite]"
+                    />
+                  </div>
+                  {/* Spinner ring */}
+                  <div className="h-10 w-10 rounded-full border-2 border-emerald-400/20 border-t-emerald-300 animate-spin" />
+                  {/* Running gradient text */}
+                  <div className="text-xs sm:text-sm font-bold tracking-widest bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
+                    FETCHING REPORT FOR {fmtDateLabel(pickerDate)}…
+                  </div>
+                  <div className="text-[10px] sm:text-[11px] font-semibold text-white/40">
+                    Please wait — fetching data from portal…
+                  </div>
+                </div>
+              )}
               <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-white/10 bg-[#04231c]">
                 <div className="flex flex-wrap items-center gap-3">
                   <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-emerald-400/30 bg-emerald-500/10 text-emerald-300">
@@ -364,13 +387,6 @@ export default function FMOStatistics({ penalties, loading = false, permissions 
                     <span className="text-[10px] sm:text-[11px] font-bold text-red-300 whitespace-nowrap">⚠ {searchError}</span>
                   )}
                 </div>
-
-                {searching && (
-                  <div className="flex items-center gap-2 px-4 py-2 rounded-xl border border-sky-400/40 bg-sky-500/15 text-sky-300 text-xs font-semibold">
-                    <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
-                    <span>Fetching data from portal for {pickerDate}…</span>
-                  </div>
-                )}
 
                 {imposedMatrix.subs.length === 0 ? (
                   <div className="rounded-xl border border-white/10 bg-white/5 p-8 text-center text-xs text-white/40">No TM imposed penalties found for {reportDateLabel}</div>
