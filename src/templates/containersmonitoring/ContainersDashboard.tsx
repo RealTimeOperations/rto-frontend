@@ -10,7 +10,12 @@ type Props = {
 
 type Row = Record<string, any>
 type View = 'stats' | 'map' | 'report'
-
+// ✅ Python naive local time ko LOCAL samjho (Supabase timestamptz use UTC assume karta hai)
+function parseLocal(s: string): Date {
+  const clean = String(s).replace('Z', '').replace(/[+-]\d{2}:\d{2}$/, '').replace(' ', 'T')
+  const d = new Date(clean)
+  return isNaN(d.getTime()) ? new Date(s) : d
+}
 // Fixed vehicle lists (old project jaisi)
 const COMPACTORS = ['HND-CT001', 'HND-CT003', 'HND-CT004', 'HND-CT005', 'HND-CT006']
 const ARMROLLS = ['HND-AR002', 'HND-AR003', 'HND-AR004', 'HND-AR005']
@@ -172,13 +177,14 @@ export default function ContainersDashboard({ onHomeClick }: Props) {
   const popupTimer = useRef<number | null>(null)
   const notifId = useRef(0)
 
-  function pushNotification(type: 'success' | 'error', message: string) {
+  function pushNotification(type: 'success' | 'error', message: string, at?: Date) {
     notifId.current += 1
+    const d = at ?? new Date()   // ✅ Event time pass ho to wahi use ho
     const item = {
       id: notifId.current,
       type,
       message,
-      time: new Date().toLocaleString('en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }),
+      time: d.toLocaleString('en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }),
     }
     const savedItem = { ...item, unread: true }
     setNotifications([savedItem])
@@ -203,14 +209,6 @@ export default function ContainersDashboard({ onHomeClick }: Props) {
   function rememberHbKey(key: string) {
     lastHbKeyRef.current = key
     try { localStorage.setItem('rto_cont_hb_key', key) } catch {}
-  }
-  // ✅ Data-update notification with 20s dedup (double notify se bachat)
-  const lastDataNotifyRef = useRef(0)
-  function notifyDataUpdated() {
-    const nowMs = Date.now()
-    if (nowMs - lastDataNotifyRef.current < 20_000) return
-    lastDataNotifyRef.current = nowMs
-    pushNotification('success', 'Data successfully updated')
   }
   // ✅ Server-start notification with 20s dedup (VBS / bat / admin — har tarika cover)
   const lastStartNotifyRef = useRef(0)
@@ -241,35 +239,33 @@ export default function ContainersDashboard({ onHomeClick }: Props) {
       const porRows = por.data ?? []
       setLocations(locRows)
       setPortal(porRows)
-
-      // Last Updated = portal_data ka sab se naya fetched_at (server sync time)
+      // ✅ Last Updated = portal_data ka sab se naya fetched_at — LOCAL parse (timezone shift fix)
       let maxT = 0
       for (const r of porRows) {
-        const t = r.fetched_at ? new Date(r.fetched_at).getTime() : 0
+        const t = r.fetched_at ? parseLocal(r.fetched_at).getTime() : 0
         if (t > maxT) maxT = t
       }
-      if (maxT) setLastUpdated(new Date(maxT))
-
-      // Data change detection -> notification
+      const syncTime = maxT ? new Date(maxT) : null
+      if (syncTime) setLastUpdated(syncTime)
+      // ✅ Data change detection → EK hi time (syncTime) pill + notification DONO mein same
       const fp = porRows
         .map(r => `${r.site}|${r.container_serviced}|${r.serviced_on_app}|${r.serviced_by_tracker}|${r.app_vehicle}`)
         .join('~')
       if (fpRef.current === null) fpRef.current = fp
       else if (fp !== fpRef.current) {
         fpRef.current = fp
-        // ✅ Frontend khud data change detect karta hai (yahi detection pill ko update karta hai)
-        notifyDataUpdated()
+        if (syncTime) pushNotification('success', 'Data successfully updated', syncTime)
       }
-
       // Containers heartbeat (id = 2)
       const h = hb.data
-      const hbTime = h?.updated_at ? new Date(h.updated_at).getTime() : 0
+      const hbKeyRaw = h?.updated_at ? String(h.updated_at) : ''
+      const hbTime = hbKeyRaw ? parseLocal(hbKeyRaw).getTime() : 0
       const ageMs = hbTime ? Date.now() - hbTime : Infinity
       const status = String(h?.status ?? '').toLowerCase()
-      const hbKey = h?.updated_at ? String(h.updated_at) : ''
-
+      const hbKey = hbKeyRaw
+      const evTime = hbTime ? new Date(hbTime) : new Date()
       if (status === 'containers_stopped') {
-        if (hbKey && hbKey !== lastHbKeyRef.current) pushNotification('error', 'Server Stopped')
+        if (hbKey && hbKey !== lastHbKeyRef.current) pushNotification('error', 'Server Stopped', evTime)
         if (hbKey) rememberHbKey(hbKey)
         setStatus('error')
       } else if (status === 'containers_started') {
@@ -277,8 +273,8 @@ export default function ContainersDashboard({ onHomeClick }: Props) {
         if (hbKey) rememberHbKey(hbKey)
         setStatus('live')
       } else if (status === 'containers_data_updated') {
+        // ✅ Notification upar fp-detection se ho chuki (SAME syncTime) — yahan sirf key + live
         if (hbKey) rememberHbKey(hbKey)
-        notifyDataUpdated()
         setStatus('live')
       } else if (status === 'containers_error') {
         if (hbKey) rememberHbKey(hbKey)

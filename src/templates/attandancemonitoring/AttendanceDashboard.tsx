@@ -66,13 +66,14 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
   const popupTimer = useRef<number | null>(null)
   const notifId = useRef(0)
 
-  function pushNotification(type: 'success' | 'error', message: string) {
+  function pushNotification(type: 'success' | 'error', message: string, at?: Date) {
     notifId.current += 1
+    const d = at ?? new Date()   // ✅ Event time pass ho to wahi use ho
     const item = {
       id: notifId.current,
       type,
       message,
-      time: new Date().toLocaleString('en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }),
+      time: d.toLocaleString('en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }),
     }
     // ✅ Sirf latest notification rakho — purani foran remove
     // ✅ localStorage mein save — refresh ke baad bhi rahegi jab tak nayi na aa
@@ -182,14 +183,6 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
     lastHbKeyRef.current = key
     try { localStorage.setItem('rto_last_hb_key', key) } catch {}
   }
-  // ✅ Data-update notification with 20s dedup (double notify se bachat)
-  const lastDataNotifyRef = useRef(0)
-  function notifyDataUpdated() {
-    const nowMs = Date.now()
-    if (nowMs - lastDataNotifyRef.current < 20_000) return
-    lastDataNotifyRef.current = nowMs
-    pushNotification('success', 'Data successfully updated')
-  }
 
   useEffect(() => {
     aliveRef.current = true
@@ -286,21 +279,15 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
     })()
   }, [lastSync])
 
-  // ✅ Heartbeat poll: har 5 second mein backend ki health check karo
-  //    - Heartbeat fresh + status running  → GREEN
-  //    - Heartbeat purani (>15 sec) / missing → RED (server band) — max ~20 sec mein
-  //    - Status portal_error → RED (portal issue message ke sath)
-  //    - Naya attendance row aaya → full refresh + success notification
+  // ✅ Heartbeat poll: har 3 second mein backend ki health check karo
+  //    - data_updated event → EK hi time (heartbeat updated_at) → time pill + notification DONO mein same
   useEffect(() => {
-    const POLL_MS = 3_000   // ✅ Fast reaction: har 3 sec check
-    // ✅ Grace period: portal fetch cycle mein heartbeat kuch der ruk sakti hai (process busy) —
-    //    40s tak stale = normal fetch, 90s+ stale = process band
+    const POLL_MS = 3_000
     const HEARTBEAT_MAX_MS = 40_000
     const HEARTBEAT_HARD_MS = 90_000
-    // ✅ Ye statuses "process alive/busy" count hoti hain (error nahi)
     const ALIVE_STATUSES = ['running', 'started', 'data_updated', 'fetching', 'syncing', 'loading']
-    // ✅ Sirf ye statuses explicit error hain
     const ERROR_STATUSES = ['error', 'portal_error', 'failed', 'stopped']
+
     async function check() {
       try {
         const { data: hb, error: hbErr } = await supabase
@@ -309,27 +296,38 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
           .eq('id', 1)
           .maybeSingle()
         if (hbErr) throw hbErr
+
         const hbTime = hb?.updated_at ? new Date(hb.updated_at).getTime() : 0
         const ageMs = hbTime ? Date.now() - hbTime : Infinity
         const status = String(hb?.status ?? '').toLowerCase()
         const hbKey = hb?.updated_at ? String(hb.updated_at) : ''
+        // ✅ EK hi event time — notification aur time pill dono mein SAME show hogi
+        const evTime = hbTime ? new Date(hbTime) : new Date()
+
         if (status === 'stopped') {
-          // 🛑 Server STOP event — sirf ek dafa notify karo
-          if (hbKey && hbKey !== lastHbKeyRef.current) pushNotification('error', 'Server Stopped')
+          // 🛑 Server STOP event — sirf ek dafa notify (event time ke sath)
+          if (hbKey && hbKey !== lastHbKeyRef.current) pushNotification('error', 'Server Stopped', evTime)
           if (hbKey) rememberHbKey(hbKey)
           setStatus('error')
         } else if (status === 'started') {
-          // 🟢 Server START event — sirf ek dafa notify karo
-          if (hbKey && hbKey !== lastHbKeyRef.current) pushNotification('success', 'Server Started')
+          // 🟢 Server START event — sirf ek dafa notify (event time ke sath)
+          if (hbKey && hbKey !== lastHbKeyRef.current) pushNotification('success', 'Server Started', evTime)
           if (hbKey) rememberHbKey(hbKey)
           setStatus('live')
         } else if (status === 'data_updated') {
-          // 📦 Backend data-update event (dedup ke sath)
-          if (hbKey) rememberHbKey(hbKey)
-          notifyDataUpdated()
+          // 📦 Data update event — ONE time: time pill + notification DONO mein same
+          if (hbKey && hbKey !== lastHbKeyRef.current) {
+            rememberHbKey(hbKey)
+            setLastSync(evTime)
+            try { localStorage.setItem('rto_last_data_update', evTime.toISOString()) } catch {}
+            pushNotification('success', 'Data successfully updated', evTime)
+            await load(false, true) // ✅ silent data refresh
+          } else if (hbKey) {
+            rememberHbKey(hbKey)
+          }
           setStatus('live')
         } else if (ERROR_STATUSES.includes(status)) {
-          // ❌ Portal issue — ek hi unified message (notifyError dedup karta hai)
+          // ❌ Portal issue — unified message
           if (hbKey) rememberHbKey(hbKey)
           notifyError('Error: Portal Issue')
         } else if (!hb || ageMs > HEARTBEAT_HARD_MS) {
@@ -339,12 +337,12 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
           // ❌ 40s+ purani aur status alive nahi — process band
           notifyError('Server Stopped')
         } else {
-          // ✅ Running — error se recovery par sirf pill green karo (koi notification spam nahi)
+          // ✅ Running — recovery par sirf pill green (koi notification spam nahi)
           if (hbKey) rememberHbKey(hbKey)
           if (statusRef.current === 'error') setStatus('live')
         }
 
-        // Naya attendance data check — count-based (re-upload same ids use karta hai, max-id kabhi nahi badalta)
+        // ✅ Backup check: count change par SIRF silent data reload (koi notification ya time change nahi)
         const { count, error: cntErr } = await supabase
           .from('attendance_logs')
           .select('id', { count: 'exact', head: true })
@@ -355,19 +353,15 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
         } else if (cnt !== lastLogIdRef.current) {
           lastLogIdRef.current = cnt
           setStatus('live')
-          // ✅ Last Updated = asal data update ka waqt (refresh par bhi wahi rahe ga)
-          const now = new Date()
-          setLastSync(now)
-          try { localStorage.setItem('rto_last_data_update', now.toISOString()) } catch {}
-          notifyDataUpdated()
-          await load(false, true) // ✅ Silent refresh
+          await load(false, true) // ✅ silent refresh only
         }
       } catch (e) {
         // ❌ Supabase se connect hi nahi ho raha
         notifyError('Error: Portal Issue')
       }
     }
-    check()   // ✅ Mount par FORAN check — 5 second ka intezar nahi
+
+    check()   // ✅ Mount par FORAN check — 3 second ka intezar nahi
     const timer = setInterval(check, POLL_MS)
     return () => clearInterval(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
