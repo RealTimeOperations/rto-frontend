@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import type { Profile } from './types'
 import PasswordChangeModal from './PasswordChangeModal'
+import { resetMonitoringTabs } from '../../lib/resetTabs'
 
 export default function AdminDashboard() {
   const [users, setUsers] = useState<Profile[]>([])
@@ -45,6 +46,7 @@ export default function AdminDashboard() {
   ]
 
   async function handleLogout() {
+    resetMonitoringTabs()
     await supabase.auth.signOut()
   }
 

@@ -22,7 +22,9 @@ import AdminTransition from './templates/animations/AdminTransition'
 import DashboardAttendance from './templates/SupervisorsMonitoring/supervisorsattendance/DashboardAttendance'
 import PenaltiesDashboard from './templates/penaltiesmonitoring/PenaltiesDashboard'
 import PenaltiesTransition from './templates/animations/PenaltiesTransition'
+import useAutoReload from './lib/useAutoReload'
 export default function App() {
+  useAutoReload()
   const [session, setSession] = useState<Session | null>(null)
   const [role, setRole] = useState<string | null>(null)
   const [permissions, setPermissions] = useState<Permissions | null>(null)

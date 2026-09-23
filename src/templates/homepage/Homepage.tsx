@@ -1,8 +1,8 @@
-import type { ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import type { Permissions } from '../admin/types'
-
+import { resetMonitoringTabs } from '../../lib/resetTabs'
 type HomepageProps = {
   role: string | null
   permissions: Permissions
@@ -15,8 +15,16 @@ type HomepageProps = {
 export default function Homepage({ role, permissions, permissionsLoaded = true, onCardClick, onAdminClick }: HomepageProps) {
   const navigate = useNavigate()
 
+  // ✅ Homepage mount hote hi sab saved tabs (monitoring + admin) default par reset.
+  //    Refresh-safe: jab aap kisi dashboard par refresh karte hain to Homepage mount NAHI hoti,
+  //    is liye wahan tab persistence barqarar rehti hai. Home par aate hi sab clear ho jata hai.
+  useEffect(() => {
+    resetMonitoringTabs()
+  }, [])
+
   // Sign out (App redirects to /login automatically)
   async function handleLogout() {
+    resetMonitoringTabs()
     await supabase.auth.signOut()
   }
 

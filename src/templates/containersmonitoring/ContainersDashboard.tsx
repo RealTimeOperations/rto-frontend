@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import ContainersMap from './ContainersMap'
 import ContainersReport from './ContainersReport'
-
+import { resetMonitoringTabs } from '../../lib/resetTabs'
 type Props = {
   onHomeClick?: () => void
 }
@@ -395,7 +395,11 @@ export default function ContainersDashboard({ onHomeClick }: Props) {
           {/* Left: Home */}
           <div className="flex-1 flex justify-start pointer-events-auto">
             <button
-              onClick={() => { onHomeClick?.(); navigate('/home') }}
+              onClick={() => {
+                  resetMonitoringTabs()
+                  onHomeClick?.()
+                  navigate('/home')
+                }}
               aria-label="Back to Home"
               className="rto-run-border relative flex items-center gap-2 rounded-full border border-transparent bg-[#071b15]/80 px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm font-semibold text-emerald-200 transition-all duration-300 hover:bg-emerald-500/15 hover:shadow-[0_0_25px_rgba(0,255,170,0.25)]"
             >
@@ -580,32 +584,33 @@ export default function ContainersDashboard({ onHomeClick }: Props) {
             </button>
           </div>
 
-          {/* Mobile center pill */}
-          {lastUpdated && (
-            <div className="rto-run-border absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 lg:hidden flex items-center gap-1.5 rounded-full border border-transparent bg-[#071b15]/80 px-2.5 py-1.5 pointer-events-none">
-              {serverStatus === 'live' ? (
-                <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60 animate-ping" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
-                </span>
-              ) : (
-                <span className="relative flex h-2 w-2">
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.9)] animate-pulse" />
-                </span>
-              )}
-              <span className={`text-[8px] font-bold tracking-[0.14em] ${serverStatus === 'live' ? 'text-emerald-300' : 'text-red-300'}`}>
-                {serverStatus === 'live' ? 'LIVE' : 'ERROR'}
-              </span>
-              <div className="h-2.5 w-px bg-white/15" />
-              <span className={`text-[9px] font-bold bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite] whitespace-nowrap ${
-                serverStatus === 'live'
-                  ? 'bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)]'
-                  : 'bg-[linear-gradient(180deg,#ef4444,#f87171,#fca5a5,#f87171,#ef4444)]'
-              }`}>
-                {lastUpdated.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
-              </span>
-            </div>
+      {/* ✅ Mobile: LIVE pill — compact (Penalties jaisi), bell se overlap nahi hogi */}
+      {lastUpdated && (
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 lg:hidden flex items-center gap-1 rounded-full border border-emerald-400/40 bg-[#021b16]/70 px-2 py-[3px] pointer-events-none">
+          {serverStatus === 'live' ? (
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60 animate-ping" />
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.9)]" />
+            </span>
+          ) : (
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.9)] animate-pulse" />
+            </span>
           )}
+          <span className={`text-[7px] font-bold tracking-[0.1em] ${serverStatus === 'live' ? 'text-emerald-300' : 'text-red-300'}`}>
+            {serverStatus === 'live' ? 'LIVE' : 'ERROR'}
+          </span>
+          <div className="h-2 w-px bg-white/15" />
+          <span className="text-[7px] font-bold tracking-[0.08em] text-white/45">LAST UPDATED</span>
+          <span className={`text-[8px] font-bold bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite] whitespace-nowrap ${
+            serverStatus === 'live'
+              ? 'bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)]'
+              : 'bg-[linear-gradient(180deg,#ef4444,#f87171,#fca5a5,#f87171,#ef4444)]'
+          }`}>
+            {lastUpdated.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
+          </span>
+        </div>
+      )}
         </div>
       </header>
 

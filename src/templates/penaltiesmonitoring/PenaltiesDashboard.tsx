@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import Penalties from './Penalties'
 import FMOStatistics from './FMOStatistics'
+import { resetMonitoringTabs } from '../../lib/resetTabs'
 
 type Row = Record<string, any>
 type View = 'dashboard' | 'list' | 'fmo'
@@ -20,14 +21,14 @@ function parseLocal(s: string): Date {
   return isNaN(d.getTime()) ? new Date(s) : d
 }
 
-/* ✅ Circular percentage ring (donut chart) */
+/* ✅ Circular percentage ring (donut chart) — responsive */
 function RingChart({ label, value, percent, color }: { label: string; value: number; percent: number; color: string }) {
   const r = 40
   const c = 2 * Math.PI * r
   const off = c - (Math.max(0, Math.min(100, percent)) / 100) * c
   return (
-    <div className="flex flex-col items-center gap-2">
-      <div className="relative h-28 w-28 sm:h-32 sm:w-32 lg:h-36 lg:w-36">
+    <div className="flex flex-col items-center gap-1 sm:gap-2">
+      <div className="relative h-20 w-20 sm:h-28 sm:w-28 md:h-32 md:w-32 lg:h-36 lg:w-36">
         <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90">
           <circle cx="50" cy="50" r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="9" />
           <circle
@@ -45,13 +46,13 @@ function RingChart({ label, value, percent, color }: { label: string; value: num
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-2xl sm:text-3xl lg:text-4xl font-extrabold" style={{ color }}>
+          <span className="text-lg sm:text-2xl md:text-3xl lg:text-4xl font-extrabold" style={{ color }}>
             {Math.round(percent)}%
           </span>
-          <span className="text-[11px] sm:text-xs font-bold text-white/50">{value}</span>
+          <span className="text-[9px] sm:text-[11px] md:text-xs font-bold text-white/50">{value}</span>
         </div>
       </div>
-      <span className="text-xs sm:text-sm font-bold tracking-wide text-white/70">{label}</span>
+      <span className="text-[10px] sm:text-xs md:text-sm font-bold tracking-wide text-white/70 text-center leading-tight">{label}</span>
     </div>
   )
 }
@@ -158,7 +159,6 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
   const lastHbKeyRef = useRef<string>((() => {
     try { return localStorage.getItem('rto_pen_hb_key') || '' } catch { return '' }
   })())
-  // ✅ Last seen heartbeat key — jab user bell click kare to seen mark ho
   const lastSeenHbKeyRef = useRef<string>((() => {
     try { return localStorage.getItem('rto_pen_last_seen_hb') || '' } catch { return '' }
   })())
@@ -183,13 +183,13 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
     try {
       const now = new Date()
       const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-      
+
       const query = supabase
         .from('penaltiesdata')
         .select('*')
         .eq('penalty_date', today)
         .order('created_at', { ascending: false })
-      
+
       const [pen, hb] = await Promise.all([
         query,
         supabase.from('system_heartbeat').select('status, message, updated_at').eq('id', 3).maybeSingle(),
@@ -213,7 +213,6 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
       const status = String(h?.status ?? '').toLowerCase()
       const hbKey = h?.updated_at ? String(h.updated_at) : ''
 
-      // ✅ PEHLE stale check: heartbeat 2 minute purani = server STOPPED
       if (!h || ageMs > 120_000) {
         notifyError('Server Stopped')
       } else if (status === 'penalties_stopped') {
@@ -256,7 +255,7 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
     return () => clearInterval(t)
   }, [load])
 
-  // ---- Sliding pill (header tabs — containers jaisi)
+  // ---- Sliding pill (header tabs)
   const navRef = useRef<HTMLDivElement>(null)
   const [slider, setSlider] = useState({ left: 0, width: 0 })
   const [menuOpen, setMenuOpen] = useState(false)
@@ -283,7 +282,7 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
 
   // ---- Office-wise FMO assignments (Supabase se)
   const [fmoAssignments, setFmoAssignments] = useState<{ fmo_name: string; hnd_office: boolean; faqirwali_office: boolean }[]>([])
-  
+
   useEffect(() => {
     async function loadAssignments() {
       const { data } = await supabase
@@ -294,26 +293,22 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
     loadAssignments()
   }, [])
 
-  // ✅ 1. Employee ki allowed offices check karein (Admin ke liye dono hongi)
+  // ✅ 1. Employee ki allowed offices check karein
   const allowedOffices = useMemo(() => {
-    if (!permissions) return ['hnd', 'faqirwali'] // Loading state fallback
+    if (!permissions) return ['hnd', 'faqirwali']
     const offices = []
     if (permissions.penalties_hnd) offices.push('hnd')
     if (permissions.penalties_faqirwali) offices.push('faqirwali')
-    return offices // ✅ Agar koi office select nahi hai to empty array [] return karega
+    return offices
   }, [permissions])
 
-  // ✅ 2. Penalties ko filter karein sirf allowed offices ke FMOs ke liye (Smart Matching)
+  // ✅ 2. Penalties ko filter karein
   const filteredPenalties = useMemo(() => {
-    if (allowedOffices.length === 2) return penalties 
-    
+    if (allowedOffices.length === 2) return penalties
     return penalties.filter(p => {
-      // ✅ Trim aur Lowercase kar ke match karein taake spaces/case ka masla na ho
       const addedByName = (p.added_by || '').trim().toLowerCase()
       const fmo = fmoAssignments.find(f => f.fmo_name.trim().toLowerCase() === addedByName)
-      
-      if (!fmo) return false 
-      
+      if (!fmo) return false
       if (allowedOffices.includes('hnd') && fmo.hnd_office) return true
       if (allowedOffices.includes('faqirwali') && fmo.faqirwali_office) return true
       return false
@@ -321,41 +316,39 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
   }, [penalties, fmoAssignments, allowedOffices])
 
   // ✅ 3. Office-wise penalties filters
-  const hndFmos = useMemo(() => 
+  const hndFmos = useMemo(() =>
     new Set(fmoAssignments.filter(f => f.hnd_office).map(f => f.fmo_name)),
   [fmoAssignments])
-  
-  const faqirwaliFmos = useMemo(() => 
+
+  const faqirwaliFmos = useMemo(() =>
     new Set(fmoAssignments.filter(f => f.faqirwali_office).map(f => f.fmo_name)),
   [fmoAssignments])
 
-  const hndPenalties = useMemo(() => 
+  const hndPenalties = useMemo(() =>
     filteredPenalties.filter(p => hndFmos.has(p.added_by)),
   [filteredPenalties, hndFmos])
-  
-  const faqirwaliPenalties = useMemo(() => 
+
+  const faqirwaliPenalties = useMemo(() =>
     filteredPenalties.filter(p => faqirwaliFmos.has(p.added_by)),
   [filteredPenalties, faqirwaliFmos])
 
-  // ✅ 4. Dashboard stats (Ab filtered data use hoga)
+  // ✅ 4. Dashboard stats
   const resolvedCount = filteredPenalties.filter(p => /resolved|closed/i.test(String(p.status || ''))).length
   const unresolvedCount = filteredPenalties.length - resolvedCount
   const fmoImposedCount = filteredPenalties.filter(p => isYes(p.penalty_imposed)).length
   const tmImposedCount = filteredPenalties.filter(p => isYes(p.tm_imposed)).length
 
-  // HND Office stats
   const hndResolved = hndPenalties.filter(p => /resolved|closed/i.test(String(p.status || ''))).length
   const hndUnresolved = hndPenalties.length - hndResolved
   const hndFmoImposed = hndPenalties.filter(p => isYes(p.penalty_imposed)).length
   const hndTmImposed = hndPenalties.filter(p => isYes(p.tm_imposed)).length
 
-  // FaqirWali Office stats
   const faqirwaliResolved = faqirwaliPenalties.filter(p => /resolved|closed/i.test(String(p.status || ''))).length
   const faqirwaliUnresolved = faqirwaliPenalties.length - faqirwaliResolved
   const faqirwaliFmoImposed = faqirwaliPenalties.filter(p => isYes(p.penalty_imposed)).length
   const faqirwaliTmImposed = faqirwaliPenalties.filter(p => isYes(p.tm_imposed)).length
 
-  // ✅ Overall Penalty Sub Type × FMO matrix (Filtered data par based)
+  // ✅ Overall Penalty Sub Type × FMO matrix
   const subTypeFmoMatrix = useMemo(() => {
     const fmoTotals = new Map<string, number>()
     const subTotals = new Map<string, number>()
@@ -366,10 +359,7 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
       fmoTotals.set(fmo, (fmoTotals.get(fmo) || 0) + 1)
       subTotals.set(sub, (subTotals.get(sub) || 0) + 1)
       let row = cells.get(sub)
-      if (!row) {
-        row = new Map()
-        cells.set(sub, row)
-      }
+      if (!row) { row = new Map(); cells.set(sub, row) }
       row.set(fmo, (row.get(fmo) || 0) + 1)
     }
     const fmos = [...fmoTotals.entries()].sort((a, b) => b[1] - a[1]).map(([n]) => n)
@@ -377,59 +367,43 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
     return { fmos, subs, cells, fmoTotals, subTotals }
   }, [filteredPenalties])
 
-  // ✅ HND Office Penalty Sub Type × FMO matrix
   const hndSubTypeFmoMatrix = useMemo(() => {
     const fmoTotals = new Map<string, number>()
     const subTotals = new Map<string, number>()
     const cells = new Map<string, Map<string, number>>()
-    
     for (const p of hndPenalties) {
       const fmo = String(p.added_by || '').trim() || 'Unknown'
       const sub = String(p.penalty_sub_type || '').trim() || '—'
-      
       fmoTotals.set(fmo, (fmoTotals.get(fmo) || 0) + 1)
       subTotals.set(sub, (subTotals.get(sub) || 0) + 1)
-      
       let row = cells.get(sub)
-      if (!row) {
-        row = new Map()
-        cells.set(sub, row)
-      }
+      if (!row) { row = new Map(); cells.set(sub, row) }
       row.set(fmo, (row.get(fmo) || 0) + 1)
     }
-    
     const fmos = [...fmoTotals.entries()].sort((a, b) => b[1] - a[1]).map(([n]) => n)
     const subs = [...subTotals.entries()].sort((a, b) => b[1] - a[1]).map(([s]) => s)
     return { fmos, subs, cells, fmoTotals, subTotals }
   }, [hndPenalties])
 
-  // ✅ FaqirWali Office Penalty Sub Type × FMO matrix
   const faqirwaliSubTypeFmoMatrix = useMemo(() => {
     const fmoTotals = new Map<string, number>()
     const subTotals = new Map<string, number>()
     const cells = new Map<string, Map<string, number>>()
-    
     for (const p of faqirwaliPenalties) {
       const fmo = String(p.added_by || '').trim() || 'Unknown'
       const sub = String(p.penalty_sub_type || '').trim() || '—'
-      
       fmoTotals.set(fmo, (fmoTotals.get(fmo) || 0) + 1)
       subTotals.set(sub, (subTotals.get(sub) || 0) + 1)
-      
       let row = cells.get(sub)
-      if (!row) {
-        row = new Map()
-        cells.set(sub, row)
-      }
+      if (!row) { row = new Map(); cells.set(sub, row) }
       row.set(fmo, (row.get(fmo) || 0) + 1)
     }
-    
     const fmos = [...fmoTotals.entries()].sort((a, b) => b[1] - a[1]).map(([n]) => n)
     const subs = [...subTotals.entries()].sort((a, b) => b[1] - a[1]).map(([s]) => s)
     return { fmos, subs, cells, fmoTotals, subTotals }
-}, [faqirwaliPenalties])
+  }, [faqirwaliPenalties])
 
-const cardCls = 'rounded-[24px] border border-emerald-400/25 bg-linear-to-b from-[#073b2d] to-[#021d17] shadow-[0_20px_60px_rgba(0,0,0,0.3)]'
+  const cardCls = 'rounded-[24px] border border-emerald-400/25 bg-linear-to-b from-[#073b2d] to-[#021d17] shadow-[0_20px_60px_rgba(0,0,0,0.3)]'
 
   return (
     <div className="min-h-dvh overflow-x-clip bg-[#021b16] text-white">
@@ -437,20 +411,21 @@ const cardCls = 'rounded-[24px] border border-emerald-400/25 bg-linear-to-b from
       <header className="fixed top-0 left-0 right-0 z-40 pointer-events-none">
         <div className="relative flex items-center px-3 sm:px-6 py-3 pointer-events-auto md:pointer-events-none bg-[#021b16] border-b border-white/10 md:border-b-0 shadow-[0_6px_24px_rgba(0,0,0,0.45)] md:shadow-none">
           <div className="flex-1 flex justify-start pointer-events-auto">
-          <button
-            onClick={() => {
-              onHomeClick?.() 
-              navigate('/home')
-            }}
-            aria-label="Back to Home"
-            className="relative flex items-center gap-2 rounded-full border border-emerald-400/40 bg-[#021b16]/60 px-4 py-2.5 text-xs sm:text-sm font-bold text-emerald-200 transition-all duration-300 hover:bg-emerald-500/15 hover:shadow-[0_0_25px_rgba(0,255,170,0.25)]"
-          >
-            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-              <polyline points="9 22 9 12 15 12 15 22" />
-            </svg>
-            <span className="hidden sm:inline">Home</span>
-          </button>
+            <button
+              onClick={() => {
+                resetMonitoringTabs()
+                onHomeClick?.()
+                navigate('/home')
+              }}
+              aria-label="Back to Home"
+              className="relative flex items-center gap-2 rounded-full border border-emerald-400/40 bg-[#021b16]/60 px-4 py-2.5 text-xs sm:text-sm font-bold text-emerald-200 transition-all duration-300 hover:bg-emerald-500/15 hover:shadow-[0_0_25px_rgba(0,255,170,0.25)]"
+            >
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                <polyline points="9 22 9 12 15 12 15 22" />
+              </svg>
+              <span className="hidden sm:inline">Home</span>
+            </button>
           </div>
 
           <div className="relative pointer-events-auto">
@@ -620,13 +595,41 @@ const cardCls = 'rounded-[24px] border border-emerald-400/25 bg-linear-to-b from
             </button>
           </div>
         </div>
+
+        {/* ✅ Mobile: compact LIVE pill */}
+        {lastUpdated && (
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 lg:hidden flex items-center gap-1 rounded-full border border-emerald-400/40 bg-[#021b16]/70 px-2 py-[3px] pointer-events-none">
+            {serverStatus === 'live' ? (
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60 animate-ping" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.9)]" />
+              </span>
+            ) : (
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.9)] animate-pulse" />
+              </span>
+            )}
+            <span className={`text-[7px] font-bold tracking-[0.1em] ${serverStatus === 'live' ? 'text-emerald-300' : 'text-red-300'}`}>
+              {serverStatus === 'live' ? 'LIVE' : 'ERROR'}
+            </span>
+            <div className="h-2 w-px bg-white/15" />
+            <span className="text-[7px] font-bold tracking-[0.08em] text-white/45">LAST UPDATED</span>
+            <span className={`text-[8px] font-bold bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite] whitespace-nowrap ${
+              serverStatus === 'live'
+                ? 'bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)]'
+                : 'bg-[linear-gradient(180deg,#ef4444,#f87171,#fca5a5,#f87171,#ef4444)]'
+            }`}>
+              {lastUpdated.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
+            </span>
+          </div>
+        )}
       </header>
 
-           {/* ===== Content ===== */}
+      {/* ===== Content ===== */}
       <main className="px-4 sm:px-6 max-w-[1750px] mx-auto flex flex-col gap-6 pt-24 pb-6">
         {view === 'dashboard' && (
           <div className="flex flex-col gap-4">
-            {/* ✅ No Access Message (Agar penalties access hai magar kisi office ki nahi) */}
+            {/* ✅ No Access Message */}
             {permissions && permissions.penalties && allowedOffices.length === 0 ? (
               <div className="flex flex-col items-center justify-center min-h-[60vh] text-center">
                 <div className="bg-red-500/10 border border-red-400/40 rounded-2xl p-8 max-w-md shadow-[0_20px_60px_rgba(0,0,0,0.3)]">
@@ -636,14 +639,12 @@ const cardCls = 'rounded-[24px] border border-emerald-400/25 bg-linear-to-b from
                     <line x1="12" y1="16" x2="12.01" y2="16" />
                   </svg>
                   <h2 className="text-xl font-extrabold text-red-300 mb-2">Access Restricted</h2>
-                  <p className="text-white/70 text-sm">
-                    Currently no access to any office. Please contact the admin.
-                  </p>
+                  <p className="text-white/70 text-sm">Currently no access to any office. Please contact the admin.</p>
                 </div>
               </div>
             ) : (
               <>
-                {/* ✅ Center heading + live monitoring line */}
+                {/* ✅ Center heading */}
                 <div className="flex flex-col items-center -mb-1">
                   <h1 className="text-center text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight leading-none whitespace-nowrap">
                     <span className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Penalties </span>
@@ -657,76 +658,52 @@ const cardCls = 'rounded-[24px] border border-emerald-400/25 bg-linear-to-b from
                 {/* ✅ OVERALL STATS (Sirf Admin ya dono offices walon ke liye) */}
                 {allowedOffices.length === 2 && (
                   <>
-                    {/* ROW 1: Overall Stats + Graphs (side by side) */}
+                    {/* ROW 1: Overall Stats + Graphs */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 items-stretch">
                       {/* Overall Stats Card */}
-                      <div className={`${cardCls} p-5 sm:p-6 flex flex-col gap-4`}>
-                        <h2 className="text-lg sm:text-xl md:text-2xl font-extrabold flex items-center gap-3">
-                          <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-amber-400/30 bg-amber-500/10 text-amber-300">
-                            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <div className={`${cardCls} p-3 sm:p-4 md:p-5 lg:p-6 flex flex-col gap-2 sm:gap-3 md:gap-4`}>
+                        <h2 className="text-sm sm:text-base md:text-lg lg:text-xl font-extrabold flex items-center gap-2 sm:gap-3">
+                          <span className="flex h-7 w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 items-center justify-center rounded-lg sm:rounded-xl border border-amber-400/30 bg-amber-500/10 text-amber-300">
+                            <svg className="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <path d="M3 3v18h18" />
                               <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3" />
                             </svg>
                           </span>
-                          <span className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-                            Overall Penalties{' '}
-                          </span>
-                          <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-                            Statistics
-                          </span>
+                          <span className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Overall Penalties </span>
+                          <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Statistics</span>
                         </h2>
-                        <div className="flex flex-col gap-2">
-                          <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-400/25 bg-amber-500/10 px-4 py-3">
-                            <span className="text-xs sm:text-sm font-semibold text-white/70">Total Penalties</span>
-                            <span className="text-xl sm:text-2xl font-extrabold bg-[linear-gradient(180deg,#f59e0b,#fbbf24,#fde68a,#fbbf24,#f59e0b)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-                              {loading && !penalties.length ? '—' : penalties.length}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-400/25 bg-emerald-500/10 px-4 py-3">
-                            <span className="text-xs sm:text-sm font-semibold text-white/70">Resolved</span>
-                            <span className="text-xl sm:text-2xl font-extrabold bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-                              {resolvedCount}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between gap-3 rounded-xl border border-red-400/25 bg-red-500/10 px-4 py-3">
-                            <span className="text-xs sm:text-sm font-semibold text-white/70">Un Resolved</span>
-                            <span className="text-xl sm:text-2xl font-extrabold bg-[linear-gradient(180deg,#ef4444,#f87171,#fca5a5,#f87171,#ef4444)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-                              {unresolvedCount}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between gap-3 rounded-xl border border-sky-400/25 bg-sky-500/10 px-4 py-3">
-                            <span className="text-xs sm:text-sm font-semibold text-white/70">FMO Imposed</span>
-                            <span className="text-xl sm:text-2xl font-extrabold bg-[linear-gradient(180deg,#0ea5e9,#38bdf8,#7dd3fc,#38bdf8,#0ea5e9)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-                              {fmoImposedCount}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between gap-3 rounded-xl border border-purple-400/25 bg-purple-500/10 px-4 py-3">
-                            <span className="text-xs sm:text-sm font-semibold text-white/70">TM Imposed</span>
-                            <span className="text-xl sm:text-2xl font-extrabold bg-[linear-gradient(180deg,#a855f7,#c084fc,#d8b4fe,#c084fc,#a855f7)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-                              {tmImposedCount}
-                            </span>
-                          </div>
+                        <div className="flex flex-col gap-1.5 sm:gap-2">
+                          {[
+                            { label: 'Total Penalties', value: loading && !penalties.length ? '—' : penalties.length, border: 'border-amber-400/25', bg: 'bg-amber-500/10', grad: 'bg-[linear-gradient(180deg,#f59e0b,#fbbf24,#fde68a,#fbbf24,#f59e0b)]' },
+                            { label: 'Resolved', value: resolvedCount, border: 'border-emerald-400/25', bg: 'bg-emerald-500/10', grad: 'bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)]' },
+                            { label: 'Un Resolved', value: unresolvedCount, border: 'border-red-400/25', bg: 'bg-red-500/10', grad: 'bg-[linear-gradient(180deg,#ef4444,#f87171,#fca5a5,#f87171,#ef4444)]' },
+                            { label: 'FMO Imposed', value: fmoImposedCount, border: 'border-sky-400/25', bg: 'bg-sky-500/10', grad: 'bg-[linear-gradient(180deg,#0ea5e9,#38bdf8,#7dd3fc,#38bdf8,#0ea5e9)]' },
+                            { label: 'TM Imposed', value: tmImposedCount, border: 'border-purple-400/25', bg: 'bg-purple-500/10', grad: 'bg-[linear-gradient(180deg,#a855f7,#c084fc,#d8b4fe,#c084fc,#a855f7)]' },
+                          ].map(row => (
+                            <div key={row.label} className={`flex items-center justify-between gap-2 sm:gap-3 rounded-lg sm:rounded-xl border ${row.border} ${row.bg} px-2.5 sm:px-4 py-2 sm:py-3`}>
+                              <span className="text-[10px] sm:text-xs md:text-sm font-semibold text-white/70">{row.label}</span>
+                              <span className={`text-base sm:text-xl md:text-2xl font-extrabold ${row.grad} bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]`}>
+                                {row.value}
+                              </span>
+                            </div>
+                          ))}
                         </div>
                       </div>
 
                       {/* Overall Rings Card */}
-                      <div className={`${cardCls} p-5 sm:p-6 flex flex-col items-center justify-center gap-4`}>
-                        <h2 className="text-lg sm:text-xl md:text-2xl font-extrabold flex items-center gap-3 w-full">
-                          <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-sky-400/30 bg-sky-500/10 text-sky-300">
-                            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <div className={`${cardCls} p-3 sm:p-4 md:p-5 lg:p-6 flex flex-col items-center justify-center gap-2 sm:gap-3 md:gap-4`}>
+                        <h2 className="text-sm sm:text-base md:text-lg lg:text-xl font-extrabold flex items-center gap-2 sm:gap-3 w-full">
+                          <span className="flex h-7 w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 items-center justify-center rounded-lg sm:rounded-xl border border-sky-400/30 bg-sky-500/10 text-sky-300">
+                            <svg className="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <path d="M12 2 2 7l10 5 10-5-10-5z" />
                               <path d="m2 17 10 5 10-5" />
                               <path d="m2 12 10 5 10-5" />
                             </svg>
                           </span>
-                          <span className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-                            Overall Penalties{' '}
-                          </span>
-                          <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-                            Graphs
-                          </span>
+                          <span className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Overall Penalties </span>
+                          <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Graphs</span>
                         </h2>
-                        <div className="grid grid-cols-2 gap-x-6 gap-y-6 sm:gap-x-8 sm:gap-y-8 place-items-center w-full">
+                        <div className="grid grid-cols-2 gap-x-3 gap-y-3 sm:gap-x-6 sm:gap-y-6 md:gap-x-8 md:gap-y-8 place-items-center w-full">
                           <RingChart label="Resolved" value={resolvedCount} percent={penalties.length ? (resolvedCount / penalties.length) * 100 : 0} color="#34d399" />
                           <RingChart label="Un Resolved" value={unresolvedCount} percent={penalties.length ? (unresolvedCount / penalties.length) * 100 : 0} color="#f87171" />
                           <RingChart label="FMO Imposed" value={fmoImposedCount} percent={penalties.length ? (fmoImposedCount / penalties.length) * 100 : 0} color="#38bdf8" />
@@ -735,39 +712,35 @@ const cardCls = 'rounded-[24px] border border-emerald-400/25 bg-linear-to-b from
                       </div>
                     </div>
 
-                    {/* ROW 2: Overall Penalty Sub Types (full width) */}
-                    <div className={`${cardCls} p-5 sm:p-6 flex flex-col gap-4`}>
-                      <h2 className="text-lg sm:text-xl md:text-2xl font-extrabold flex items-center gap-3">
-                        <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-emerald-400/30 bg-emerald-500/10 text-emerald-300">
-                          <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    {/* ROW 2: Overall Penalty Sub Types */}
+                    <div className={`${cardCls} p-3 sm:p-4 md:p-5 lg:p-6 flex flex-col gap-2 sm:gap-3 md:gap-4`}>
+                      <h2 className="text-sm sm:text-base md:text-lg lg:text-xl font-extrabold flex items-center gap-2 sm:gap-3">
+                        <span className="flex h-7 w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 items-center justify-center rounded-lg sm:rounded-xl border border-emerald-400/30 bg-emerald-500/10 text-emerald-300">
+                          <svg className="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M12 2 2 7l10 5 10-5-10-5z" />
                             <path d="m2 17 10 5 10-5" />
                             <path d="m2 12 10 5 10-5" />
                           </svg>
                         </span>
-                        <span className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-                          Overall Penalty Sub Types{' '}
-                        </span>
-                        <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-                          Statistics
-                        </span>
+                        <span className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Overall Penalty Sub Types </span>
+                        <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Statistics</span>
                       </h2>
                       {subTypeFmoMatrix.subs.length === 0 ? (
                         <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-center text-xs text-white/40">
                           {loading ? 'Loading sub type data…' : 'No sub type data available'}
                         </div>
                       ) : (
-                        <div className="overflow-x-auto rounded-xl border border-white/10 [scrollbar-width:thin] [scrollbar-color:rgba(16,185,129,0.4)_transparent]">
-                          <table className="w-full text-sm min-w-[600px]">
+                        <div className="rounded-xl border border-white/10 overflow-hidden">
+                          <table className="w-full table-fixed text-[8px] sm:text-[10px] md:text-xs">
                             <thead>
-                              <tr className="text-left text-[10px] sm:text-xs font-bold tracking-wider text-emerald-200/90 bg-[#0a4038] border-b border-emerald-400/20">
-                                <th className="px-3 sm:px-4 py-3 whitespace-nowrap uppercase">Penalty Sub Types</th>
+                              <tr className="text-left font-bold tracking-wider text-emerald-200/90 bg-[#0a4038] border-b border-emerald-400/20">
+                                <th className="w-[18%] sm:w-[20%] px-1.5 sm:px-2 py-2 sm:py-3 uppercase whitespace-nowrap">Sub Type</th>
                                 {subTypeFmoMatrix.fmos.map(f => (
-                                  <th key={f} title={titleCase(f)} className="px-2 sm:px-3 py-3 text-center w-[96px] sm:w-[120px] min-w-[88px] border-l border-white/10">
-                                    <span className="block leading-tight line-clamp-2 text-[9px] sm:text-[10px]">{titleCase(f)}</span>
+                                  <th key={f} title={titleCase(f)} className="px-1 sm:px-2 py-2 sm:py-3 text-center border-l border-white/10">
+                                    <span className="block leading-tight whitespace-nowrap overflow-hidden text-ellipsis text-[7px] sm:text-[8px] md:text-[10px]">{titleCase(f)}</span>
                                   </th>
                                 ))}
-                                <th className="px-3 sm:px-4 py-3 text-center border-l border-emerald-400/40 uppercase text-emerald-300">Total</th>
+                                <th className="w-[10%] sm:w-[8%] px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40 uppercase text-emerald-300 whitespace-nowrap">Total</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -775,42 +748,35 @@ const cardCls = 'rounded-[24px] border border-emerald-400/25 bg-linear-to-b from
                                 const rowTotal = subTypeFmoMatrix.fmos.reduce((sum, f) => sum + (subTypeFmoMatrix.cells.get(s)?.get(f) || 0), 0)
                                 return (
                                   <tr key={s} className="border-b border-white/10 last:border-0 hover:bg-white/5 transition">
-                                    <td className="px-3 sm:px-4 py-2.5 text-[11px] sm:text-xs font-semibold text-white/85">
-                                      <div className="flex items-start gap-1.5">
-                                        <span className="text-white/40 font-bold shrink-0">{i + 1}:</span>
-                                        <span className="leading-snug">{s}</span>
-                                      </div>
+                                    <td className="px-1.5 sm:px-2 py-1.5 sm:py-2.5 font-semibold text-white/85 whitespace-nowrap overflow-hidden text-ellipsis">
+                                      <span className="text-white/40 font-bold">{i + 1}.</span> {s}
                                     </td>
-                                    {subTypeFmoMatrix.fmos.map(f => { 
+                                    {subTypeFmoMatrix.fmos.map(f => {
                                       const c = subTypeFmoMatrix.cells.get(s)?.get(f) || 0
                                       return (
-                                        <td key={f} className="px-3 sm:px-4 py-2.5 text-center border-l border-white/10">
-                                          {c > 0 ? (
-                                            <span className="text-[11px] sm:text-xs font-bold text-emerald-300">{c}</span>
-                                          ) : (
-                                            <span className="text-white/30 text-[11px] sm:text-xs font-bold">-</span>
-                                          )}
+                                        <td key={f} className="px-1 sm:px-2 py-1.5 sm:py-2.5 text-center border-l border-white/10">
+                                          {c > 0 ? <span className="font-bold text-emerald-300">{c}</span> : <span className="text-white/30 font-bold">-</span>}
                                         </td>
                                       )
                                     })}
-                                    <td className="px-3 sm:px-4 py-2.5 text-center border-l border-emerald-400/40">
-                                      <span className="text-[11px] sm:text-xs font-extrabold text-amber-300">{rowTotal}</span>
+                                    <td className="px-1.5 sm:px-2 py-1.5 sm:py-2.5 text-center border-l border-emerald-400/40">
+                                      <span className="font-extrabold text-amber-300">{rowTotal}</span>
                                     </td>
                                   </tr>
                                 )
                               })}
                               <tr className="bg-[#0a4038]/60 border-t-2 border-emerald-400/40 font-bold">
-                                <td className="px-3 sm:px-4 py-3 text-emerald-300 uppercase tracking-wider">Total</td>
+                                <td className="px-1.5 sm:px-2 py-2 sm:py-3 text-emerald-300 uppercase tracking-wider whitespace-nowrap">Total</td>
                                 {subTypeFmoMatrix.fmos.map(f => {
                                   const colTotal = subTypeFmoMatrix.subs.reduce((sum, s) => sum + (subTypeFmoMatrix.cells.get(s)?.get(f) || 0), 0)
                                   return (
-                                    <td key={f} className="px-3 sm:px-4 py-3 text-center border-l border-emerald-400/40">
-                                      <span className="text-[11px] sm:text-xs font-extrabold text-amber-300">{colTotal}</span>
+                                    <td key={f} className="px-1 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40">
+                                      <span className="font-extrabold text-amber-300">{colTotal}</span>
                                     </td>
                                   )
                                 })}
-                                <td className="px-3 sm:px-4 py-3 text-center border-l border-emerald-400/40">
-                                  <span className="text-[11px] sm:text-xs font-extrabold text-emerald-300">{penalties.length}</span>
+                                <td className="px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40">
+                                  <span className="font-extrabold text-emerald-300">{penalties.length}</span>
                                 </td>
                               </tr>
                             </tbody>
@@ -821,66 +787,44 @@ const cardCls = 'rounded-[24px] border border-emerald-400/25 bg-linear-to-b from
 
                     {/* ROW 3: HND Office - Stats + Graphs */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-                      <div className={`${cardCls} p-5 sm:p-6 flex flex-col gap-4`}>
-                        <h2 className="text-lg sm:text-xl md:text-2xl font-extrabold flex items-center gap-3">
-                          <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-sky-400/30 bg-sky-500/10 text-sky-300">
-                            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <div className={`${cardCls} p-3 sm:p-4 md:p-5 lg:p-6 flex flex-col gap-2 sm:gap-3 md:gap-4`}>
+                        <h2 className="text-sm sm:text-base md:text-lg lg:text-xl font-extrabold flex items-center gap-2 sm:gap-3">
+                          <span className="flex h-7 w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 items-center justify-center rounded-lg sm:rounded-xl border border-sky-400/30 bg-sky-500/10 text-sky-300">
+                            <svg className="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
                               <polyline points="9 22 9 12 15 12 15 22" />
                             </svg>
                           </span>
-                          <span className="bg-[linear-gradient(180deg,#0ea5e9,#38bdf8,#7dd3fc,#38bdf8,#0ea5e9)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-                            HND Office Penalties Statistics
-                          </span>
+                          <span className="bg-[linear-gradient(180deg,#0ea5e9,#38bdf8,#7dd3fc,#38bdf8,#0ea5e9)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">HND Office Penalties Statistics</span>
                         </h2>
-                        <div className="flex flex-col gap-2">
-                          <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-400/25 bg-amber-500/10 px-4 py-3">
-                            <span className="text-xs sm:text-sm font-semibold text-white/70">Total Penalties</span>
-                            <span className="text-xl sm:text-2xl font-extrabold bg-[linear-gradient(180deg,#f59e0b,#fbbf24,#fde68a,#fbbf24,#f59e0b)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-                              {loading ? '—' : hndPenalties.length}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-400/25 bg-emerald-500/10 px-4 py-3">
-                            <span className="text-xs sm:text-sm font-semibold text-white/70">Resolved</span>
-                            <span className="text-xl sm:text-2xl font-extrabold bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-                              {hndResolved}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between gap-3 rounded-xl border border-red-400/25 bg-red-500/10 px-4 py-3">
-                            <span className="text-xs sm:text-sm font-semibold text-white/70">Un Resolved</span>
-                            <span className="text-xl sm:text-2xl font-extrabold bg-[linear-gradient(180deg,#ef4444,#f87171,#fca5a5,#f87171,#ef4444)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-                              {hndUnresolved}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between gap-3 rounded-xl border border-sky-400/25 bg-sky-500/10 px-4 py-3">
-                            <span className="text-xs sm:text-sm font-semibold text-white/70">FMO Imposed</span>
-                            <span className="text-xl sm:text-2xl font-extrabold bg-[linear-gradient(180deg,#0ea5e9,#38bdf8,#7dd3fc,#38bdf8,#0ea5e9)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-                              {hndFmoImposed}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between gap-3 rounded-xl border border-purple-400/25 bg-purple-500/10 px-4 py-3">
-                            <span className="text-xs sm:text-sm font-semibold text-white/70">TM Imposed</span>
-                            <span className="text-xl sm:text-2xl font-extrabold bg-[linear-gradient(180deg,#a855f7,#c084fc,#d8b4fe,#c084fc,#a855f7)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-                              {hndTmImposed}
-                            </span>
-                          </div>
+                        <div className="flex flex-col gap-1.5 sm:gap-2">
+                          {[
+                            { label: 'Total Penalties', value: loading ? '—' : hndPenalties.length, border: 'border-amber-400/25', bg: 'bg-amber-500/10', grad: 'bg-[linear-gradient(180deg,#f59e0b,#fbbf24,#fde68a,#fbbf24,#f59e0b)]' },
+                            { label: 'Resolved', value: hndResolved, border: 'border-emerald-400/25', bg: 'bg-emerald-500/10', grad: 'bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)]' },
+                            { label: 'Un Resolved', value: hndUnresolved, border: 'border-red-400/25', bg: 'bg-red-500/10', grad: 'bg-[linear-gradient(180deg,#ef4444,#f87171,#fca5a5,#f87171,#ef4444)]' },
+                            { label: 'FMO Imposed', value: hndFmoImposed, border: 'border-sky-400/25', bg: 'bg-sky-500/10', grad: 'bg-[linear-gradient(180deg,#0ea5e9,#38bdf8,#7dd3fc,#38bdf8,#0ea5e9)]' },
+                            { label: 'TM Imposed', value: hndTmImposed, border: 'border-purple-400/25', bg: 'bg-purple-500/10', grad: 'bg-[linear-gradient(180deg,#a855f7,#c084fc,#d8b4fe,#c084fc,#a855f7)]' },
+                          ].map(row => (
+                            <div key={row.label} className={`flex items-center justify-between gap-2 sm:gap-3 rounded-lg sm:rounded-xl border ${row.border} ${row.bg} px-2.5 sm:px-4 py-2 sm:py-3`}>
+                              <span className="text-[10px] sm:text-xs md:text-sm font-semibold text-white/70">{row.label}</span>
+                              <span className={`text-base sm:text-xl md:text-2xl font-extrabold ${row.grad} bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]`}>{row.value}</span>
+                            </div>
+                          ))}
                         </div>
                       </div>
 
-                      <div className={`${cardCls} p-5 sm:p-6 flex flex-col items-center justify-center gap-4`}>
-                        <h2 className="text-lg sm:text-xl md:text-2xl font-extrabold flex items-center gap-3 w-full">
-                          <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-sky-400/30 bg-sky-500/10 text-sky-300">
-                            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <div className={`${cardCls} p-3 sm:p-4 md:p-5 lg:p-6 flex flex-col items-center justify-center gap-2 sm:gap-3 md:gap-4`}>
+                        <h2 className="text-sm sm:text-base md:text-lg lg:text-xl font-extrabold flex items-center gap-2 sm:gap-3 w-full">
+                          <span className="flex h-7 w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 items-center justify-center rounded-lg sm:rounded-xl border border-sky-400/30 bg-sky-500/10 text-sky-300">
+                            <svg className="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <path d="M12 2 2 7l10 5 10-5-10-5z" />
                               <path d="m2 17 10 5 10-5" />
                               <path d="m2 12 10 5 10-5" />
                             </svg>
                           </span>
-                          <span className="bg-[linear-gradient(180deg,#0ea5e9,#38bdf8,#7dd3fc,#38bdf8,#0ea5e9)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-                            HND Office Penalties Graphs
-                          </span>
+                          <span className="bg-[linear-gradient(180deg,#0ea5e9,#38bdf8,#7dd3fc,#38bdf8,#0ea5e9)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">HND Office Penalties Graphs</span>
                         </h2>
-                        <div className="grid grid-cols-2 gap-x-6 gap-y-6 sm:gap-x-8 sm:gap-y-8 place-items-center w-full">
+                        <div className="grid grid-cols-2 gap-x-3 gap-y-3 sm:gap-x-6 sm:gap-y-6 md:gap-x-8 md:gap-y-8 place-items-center w-full">
                           <RingChart label="Resolved" value={hndResolved} percent={hndPenalties.length ? (hndResolved / hndPenalties.length) * 100 : 0} color="#34d399" />
                           <RingChart label="Un Resolved" value={hndUnresolved} percent={hndPenalties.length ? (hndUnresolved / hndPenalties.length) * 100 : 0} color="#f87171" />
                           <RingChart label="FMO Imposed" value={hndFmoImposed} percent={hndPenalties.length ? (hndFmoImposed / hndPenalties.length) * 100 : 0} color="#38bdf8" />
@@ -889,39 +833,33 @@ const cardCls = 'rounded-[24px] border border-emerald-400/25 bg-linear-to-b from
                       </div>
                     </div>
 
-                    {/* ROW 4: HND Office Penalty Types (full width) */}
-                    <div className={`${cardCls} p-5 sm:p-6 flex flex-col gap-4`}>
-                      <h2 className="text-lg sm:text-xl md:text-2xl font-extrabold flex items-center gap-3">
-                        <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-emerald-400/30 bg-emerald-500/10 text-emerald-300">
-                          <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    {/* ROW 4: HND Office Penalty Types */}
+                    <div className={`${cardCls} p-3 sm:p-4 md:p-5 lg:p-6 flex flex-col gap-2 sm:gap-3 md:gap-4`}>
+                      <h2 className="text-sm sm:text-base md:text-lg lg:text-xl font-extrabold flex items-center gap-2 sm:gap-3">
+                        <span className="flex h-7 w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 items-center justify-center rounded-lg sm:rounded-xl border border-emerald-400/30 bg-emerald-500/10 text-emerald-300">
+                          <svg className="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M12 2 2 7l10 5 10-5-10-5z" />
                             <path d="m2 17 10 5 10-5" />
                             <path d="m2 12 10 5 10-5" />
                           </svg>
                         </span>
-                        <span className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-                          HND Office Penalty Types{' '}
-                        </span>
-                        <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-                          Statistics
-                        </span>
+                        <span className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">HND Office Penalty Types </span>
+                        <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Statistics</span>
                       </h2>
                       {hndSubTypeFmoMatrix.subs.length === 0 ? (
-                        <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-center text-xs text-white/40">
-                          {loading ? 'Loading…' : 'No data available'}
-                        </div>
+                        <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-center text-xs text-white/40">{loading ? 'Loading…' : 'No data available'}</div>
                       ) : (
-                        <div className="overflow-x-auto rounded-xl border border-white/10 [scrollbar-width:thin] [scrollbar-color:rgba(16,185,129,0.4)_transparent]">
-                          <table className="w-full text-sm min-w-[600px]">
+                        <div className="rounded-xl border border-white/10 overflow-hidden">
+                          <table className="w-full table-fixed text-[8px] sm:text-[10px] md:text-xs">
                             <thead>
-                              <tr className="text-left text-[10px] sm:text-xs font-bold tracking-wider text-emerald-200/90 bg-[#0a4038] border-b border-emerald-400/20">
-                                <th className="px-3 sm:px-4 py-3 whitespace-nowrap uppercase">Penalty Sub Types</th>
+                              <tr className="text-left font-bold tracking-wider text-emerald-200/90 bg-[#0a4038] border-b border-emerald-400/20">
+                                <th className="w-[18%] sm:w-[20%] px-1.5 sm:px-2 py-2 sm:py-3 uppercase whitespace-nowrap">Sub Type</th>
                                 {hndSubTypeFmoMatrix.fmos.map(f => (
-                                  <th key={f} title={titleCase(f)} className="px-2 sm:px-3 py-3 text-center w-[96px] sm:w-[120px] min-w-[88px] border-l border-white/10">
-                                    <span className="block leading-tight line-clamp-2 text-[9px] sm:text-[10px]">{titleCase(f)}</span>
+                                  <th key={f} title={titleCase(f)} className="px-1 sm:px-2 py-2 sm:py-3 text-center border-l border-white/10">
+                                    <span className="block leading-tight whitespace-nowrap overflow-hidden text-ellipsis text-[7px] sm:text-[8px] md:text-[10px]">{titleCase(f)}</span>
                                   </th>
                                 ))}
-                                <th className="px-3 sm:px-4 py-3 text-center border-l border-emerald-400/40 uppercase text-emerald-300">Total</th>
+                                <th className="w-[10%] sm:w-[8%] px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40 uppercase text-emerald-300 whitespace-nowrap">Total</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -929,42 +867,35 @@ const cardCls = 'rounded-[24px] border border-emerald-400/25 bg-linear-to-b from
                                 const rowTotal = hndSubTypeFmoMatrix.fmos.reduce((sum, f) => sum + (hndSubTypeFmoMatrix.cells.get(s)?.get(f) || 0), 0)
                                 return (
                                   <tr key={s} className="border-b border-white/10 last:border-0 hover:bg-white/5 transition">
-                                    <td className="px-3 sm:px-4 py-2.5 text-[11px] sm:text-xs font-semibold text-white/85">
-                                      <div className="flex items-start gap-1.5">
-                                        <span className="text-white/40 font-bold shrink-0">{i + 1}:</span>
-                                        <span className="leading-snug">{s}</span>
-                                      </div>
+                                    <td className="px-1.5 sm:px-2 py-1.5 sm:py-2.5 font-semibold text-white/85 whitespace-nowrap overflow-hidden text-ellipsis">
+                                      <span className="text-white/40 font-bold">{i + 1}.</span> {s}
                                     </td>
-                                    {hndSubTypeFmoMatrix.fmos.map(f => { 
+                                    {hndSubTypeFmoMatrix.fmos.map(f => {
                                       const c = hndSubTypeFmoMatrix.cells.get(s)?.get(f) || 0
                                       return (
-                                        <td key={f} className="px-3 sm:px-4 py-2.5 text-center border-l border-white/10">
-                                          {c > 0 ? (
-                                            <span className="text-[11px] sm:text-xs font-bold text-emerald-300">{c}</span>
-                                          ) : (
-                                            <span className="text-white/30 text-[11px] sm:text-xs font-bold">-</span>
-                                          )}
+                                        <td key={f} className="px-1 sm:px-2 py-1.5 sm:py-2.5 text-center border-l border-white/10">
+                                          {c > 0 ? <span className="font-bold text-emerald-300">{c}</span> : <span className="text-white/30 font-bold">-</span>}
                                         </td>
                                       )
                                     })}
-                                    <td className="px-3 sm:px-4 py-2.5 text-center border-l border-emerald-400/40">
-                                      <span className="text-[11px] sm:text-xs font-extrabold text-amber-300">{rowTotal}</span>
+                                    <td className="px-1.5 sm:px-2 py-1.5 sm:py-2.5 text-center border-l border-emerald-400/40">
+                                      <span className="font-extrabold text-amber-300">{rowTotal}</span>
                                     </td>
                                   </tr>
                                 )
                               })}
                               <tr className="bg-[#0a4038]/60 border-t-2 border-emerald-400/40 font-bold">
-                                <td className="px-3 sm:px-4 py-3 text-emerald-300 uppercase tracking-wider">Total</td>
+                                <td className="px-1.5 sm:px-2 py-2 sm:py-3 text-emerald-300 uppercase tracking-wider whitespace-nowrap">Total</td>
                                 {hndSubTypeFmoMatrix.fmos.map(f => {
                                   const colTotal = hndSubTypeFmoMatrix.subs.reduce((sum, s) => sum + (hndSubTypeFmoMatrix.cells.get(s)?.get(f) || 0), 0)
                                   return (
-                                    <td key={f} className="px-3 sm:px-4 py-3 text-center border-l border-emerald-400/40">
-                                      <span className="text-[11px] sm:text-xs font-extrabold text-amber-300">{colTotal}</span>
+                                    <td key={f} className="px-1 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40">
+                                      <span className="font-extrabold text-amber-300">{colTotal}</span>
                                     </td>
                                   )
                                 })}
-                                <td className="px-3 sm:px-4 py-3 text-center border-l border-emerald-400/40">
-                                  <span className="text-[11px] sm:text-xs font-extrabold text-emerald-300">{hndPenalties.length}</span>
+                                <td className="px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40">
+                                  <span className="font-extrabold text-emerald-300">{hndPenalties.length}</span>
                                 </td>
                               </tr>
                             </tbody>
@@ -975,66 +906,44 @@ const cardCls = 'rounded-[24px] border border-emerald-400/25 bg-linear-to-b from
 
                     {/* ROW 5: FaqirWali Office - Stats + Graphs */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-                      <div className={`${cardCls} p-5 sm:p-6 flex flex-col gap-4`}>
-                        <h2 className="text-lg sm:text-xl md:text-2xl font-extrabold flex items-center gap-3">
-                          <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-purple-400/30 bg-purple-500/10 text-purple-300">
-                            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <div className={`${cardCls} p-3 sm:p-4 md:p-5 lg:p-6 flex flex-col gap-2 sm:gap-3 md:gap-4`}>
+                        <h2 className="text-sm sm:text-base md:text-lg lg:text-xl font-extrabold flex items-center gap-2 sm:gap-3">
+                          <span className="flex h-7 w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 items-center justify-center rounded-lg sm:rounded-xl border border-purple-400/30 bg-purple-500/10 text-purple-300">
+                            <svg className="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
                               <polyline points="9 22 9 12 15 12 15 22" />
                             </svg>
                           </span>
-                          <span className="bg-[linear-gradient(180deg,#a855f7,#c084fc,#d8b4fe,#c084fc,#a855f7)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-                            FaqirWali Office Penalties Statistics
-                          </span>
+                          <span className="bg-[linear-gradient(180deg,#a855f7,#c084fc,#d8b4fe,#c084fc,#a855f7)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">FaqirWali Office Penalties Statistics</span>
                         </h2>
-                        <div className="flex flex-col gap-2">
-                          <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-400/25 bg-amber-500/10 px-4 py-3">
-                            <span className="text-xs sm:text-sm font-semibold text-white/70">Total Penalties</span>
-                            <span className="text-xl sm:text-2xl font-extrabold bg-[linear-gradient(180deg,#f59e0b,#fbbf24,#fde68a,#fbbf24,#f59e0b)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-                              {loading ? '—' : faqirwaliPenalties.length}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-400/25 bg-emerald-500/10 px-4 py-3">
-                            <span className="text-xs sm:text-sm font-semibold text-white/70">Resolved</span>
-                            <span className="text-xl sm:text-2xl font-extrabold bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-                              {faqirwaliResolved}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between gap-3 rounded-xl border border-red-400/25 bg-red-500/10 px-4 py-3">
-                            <span className="text-xs sm:text-sm font-semibold text-white/70">Un Resolved</span>
-                            <span className="text-xl sm:text-2xl font-extrabold bg-[linear-gradient(180deg,#ef4444,#f87171,#fca5a5,#f87171,#ef4444)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-                              {faqirwaliUnresolved}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between gap-3 rounded-xl border border-sky-400/25 bg-sky-500/10 px-4 py-3">
-                            <span className="text-xs sm:text-sm font-semibold text-white/70">FMO Imposed</span>
-                            <span className="text-xl sm:text-2xl font-extrabold bg-[linear-gradient(180deg,#0ea5e9,#38bdf8,#7dd3fc,#38bdf8,#0ea5e9)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-                              {faqirwaliFmoImposed}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between gap-3 rounded-xl border border-purple-400/25 bg-purple-500/10 px-4 py-3">
-                            <span className="text-xs sm:text-sm font-semibold text-white/70">TM Imposed</span>
-                            <span className="text-xl sm:text-2xl font-extrabold bg-[linear-gradient(180deg,#a855f7,#c084fc,#d8b4fe,#c084fc,#a855f7)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-                              {faqirwaliTmImposed}
-                            </span>
-                          </div>
+                        <div className="flex flex-col gap-1.5 sm:gap-2">
+                          {[
+                            { label: 'Total Penalties', value: loading ? '—' : faqirwaliPenalties.length, border: 'border-amber-400/25', bg: 'bg-amber-500/10', grad: 'bg-[linear-gradient(180deg,#f59e0b,#fbbf24,#fde68a,#fbbf24,#f59e0b)]' },
+                            { label: 'Resolved', value: faqirwaliResolved, border: 'border-emerald-400/25', bg: 'bg-emerald-500/10', grad: 'bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)]' },
+                            { label: 'Un Resolved', value: faqirwaliUnresolved, border: 'border-red-400/25', bg: 'bg-red-500/10', grad: 'bg-[linear-gradient(180deg,#ef4444,#f87171,#fca5a5,#f87171,#ef4444)]' },
+                            { label: 'FMO Imposed', value: faqirwaliFmoImposed, border: 'border-sky-400/25', bg: 'bg-sky-500/10', grad: 'bg-[linear-gradient(180deg,#0ea5e9,#38bdf8,#7dd3fc,#38bdf8,#0ea5e9)]' },
+                            { label: 'TM Imposed', value: faqirwaliTmImposed, border: 'border-purple-400/25', bg: 'bg-purple-500/10', grad: 'bg-[linear-gradient(180deg,#a855f7,#c084fc,#d8b4fe,#c084fc,#a855f7)]' },
+                          ].map(row => (
+                            <div key={row.label} className={`flex items-center justify-between gap-2 sm:gap-3 rounded-lg sm:rounded-xl border ${row.border} ${row.bg} px-2.5 sm:px-4 py-2 sm:py-3`}>
+                              <span className="text-[10px] sm:text-xs md:text-sm font-semibold text-white/70">{row.label}</span>
+                              <span className={`text-base sm:text-xl md:text-2xl font-extrabold ${row.grad} bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]`}>{row.value}</span>
+                            </div>
+                          ))}
                         </div>
                       </div>
 
-                      <div className={`${cardCls} p-5 sm:p-6 flex flex-col items-center justify-center gap-4`}>
-                        <h2 className="text-lg sm:text-xl md:text-2xl font-extrabold flex items-center gap-3 w-full">
-                          <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-purple-400/30 bg-purple-500/10 text-purple-300">
-                            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <div className={`${cardCls} p-3 sm:p-4 md:p-5 lg:p-6 flex flex-col items-center justify-center gap-2 sm:gap-3 md:gap-4`}>
+                        <h2 className="text-sm sm:text-base md:text-lg lg:text-xl font-extrabold flex items-center gap-2 sm:gap-3 w-full">
+                          <span className="flex h-7 w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 items-center justify-center rounded-lg sm:rounded-xl border border-purple-400/30 bg-purple-500/10 text-purple-300">
+                            <svg className="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <path d="M12 2 2 7l10 5 10-5-10-5z" />
                               <path d="m2 17 10 5 10-5" />
                               <path d="m2 12 10 5 10-5" />
                             </svg>
                           </span>
-                          <span className="bg-[linear-gradient(180deg,#a855f7,#c084fc,#d8b4fe,#c084fc,#a855f7)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-                            FaqirWali Office Penalties Graphs
-                          </span>
+                          <span className="bg-[linear-gradient(180deg,#a855f7,#c084fc,#d8b4fe,#c084fc,#a855f7)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">FaqirWali Office Penalties Graphs</span>
                         </h2>
-                        <div className="grid grid-cols-2 gap-x-6 gap-y-6 sm:gap-x-8 sm:gap-y-8 place-items-center w-full">
+                        <div className="grid grid-cols-2 gap-x-3 gap-y-3 sm:gap-x-6 sm:gap-y-6 md:gap-x-8 md:gap-y-8 place-items-center w-full">
                           <RingChart label="Resolved" value={faqirwaliResolved} percent={faqirwaliPenalties.length ? (faqirwaliResolved / faqirwaliPenalties.length) * 100 : 0} color="#34d399" />
                           <RingChart label="Un Resolved" value={faqirwaliUnresolved} percent={faqirwaliPenalties.length ? (faqirwaliUnresolved / faqirwaliPenalties.length) * 100 : 0} color="#f87171" />
                           <RingChart label="FMO Imposed" value={faqirwaliFmoImposed} percent={faqirwaliPenalties.length ? (faqirwaliFmoImposed / faqirwaliPenalties.length) * 100 : 0} color="#38bdf8" />
@@ -1043,39 +952,33 @@ const cardCls = 'rounded-[24px] border border-emerald-400/25 bg-linear-to-b from
                       </div>
                     </div>
 
-                    {/* ROW 6: FaqirWali Office Penalty Types (full width) */}
-                    <div className={`${cardCls} p-5 sm:p-6 flex flex-col gap-4`}>
-                      <h2 className="text-lg sm:text-xl md:text-2xl font-extrabold flex items-center gap-3">
-                        <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-emerald-400/30 bg-emerald-500/10 text-emerald-300">
-                          <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    {/* ROW 6: FaqirWali Office Penalty Types */}
+                    <div className={`${cardCls} p-3 sm:p-4 md:p-5 lg:p-6 flex flex-col gap-2 sm:gap-3 md:gap-4`}>
+                      <h2 className="text-sm sm:text-base md:text-lg lg:text-xl font-extrabold flex items-center gap-2 sm:gap-3">
+                        <span className="flex h-7 w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 items-center justify-center rounded-lg sm:rounded-xl border border-emerald-400/30 bg-emerald-500/10 text-emerald-300">
+                          <svg className="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M12 2 2 7l10 5 10-5-10-5z" />
                             <path d="m2 17 10 5 10-5" />
                             <path d="m2 12 10 5 10-5" />
                           </svg>
                         </span>
-                        <span className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-                          FaqirWali Office Penalty Types{' '}
-                        </span>
-                        <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-                          Statistics
-                        </span>
+                        <span className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">FaqirWali Office Penalty Types </span>
+                        <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Statistics</span>
                       </h2>
                       {faqirwaliSubTypeFmoMatrix.subs.length === 0 ? (
-                        <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-center text-xs text-white/40">
-                          {loading ? 'Loading…' : 'No data available'}
-                        </div>
+                        <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-center text-xs text-white/40">{loading ? 'Loading…' : 'No data available'}</div>
                       ) : (
-                        <div className="overflow-x-auto rounded-xl border border-white/10 [scrollbar-width:thin] [scrollbar-color:rgba(16,185,129,0.4)_transparent]">
-                          <table className="w-full text-sm min-w-[600px]">
+                        <div className="rounded-xl border border-white/10 overflow-hidden">
+                          <table className="w-full table-fixed text-[8px] sm:text-[10px] md:text-xs">
                             <thead>
-                              <tr className="text-left text-[10px] sm:text-xs font-bold tracking-wider text-emerald-200/90 bg-[#0a4038] border-b border-emerald-400/20">
-                                <th className="px-3 sm:px-4 py-3 whitespace-nowrap uppercase">Penalty Sub Types</th>
+                              <tr className="text-left font-bold tracking-wider text-emerald-200/90 bg-[#0a4038] border-b border-emerald-400/20">
+                                <th className="w-[18%] sm:w-[20%] px-1.5 sm:px-2 py-2 sm:py-3 uppercase whitespace-nowrap">Sub Type</th>
                                 {faqirwaliSubTypeFmoMatrix.fmos.map(f => (
-                                  <th key={f} title={titleCase(f)} className="px-2 sm:px-3 py-3 text-center w-[96px] sm:w-[120px] min-w-[88px] border-l border-white/10">
-                                    <span className="block leading-tight line-clamp-2 text-[9px] sm:text-[10px]">{titleCase(f)}</span>
+                                  <th key={f} title={titleCase(f)} className="px-1 sm:px-2 py-2 sm:py-3 text-center border-l border-white/10">
+                                    <span className="block leading-tight whitespace-nowrap overflow-hidden text-ellipsis text-[7px] sm:text-[8px] md:text-[10px]">{titleCase(f)}</span>
                                   </th>
                                 ))}
-                                <th className="px-3 sm:px-4 py-3 text-center border-l border-emerald-400/40 uppercase text-emerald-300">Total</th>
+                                <th className="w-[10%] sm:w-[8%] px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40 uppercase text-emerald-300 whitespace-nowrap">Total</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -1083,42 +986,35 @@ const cardCls = 'rounded-[24px] border border-emerald-400/25 bg-linear-to-b from
                                 const rowTotal = faqirwaliSubTypeFmoMatrix.fmos.reduce((sum, f) => sum + (faqirwaliSubTypeFmoMatrix.cells.get(s)?.get(f) || 0), 0)
                                 return (
                                   <tr key={s} className="border-b border-white/10 last:border-0 hover:bg-white/5 transition">
-                                    <td className="px-3 sm:px-4 py-2.5 text-[11px] sm:text-xs font-semibold text-white/85">
-                                      <div className="flex items-start gap-1.5">
-                                        <span className="text-white/40 font-bold shrink-0">{i + 1}:</span>
-                                        <span className="leading-snug">{s}</span>
-                                      </div>
+                                    <td className="px-1.5 sm:px-2 py-1.5 sm:py-2.5 font-semibold text-white/85 whitespace-nowrap overflow-hidden text-ellipsis">
+                                      <span className="text-white/40 font-bold">{i + 1}.</span> {s}
                                     </td>
-                                    {faqirwaliSubTypeFmoMatrix.fmos.map(f => { 
+                                    {faqirwaliSubTypeFmoMatrix.fmos.map(f => {
                                       const c = faqirwaliSubTypeFmoMatrix.cells.get(s)?.get(f) || 0
                                       return (
-                                        <td key={f} className="px-3 sm:px-4 py-2.5 text-center border-l border-white/10">
-                                          {c > 0 ? (
-                                            <span className="text-[11px] sm:text-xs font-bold text-emerald-300">{c}</span>
-                                          ) : (
-                                            <span className="text-white/30 text-[11px] sm:text-xs font-bold">-</span>
-                                          )}
+                                        <td key={f} className="px-1 sm:px-2 py-1.5 sm:py-2.5 text-center border-l border-white/10">
+                                          {c > 0 ? <span className="font-bold text-emerald-300">{c}</span> : <span className="text-white/30 font-bold">-</span>}
                                         </td>
                                       )
                                     })}
-                                    <td className="px-3 sm:px-4 py-2.5 text-center border-l border-emerald-400/40">
-                                      <span className="text-[11px] sm:text-xs font-extrabold text-amber-300">{rowTotal}</span>
+                                    <td className="px-1.5 sm:px-2 py-1.5 sm:py-2.5 text-center border-l border-emerald-400/40">
+                                      <span className="font-extrabold text-amber-300">{rowTotal}</span>
                                     </td>
                                   </tr>
                                 )
                               })}
-                                                            <tr className="bg-[#0a4038]/60 border-t-2 border-emerald-400/40 font-bold">
-                                <td className="px-3 sm:px-4 py-3 text-emerald-300 uppercase tracking-wider">Total</td>
+                              <tr className="bg-[#0a4038]/60 border-t-2 border-emerald-400/40 font-bold">
+                                <td className="px-1.5 sm:px-2 py-2 sm:py-3 text-emerald-300 uppercase tracking-wider whitespace-nowrap">Total</td>
                                 {faqirwaliSubTypeFmoMatrix.fmos.map(f => {
                                   const colTotal = faqirwaliSubTypeFmoMatrix.subs.reduce((sum, s) => sum + (faqirwaliSubTypeFmoMatrix.cells.get(s)?.get(f) || 0), 0)
                                   return (
-                                    <td key={f} className="px-3 sm:px-4 py-3 text-center border-l border-emerald-400/40">
-                                      <span className="text-[11px] sm:text-xs font-extrabold text-amber-300">{colTotal}</span>
+                                    <td key={f} className="px-1 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40">
+                                      <span className="font-extrabold text-amber-300">{colTotal}</span>
                                     </td>
                                   )
                                 })}
-                                <td className="px-3 sm:px-4 py-3 text-center border-l border-emerald-400/40">
-                                  <span className="text-[11px] sm:text-xs font-extrabold text-emerald-300">{faqirwaliPenalties.length}</span>
+                                <td className="px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40">
+                                  <span className="font-extrabold text-emerald-300">{faqirwaliPenalties.length}</span>
                                 </td>
                               </tr>
                             </tbody>
@@ -1129,79 +1025,50 @@ const cardCls = 'rounded-[24px] border border-emerald-400/25 bg-linear-to-b from
                   </>
                 )}
 
-                {/* ✅ SINGLE OFFICE DASHBOARD (Jab sirf 1 office ki access ho) */}
+                {/* ✅ SINGLE OFFICE DASHBOARD */}
                 {allowedOffices.length === 1 && (
                   <>
-                    {/* ROW 1: Stats + Graphs */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-                      {/* Stats Card */}
-                      <div className={`${cardCls} p-5 sm:p-6 flex flex-col gap-4`}>
-                        <h2 className="text-lg sm:text-xl md:text-2xl font-extrabold flex items-center gap-3">
-                          <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-amber-400/30 bg-amber-500/10 text-amber-300">
-                            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <div className={`${cardCls} p-3 sm:p-4 md:p-5 lg:p-6 flex flex-col gap-2 sm:gap-3 md:gap-4`}>
+                        <h2 className="text-sm sm:text-base md:text-lg lg:text-xl font-extrabold flex items-center gap-2 sm:gap-3">
+                          <span className="flex h-7 w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 items-center justify-center rounded-lg sm:rounded-xl border border-amber-400/30 bg-amber-500/10 text-amber-300">
+                            <svg className="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <path d="M3 3v18h18" />
                               <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3" />
                             </svg>
                           </span>
-                          <span className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-                            Penalties{' '}
-                          </span>
-                          <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-                            Statistics
-                          </span>
+                          <span className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Penalties </span>
+                          <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Statistics</span>
                         </h2>
-                        <div className="flex flex-col gap-2">
-                          <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-400/25 bg-amber-500/10 px-4 py-3">
-                            <span className="text-xs sm:text-sm font-semibold text-white/70">Total Penalties</span>
-                            <span className="text-xl sm:text-2xl font-extrabold bg-[linear-gradient(180deg,#f59e0b,#fbbf24,#fde68a,#fbbf24,#f59e0b)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-                              {loading ? '—' : filteredPenalties.length}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-400/25 bg-emerald-500/10 px-4 py-3">
-                            <span className="text-xs sm:text-sm font-semibold text-white/70">Resolved</span>
-                            <span className="text-xl sm:text-2xl font-extrabold bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-                              {resolvedCount}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between gap-3 rounded-xl border border-red-400/25 bg-red-500/10 px-4 py-3">
-                            <span className="text-xs sm:text-sm font-semibold text-white/70">Un Resolved</span>
-                            <span className="text-xl sm:text-2xl font-extrabold bg-[linear-gradient(180deg,#ef4444,#f87171,#fca5a5,#f87171,#ef4444)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-                              {unresolvedCount}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between gap-3 rounded-xl border border-sky-400/25 bg-sky-500/10 px-4 py-3">
-                            <span className="text-xs sm:text-sm font-semibold text-white/70">FMO Imposed</span>
-                            <span className="text-xl sm:text-2xl font-extrabold bg-[linear-gradient(180deg,#0ea5e9,#38bdf8,#7dd3fc,#38bdf8,#0ea5e9)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-                              {fmoImposedCount}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between gap-3 rounded-xl border border-purple-400/25 bg-purple-500/10 px-4 py-3">
-                            <span className="text-xs sm:text-sm font-semibold text-white/70">TM Imposed</span>
-                            <span className="text-xl sm:text-2xl font-extrabold bg-[linear-gradient(180deg,#a855f7,#c084fc,#d8b4fe,#c084fc,#a855f7)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-                              {tmImposedCount}
-                            </span>
-                          </div>
+                        <div className="flex flex-col gap-1.5 sm:gap-2">
+                          {[
+                            { label: 'Total Penalties', value: loading ? '—' : filteredPenalties.length, border: 'border-amber-400/25', bg: 'bg-amber-500/10', grad: 'bg-[linear-gradient(180deg,#f59e0b,#fbbf24,#fde68a,#fbbf24,#f59e0b)]' },
+                            { label: 'Resolved', value: resolvedCount, border: 'border-emerald-400/25', bg: 'bg-emerald-500/10', grad: 'bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)]' },
+                            { label: 'Un Resolved', value: unresolvedCount, border: 'border-red-400/25', bg: 'bg-red-500/10', grad: 'bg-[linear-gradient(180deg,#ef4444,#f87171,#fca5a5,#f87171,#ef4444)]' },
+                            { label: 'FMO Imposed', value: fmoImposedCount, border: 'border-sky-400/25', bg: 'bg-sky-500/10', grad: 'bg-[linear-gradient(180deg,#0ea5e9,#38bdf8,#7dd3fc,#38bdf8,#0ea5e9)]' },
+                            { label: 'TM Imposed', value: tmImposedCount, border: 'border-purple-400/25', bg: 'bg-purple-500/10', grad: 'bg-[linear-gradient(180deg,#a855f7,#c084fc,#d8b4fe,#c084fc,#a855f7)]' },
+                          ].map(row => (
+                            <div key={row.label} className={`flex items-center justify-between gap-2 sm:gap-3 rounded-lg sm:rounded-xl border ${row.border} ${row.bg} px-2.5 sm:px-4 py-2 sm:py-3`}>
+                              <span className="text-[10px] sm:text-xs md:text-sm font-semibold text-white/70">{row.label}</span>
+                              <span className={`text-base sm:text-xl md:text-2xl font-extrabold ${row.grad} bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]`}>{row.value}</span>
+                            </div>
+                          ))}
                         </div>
                       </div>
 
-                      {/* Graphs Card */}
-                      <div className={`${cardCls} p-5 sm:p-6 flex flex-col items-center justify-center gap-4`}>
-                        <h2 className="text-lg sm:text-xl md:text-2xl font-extrabold flex items-center gap-3 w-full">
-                          <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-sky-400/30 bg-sky-500/10 text-sky-300">
-                            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <div className={`${cardCls} p-3 sm:p-4 md:p-5 lg:p-6 flex flex-col items-center justify-center gap-2 sm:gap-3 md:gap-4`}>
+                        <h2 className="text-sm sm:text-base md:text-lg lg:text-xl font-extrabold flex items-center gap-2 sm:gap-3 w-full">
+                          <span className="flex h-7 w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 items-center justify-center rounded-lg sm:rounded-xl border border-sky-400/30 bg-sky-500/10 text-sky-300">
+                            <svg className="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <path d="M12 2 2 7l10 5 10-5-10-5z" />
                               <path d="m2 17 10 5 10-5" />
                               <path d="m2 12 10 5 10-5" />
                             </svg>
                           </span>
-                          <span className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-                            Penalties{' '}
-                          </span>
-                          <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-                            Graphs
-                          </span>
+                          <span className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Penalties </span>
+                          <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Graphs</span>
                         </h2>
-                        <div className="grid grid-cols-2 gap-x-6 gap-y-6 sm:gap-x-8 sm:gap-y-8 place-items-center w-full">
+                        <div className="grid grid-cols-2 gap-x-3 gap-y-3 sm:gap-x-6 sm:gap-y-6 md:gap-x-8 md:gap-y-8 place-items-center w-full">
                           <RingChart label="Resolved" value={resolvedCount} percent={filteredPenalties.length ? (resolvedCount / filteredPenalties.length) * 100 : 0} color="#34d399" />
                           <RingChart label="Un Resolved" value={unresolvedCount} percent={filteredPenalties.length ? (unresolvedCount / filteredPenalties.length) * 100 : 0} color="#f87171" />
                           <RingChart label="FMO Imposed" value={fmoImposedCount} percent={filteredPenalties.length ? (fmoImposedCount / filteredPenalties.length) * 100 : 0} color="#38bdf8" />
@@ -1210,39 +1077,32 @@ const cardCls = 'rounded-[24px] border border-emerald-400/25 bg-linear-to-b from
                       </div>
                     </div>
 
-                    {/* ROW 2: Sub Types Table */}
-                    <div className={`${cardCls} p-5 sm:p-6 flex flex-col gap-4`}>
-                      <h2 className="text-lg sm:text-xl md:text-2xl font-extrabold flex items-center gap-3">
-                        <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-emerald-400/30 bg-emerald-500/10 text-emerald-300">
-                          <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <div className={`${cardCls} p-3 sm:p-4 md:p-5 lg:p-6 flex flex-col gap-2 sm:gap-3 md:gap-4`}>
+                      <h2 className="text-sm sm:text-base md:text-lg lg:text-xl font-extrabold flex items-center gap-2 sm:gap-3">
+                        <span className="flex h-7 w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 items-center justify-center rounded-lg sm:rounded-xl border border-emerald-400/30 bg-emerald-500/10 text-emerald-300">
+                          <svg className="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M12 2 2 7l10 5 10-5-10-5z" />
                             <path d="m2 17 10 5 10-5" />
                             <path d="m2 12 10 5 10-5" />
                           </svg>
                         </span>
-                        <span className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-                          Penalty Types{' '}
-                        </span>
-                        <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-                          Statistics
-                        </span>
+                        <span className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Penalty Types </span>
+                        <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Statistics</span>
                       </h2>
                       {subTypeFmoMatrix.subs.length === 0 ? (
-                        <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-center text-xs text-white/40">
-                          {loading ? 'Loading…' : 'No data available'}
-                        </div>
+                        <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-center text-xs text-white/40">{loading ? 'Loading…' : 'No data available'}</div>
                       ) : (
-                        <div className="overflow-x-auto rounded-xl border border-white/10 [scrollbar-width:thin] [scrollbar-color:rgba(16,185,129,0.4)_transparent]">
-                          <table className="w-full text-sm min-w-[600px]">
+                        <div className="rounded-xl border border-white/10 overflow-hidden">
+                          <table className="w-full table-fixed text-[8px] sm:text-[10px] md:text-xs">
                             <thead>
-                              <tr className="text-left text-[10px] sm:text-xs font-bold tracking-wider text-emerald-200/90 bg-[#0a4038] border-b border-emerald-400/20">
-                                <th className="px-3 sm:px-4 py-3 whitespace-nowrap uppercase">Penalty Sub Types</th>
+                              <tr className="text-left font-bold tracking-wider text-emerald-200/90 bg-[#0a4038] border-b border-emerald-400/20">
+                                <th className="w-[18%] sm:w-[20%] px-1.5 sm:px-2 py-2 sm:py-3 uppercase whitespace-nowrap">Sub Type</th>
                                 {subTypeFmoMatrix.fmos.map(f => (
-                                  <th key={f} title={titleCase(f)} className="px-2 sm:px-3 py-3 text-center w-[96px] sm:w-[120px] min-w-[88px] border-l border-white/10">
-                                    <span className="block leading-tight line-clamp-2 text-[9px] sm:text-[10px]">{titleCase(f)}</span>
+                                  <th key={f} title={titleCase(f)} className="px-1 sm:px-2 py-2 sm:py-3 text-center border-l border-white/10">
+                                    <span className="block leading-tight whitespace-nowrap overflow-hidden text-ellipsis text-[7px] sm:text-[8px] md:text-[10px]">{titleCase(f)}</span>
                                   </th>
                                 ))}
-                                <th className="px-3 sm:px-4 py-3 text-center border-l border-emerald-400/40 uppercase text-emerald-300">Total</th>
+                                <th className="w-[10%] sm:w-[8%] px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40 uppercase text-emerald-300 whitespace-nowrap">Total</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -1250,42 +1110,35 @@ const cardCls = 'rounded-[24px] border border-emerald-400/25 bg-linear-to-b from
                                 const rowTotal = subTypeFmoMatrix.fmos.reduce((sum, f) => sum + (subTypeFmoMatrix.cells.get(s)?.get(f) || 0), 0)
                                 return (
                                   <tr key={s} className="border-b border-white/10 last:border-0 hover:bg-white/5 transition">
-                                    <td className="px-3 sm:px-4 py-2.5 text-[11px] sm:text-xs font-semibold text-white/85">
-                                      <div className="flex items-start gap-1.5">
-                                        <span className="text-white/40 font-bold shrink-0">{i + 1}:</span>
-                                        <span className="leading-snug">{s}</span>
-                                      </div>
+                                    <td className="px-1.5 sm:px-2 py-1.5 sm:py-2.5 font-semibold text-white/85 whitespace-nowrap overflow-hidden text-ellipsis">
+                                      <span className="text-white/40 font-bold">{i + 1}.</span> {s}
                                     </td>
-                                    {subTypeFmoMatrix.fmos.map(f => { 
+                                    {subTypeFmoMatrix.fmos.map(f => {
                                       const c = subTypeFmoMatrix.cells.get(s)?.get(f) || 0
                                       return (
-                                        <td key={f} className="px-3 sm:px-4 py-2.5 text-center border-l border-white/10">
-                                          {c > 0 ? (
-                                            <span className="text-[11px] sm:text-xs font-bold text-emerald-300">{c}</span>
-                                          ) : (
-                                            <span className="text-white/30 text-[11px] sm:text-xs font-bold">-</span>
-                                          )}
+                                        <td key={f} className="px-1 sm:px-2 py-1.5 sm:py-2.5 text-center border-l border-white/10">
+                                          {c > 0 ? <span className="font-bold text-emerald-300">{c}</span> : <span className="text-white/30 font-bold">-</span>}
                                         </td>
                                       )
                                     })}
-                                    <td className="px-3 sm:px-4 py-2.5 text-center border-l border-emerald-400/40">
-                                      <span className="text-[11px] sm:text-xs font-extrabold text-amber-300">{rowTotal}</span>
+                                    <td className="px-1.5 sm:px-2 py-1.5 sm:py-2.5 text-center border-l border-emerald-400/40">
+                                      <span className="font-extrabold text-amber-300">{rowTotal}</span>
                                     </td>
                                   </tr>
                                 )
                               })}
                               <tr className="bg-[#0a4038]/60 border-t-2 border-emerald-400/40 font-bold">
-                                <td className="px-3 sm:px-4 py-3 text-emerald-300 uppercase tracking-wider">Total</td>
+                                <td className="px-1.5 sm:px-2 py-2 sm:py-3 text-emerald-300 uppercase tracking-wider whitespace-nowrap">Total</td>
                                 {subTypeFmoMatrix.fmos.map(f => {
                                   const colTotal = subTypeFmoMatrix.subs.reduce((sum, s) => sum + (subTypeFmoMatrix.cells.get(s)?.get(f) || 0), 0)
                                   return (
-                                    <td key={f} className="px-3 sm:px-4 py-3 text-center border-l border-emerald-400/40">
-                                      <span className="text-[11px] sm:text-xs font-extrabold text-amber-300">{colTotal}</span>
+                                    <td key={f} className="px-1 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40">
+                                      <span className="font-extrabold text-amber-300">{colTotal}</span>
                                     </td>
                                   )
                                 })}
-                                <td className="px-3 sm:px-4 py-3 text-center border-l border-emerald-400/40">
-                                  <span className="text-[11px] sm:text-xs font-extrabold text-emerald-300">{filteredPenalties.length}</span>
+                                <td className="px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40">
+                                  <span className="font-extrabold text-emerald-300">{filteredPenalties.length}</span>
                                 </td>
                               </tr>
                             </tbody>
@@ -1309,7 +1162,7 @@ const cardCls = 'rounded-[24px] border border-emerald-400/25 bg-linear-to-b from
           />
         )}
 
-        {/* ===== VIEW: FMO Statistics (alag page) ===== */}
+        {/* ===== VIEW: FMO Statistics ===== */}
         {view === 'fmo' && (
           <FMOStatistics
             penalties={penalties}

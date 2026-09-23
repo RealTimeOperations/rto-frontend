@@ -62,7 +62,8 @@ function fmtDate(v: any) {
   if (isNaN(d.getTime())) return s
   return d.toLocaleString('en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })
 }
-
+// ✅ 13 columns ki fixed widths (header + body dono mein same → alignment barqarar)
+const COL_WIDTHS = ['2%','9%','10%','10%','7%','8%','7%','5%','9%','8%','9%','9%','7%']
 export default function Penalties({ penalties, loading = false, permissions }: Props) {
   const [search, setSearch] = useState('')
   const [fType, setFType] = useState('')
@@ -121,7 +122,7 @@ export default function Penalties({ penalties, loading = false, permissions }: P
   }, [filteredPenalties, search, fType, fStatus, fImposed, fAddedBy])
 
   return (
-    <div className="flex flex-col gap-3 h-[calc(100dvh-190px)] min-h-[340px]">
+    <div className="flex flex-col gap-3 h-[calc(100dvh-120px)] min-h-[420px]">
       <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3 flex-shrink-0">
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <h2 className="running-text text-base sm:text-xl font-bold whitespace-nowrap">Penalties</h2>
@@ -149,54 +150,74 @@ export default function Penalties({ penalties, loading = false, permissions }: P
       </div>
 
       <div className="flex-1 min-h-0 rounded-2xl border border-emerald-400/25 bg-[#04231c]/60 overflow-hidden shadow-[0_15px_40px_rgba(0,0,0,0.35)]">
-        <div className="h-full overflow-auto [scrollbar-width:thin] [scrollbar-color:rgba(16,185,129,0.45)_rgba(2,27,22,0.6)]">
-          <table className="w-full text-sm min-w-[1500px]">
-            <thead className="sticky top-0 z-10 bg-[#0a4038]">
-              <tr className="text-left text-[10px] sm:text-xs font-bold tracking-wider text-emerald-200/90 uppercase border-b border-emerald-400/20">
-                <th className="px-3 sm:px-4 py-3">Sr#</th>
-                <th className="px-3 sm:px-4 py-3">Penalty ID</th>
-                <th className="px-3 sm:px-4 py-3">Penalty Type</th>
-                <th className="px-3 sm:px-4 py-3">Penalty Sub Type</th>
-                <th className="px-3 sm:px-4 py-3">Amount (Rs.)</th>
-                <th className="px-3 sm:px-4 py-3">Status</th>
-                <th className="px-3 sm:px-4 py-3">Penalty Imposed</th>
-                <th className="px-3 sm:px-4 py-3">TAT</th>
-                <th className="px-3 sm:px-4 py-3">Added By</th>
-                <th className="px-3 sm:px-4 py-3">UC / Ward</th>
-                <th className="px-3 sm:px-4 py-3">Created Date & Time</th>
-                <th className="px-3 sm:px-4 py-3">Final Action Time</th>
-                <th className="px-3 sm:px-4 py-3">Can Auto Imposed</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan={13} className="px-4 py-10 text-center text-white/50 text-xs">Loading penalties…</td></tr>
-              ) : filtered.length === 0 ? (
-                <tr><td colSpan={13} className="px-4 py-10 text-center text-white/50 text-xs">{filteredPenalties.length === 0 ? 'No penalties found' : 'No matching penalties'}</td></tr>
-              ) : (
-                filtered.map((p: Row, i: number) => {
-                  const autoYes = String(p.can_auto_imposed ?? '').trim() === '1' || /yes|true/i.test(String(p.can_auto_imposed ?? ''))
-                  return (
-                    <tr key={String(p.id ?? i)} className="border-b border-white/5 last:border-0 hover:bg-white/5 transition">
-                      <td className="px-3 sm:px-4 py-2.5 text-white/50 text-[11px]">{i + 1}</td>
-                      <td className="px-3 sm:px-4 py-2.5 text-amber-300 font-mono text-[11px] font-bold whitespace-nowrap">{p.id}</td>
-                      <td className="px-3 sm:px-4 py-2.5 text-white/90 text-[11px] font-semibold">{p.penalty_type || '—'}</td>
-                      <td className="px-3 sm:px-4 py-2.5 text-white/70 text-[11px]">{p.penalty_sub_type || '—'}</td>
-                      <td className="px-3 sm:px-4 py-2.5 text-emerald-300 text-[11px] font-bold whitespace-nowrap">{Number(p.penalty_amount || 0).toLocaleString()}</td>
-                      <td className="px-3 sm:px-4 py-2.5"><span className={`px-2 py-1 rounded-full text-[10px] font-bold border whitespace-nowrap ${statusBadge(p.status)}`}>{p.status || '—'}</span></td>
-                      <td className="px-3 sm:px-4 py-2.5"><span className={`px-2 py-1 rounded-full text-[10px] font-bold border whitespace-nowrap ${isYes(p.tm_imposed) ? 'bg-purple-500/15 text-purple-300 border-purple-400/40' : 'bg-white/5 text-white/50 border-white/15'}`}>{isYes(p.tm_imposed) ? 'Yes' : 'No'}</span></td>
-                      <td className="px-3 sm:px-4 py-2.5 text-white/70 text-[11px]">{p.tat || '—'}</td>
-                      <td className="px-3 sm:px-4 py-2.5 text-white/80 text-[11px]">{p.added_by || '—'}</td>
-                      <td className="px-3 sm:px-4 py-2.5 text-white/60 text-[11px]">{p.uc_ward || '—'}</td>
-                      <td className="px-3 sm:px-4 py-2.5 text-white/60 text-[10px] whitespace-nowrap">{fmtDate(p.created_at)}</td>
-                      <td className="px-3 sm:px-4 py-2.5 text-white/60 text-[10px] whitespace-nowrap">{fmtDate(p.final_action_time)}</td>
-                      <td className="px-3 sm:px-4 py-2.5"><span className={`px-2 py-1 rounded-full text-[10px] font-bold border whitespace-nowrap ${autoYes ? 'bg-emerald-500/15 text-emerald-300 border-emerald-400/40' : 'bg-white/5 text-white/50 border-white/15'}`}>{autoYes ? 'Yes' : 'No'}</span></td>
-                    </tr>
-                  )
-                })
-              )}
-            </tbody>
-          </table>
+        {/* ✅ Horizontal sync wrapper — mobile par hi scroll; lg+ par content fit */}
+        <div className="h-full overflow-x-auto max-lg:[scrollbar-width:none] max-lg:[&::-webkit-scrollbar]:hidden">
+          <div className="min-w-[1100px] lg:min-w-0 h-full flex flex-col">
+
+            {/* ✅ Header — scroll area se BAHAR, border ke sath joined */}
+            <div className="flex-shrink-0 bg-[#0a4038] lg:pr-[10px]">
+              <table className="w-full table-fixed">
+                <colgroup>
+                  {COL_WIDTHS.map((w, i) => <col key={i} style={{ width: w }} />)}
+                </colgroup>
+                <thead>
+                  <tr className="text-left text-[10px] sm:text-xs font-bold tracking-wider text-emerald-200/90 uppercase border-b border-emerald-400/20">
+                    <th className="px-2 sm:px-3 py-3">Sr#</th>
+                    <th className="px-2 sm:px-3 py-3">Penalty ID</th>
+                    <th className="px-2 sm:px-3 py-3">Penalty Type</th>
+                    <th className="px-2 sm:px-3 py-3">Penalty Sub Type</th>
+                    <th className="px-2 sm:px-3 py-3">Amount (Rs.)</th>
+                    <th className="px-2 sm:px-3 py-3">Status</th>
+                    <th className="px-2 sm:px-3 py-3">Penalty Imposed</th>
+                    <th className="px-2 sm:px-3 py-3">TAT</th>
+                    <th className="px-2 sm:px-3 py-3">Added By</th>
+                    <th className="px-2 sm:px-3 py-3">UC / Ward</th>
+                    <th className="px-2 sm:px-3 py-3">Created Date & Time</th>
+                    <th className="px-2 sm:px-3 py-3">Final Action Time</th>
+                    <th className="px-2 sm:px-3 py-3">Can Auto Imposed</th>
+                  </tr>
+                </thead>
+              </table>
+            </div>
+
+            {/* ✅ Body — vertical scroll bar SIRF rows area mein (header tak stop) */}
+            <div className="flex-1 min-h-0 overflow-y-auto [scrollbar-width:thin] [scrollbar-color:rgba(16,185,129,0.45)_rgba(2,27,22,0.6)] [&::-webkit-scrollbar]:w-[10px] [&::-webkit-scrollbar-track]:bg-[rgba(2,27,22,0.6)] [&::-webkit-scrollbar-thumb]:bg-[rgba(16,185,129,0.45)] [&::-webkit-scrollbar-thumb]:rounded-full">
+              <table className="w-full table-fixed">
+                <colgroup>
+                  {COL_WIDTHS.map((w, i) => <col key={i} style={{ width: w }} />)}
+                </colgroup>
+                <tbody>
+                  {loading ? (
+                    <tr><td colSpan={13} className="px-4 py-10 text-center text-white/50 text-xs">Loading penalties…</td></tr>
+                  ) : filtered.length === 0 ? (
+                    <tr><td colSpan={13} className="px-4 py-10 text-center text-white/50 text-xs">{filteredPenalties.length === 0 ? 'No penalties found' : 'No matching penalties'}</td></tr>
+                  ) : (
+                    filtered.map((p: Row, i: number) => {
+                      const autoYes = String(p.can_auto_imposed ?? '').trim() === '1' || /yes|true/i.test(String(p.can_auto_imposed ?? ''))
+                      return (
+                        <tr key={String(p.id ?? i)} className="border-b border-white/5 last:border-0 hover:bg-white/5 transition">
+                          <td className="px-2 sm:px-3 py-2.5 text-white/50 text-[11px]">{i + 1}</td>
+                          <td className="px-2 sm:px-3 py-2.5 text-amber-300 font-mono text-[11px] font-bold">{p.id}</td>
+                          <td className="px-2 sm:px-3 py-2.5 text-white/90 text-[11px] font-semibold">{p.penalty_type || '—'}</td>
+                          <td className="px-2 sm:px-3 py-2.5 text-white/70 text-[11px]">{p.penalty_sub_type || '—'}</td>
+                          <td className="px-2 sm:px-3 py-2.5 text-emerald-300 text-[11px] font-bold whitespace-nowrap">{Number(p.penalty_amount || 0).toLocaleString()}</td>
+                          <td className="px-2 sm:px-3 py-2.5"><span className={`px-2 py-1 rounded-full text-[10px] font-bold border whitespace-nowrap ${statusBadge(p.status)}`}>{p.status || '—'}</span></td>
+                          <td className="px-2 sm:px-3 py-2.5"><span className={`px-2 py-1 rounded-full text-[10px] font-bold border whitespace-nowrap ${isYes(p.tm_imposed) ? 'bg-purple-500/15 text-purple-300 border-purple-400/40' : 'bg-white/5 text-white/50 border-white/15'}`}>{isYes(p.tm_imposed) ? 'Yes' : 'No'}</span></td>
+                          <td className="px-2 sm:px-3 py-2.5 text-white/70 text-[11px]">{p.tat || '—'}</td>
+                          <td className="px-2 sm:px-3 py-2.5 text-white/80 text-[11px]">{p.added_by || '—'}</td>
+                          <td className="px-2 sm:px-3 py-2.5 text-white/60 text-[11px]">{p.uc_ward || '—'}</td>
+                          <td className="px-2 sm:px-3 py-2.5 text-white/60 text-[10px]">{fmtDate(p.created_at)}</td>
+                          <td className="px-2 sm:px-3 py-2.5 text-white/60 text-[10px]">{fmtDate(p.final_action_time)}</td>
+                          <td className="px-2 sm:px-3 py-2.5"><span className={`px-2 py-1 rounded-full text-[10px] font-bold border whitespace-nowrap ${autoYes ? 'bg-emerald-500/15 text-emerald-300 border-emerald-400/40' : 'bg-white/5 text-white/50 border-white/15'}`}>{autoYes ? 'Yes' : 'No'}</span></td>
+                        </tr>
+                      )
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+          </div>
         </div>
       </div>
     </div>
