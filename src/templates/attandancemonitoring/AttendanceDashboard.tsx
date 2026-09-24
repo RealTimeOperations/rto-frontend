@@ -81,10 +81,10 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
     setNotifications([savedItem])
     setUnread(1)
     try { localStorage.setItem('rto_latest_notification', JSON.stringify(savedItem)) } catch {}
-    // Popup sirf 1 second ke liye
+    // Popup 3 second ke liye (taake user asani se dekh sake)
     setPopup({ type, message })
     if (popupTimer.current) window.clearTimeout(popupTimer.current)
-    popupTimer.current = window.setTimeout(() => setPopup(null), 1000)
+    popupTimer.current = window.setTimeout(() => setPopup(null), 3000)
   }
 
   // ✅ Sliding pill position — view change + window resize + font load par update
@@ -187,15 +187,8 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
     lastHbKeyRef.current = key
     try { localStorage.setItem('rto_last_hb_key', key) } catch {}
   }
-  // ✅ 20 second dedup timer — notification spam prevention (Penalties jaisa)
-  const lastDataNotifyRef = useRef<number>((() => {
-    try { return Number(localStorage.getItem('rto_last_notify_ms')) || 0 } catch { return 0 }
-  })())
+  // ✅ Popup hamesha show ho jab data update ho (Bell icon ka dedup lastSeenHbKeyRef se ho raha hai)
   function notifyDataUpdated(at?: Date) {
-    const nowMs = Date.now()
-    if (nowMs - lastDataNotifyRef.current < 20_000) return
-    lastDataNotifyRef.current = nowMs
-    try { localStorage.setItem('rto_last_notify_ms', String(nowMs)) } catch {}
     pushNotification('success', 'Data successfully updated', at)
   }
   useEffect(() => {
@@ -337,6 +330,7 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
             try { localStorage.setItem('rto_last_seen_hb', hbKey) } catch {}
           }
           setStatus('live')
+          await load(true) // ✅ Silent data refresh — tab open hone par data foran update hoga
         } else if (ERROR_STATUSES.includes(status)) {
           if (hbKey) rememberHbKey(hbKey)
           notifyError('Error: Portal Issue')
