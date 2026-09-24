@@ -206,10 +206,25 @@ export default function ContainersDashboard({ onHomeClick }: Props) {
   const lastHbKeyRef = useRef<string>((() => {
     try { return localStorage.getItem('rto_cont_hb_key') || '' } catch { return '' }
   })())
-  function rememberHbKey(key: string) {
-    lastHbKeyRef.current = key
-    try { localStorage.setItem('rto_cont_hb_key', key) } catch {}
-  }
+function rememberHbKey(key: string) {
+  lastHbKeyRef.current = key
+  try { localStorage.setItem('rto_cont_hb_key', key) } catch {}
+}
+// ✅ Last seen heartbeat key — bell click par seen mark hota hai
+const lastSeenHbKeyRef = useRef<string>((() => {
+  try { return localStorage.getItem('rto_cont_last_seen_hb') || '' } catch { return '' }
+})())
+// ✅ Data-update notification — event time pass hoti hai (20s dedup)
+const lastDataNotifyRef = useRef<number>((() => {
+  try { return Number(localStorage.getItem('rto_cont_last_notify_ms')) || 0 } catch { return 0 }
+})())
+function notifyDataUpdated(at?: Date) {
+  const nowMs = Date.now()
+  if (nowMs - lastDataNotifyRef.current < 20_000) return
+  lastDataNotifyRef.current = nowMs
+  try { localStorage.setItem('rto_cont_last_notify_ms', String(nowMs)) } catch {}
+  pushNotification('success', 'Data successfully updated', at)
+}
   // ✅ Server-start notification with 20s dedup (VBS / bat / admin — har tarika cover)
   const lastStartNotifyRef = useRef(0)
   function notifyServerStarted() {
@@ -218,9 +233,6 @@ export default function ContainersDashboard({ onHomeClick }: Props) {
     lastStartNotifyRef.current = nowMs
     pushNotification('success', 'Server Started')
   }
-
-  // Data change fingerprint
-  const fpRef = useRef<string | null>(null)
 
   // ---- Load locations + portal data + containers heartbeat
   const load = useCallback(async (silent = false) => {
@@ -239,24 +251,14 @@ export default function ContainersDashboard({ onHomeClick }: Props) {
       const porRows = por.data ?? []
       setLocations(locRows)
       setPortal(porRows)
-      // ✅ Last Updated = portal_data ka sab se naya fetched_at — LOCAL parse (timezone shift fix)
+      // ✅ Initial fallback: pill khali ho to fetched_at se bhar do (sirf pehli dafa)
       let maxT = 0
       for (const r of porRows) {
         const t = r.fetched_at ? parseLocal(r.fetched_at).getTime() : 0
         if (t > maxT) maxT = t
       }
-      const syncTime = maxT ? new Date(maxT) : null
-      if (syncTime) setLastUpdated(syncTime)
-      // ✅ Data change detection → EK hi time (syncTime) pill + notification DONO mein same
-      const fp = porRows
-        .map(r => `${r.site}|${r.container_serviced}|${r.serviced_on_app}|${r.serviced_by_tracker}|${r.app_vehicle}`)
-        .join('~')
-      if (fpRef.current === null) fpRef.current = fp
-      else if (fp !== fpRef.current) {
-        fpRef.current = fp
-        if (syncTime) pushNotification('success', 'Data successfully updated', syncTime)
-      }
-      // Containers heartbeat (id = 2)
+      if (maxT) setLastUpdated(prev => prev ?? new Date(maxT))
+      // Containers heartbeat (id = 2) — data_updated event hi ORIGINAL time source hai
       const h = hb.data
       const hbKeyRaw = h?.updated_at ? String(h.updated_at) : ''
       const hbTime = hbKeyRaw ? parseLocal(hbKeyRaw).getTime() : 0
@@ -272,11 +274,18 @@ export default function ContainersDashboard({ onHomeClick }: Props) {
         if (hbKey && hbKey !== lastHbKeyRef.current) notifyServerStarted()
         if (hbKey) rememberHbKey(hbKey)
         setStatus('live')
-      } else if (status === 'containers_data_updated') {
-        // ✅ Notification upar fp-detection se ho chuki (SAME syncTime) — yahan sirf key + live
-        if (hbKey) rememberHbKey(hbKey)
-        setStatus('live')
-      } else if (status === 'containers_error') {
+        } else if (status === 'containers_data_updated') {
+          // ✅ EK hi event time (heartbeat updated_at) → pill + notification DONO mein SAME
+          if (hbKey) rememberHbKey(hbKey)
+          const ev = hbTime ? new Date(hbTime) : new Date()
+          setLastUpdated(ev)
+          if (hbKey && hbKey !== lastSeenHbKeyRef.current) {
+            notifyDataUpdated(ev)
+            lastSeenHbKeyRef.current = hbKey
+            try { localStorage.setItem('rto_cont_last_seen_hb', hbKey) } catch {}
+          }
+          setStatus('live')
+        } else if (status === 'containers_error') {
         if (hbKey) rememberHbKey(hbKey)
         notifyError('Error: Portal Issue')
       } else if (!h || ageMs > 90_000) {

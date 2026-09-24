@@ -353,6 +353,11 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
         } else if (cnt !== lastLogIdRef.current) {
           lastLogIdRef.current = cnt
           setStatus('live')
+          // ✅ Backup: count change → EK hi now-time pill + notification DONO mein same
+          const nowEv = new Date()
+          setLastSync(nowEv)
+          try { localStorage.setItem('rto_last_data_update', nowEv.toISOString()) } catch {}
+          pushNotification('success', 'Data successfully updated', nowEv)
           await load(false, true) // ✅ silent refresh only
         }
       } catch (e) {
