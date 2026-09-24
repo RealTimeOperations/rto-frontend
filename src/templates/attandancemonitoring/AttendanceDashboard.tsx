@@ -179,11 +179,25 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
   const lastHbKeyRef = useRef<string>((() => {
     try { return localStorage.getItem('rto_last_hb_key') || '' } catch { return '' }
   })())
+  // ✅ Last seen heartbeat key — bell click par seen mark hota hai (Penalties jaisa)
+  const lastSeenHbKeyRef = useRef<string>((() => {
+    try { return localStorage.getItem('rto_last_seen_hb') || '' } catch { return '' }
+  })())
   function rememberHbKey(key: string) {
     lastHbKeyRef.current = key
     try { localStorage.setItem('rto_last_hb_key', key) } catch {}
   }
-
+  // ✅ 20 second dedup timer — notification spam prevention (Penalties jaisa)
+  const lastDataNotifyRef = useRef<number>((() => {
+    try { return Number(localStorage.getItem('rto_last_notify_ms')) || 0 } catch { return 0 }
+  })())
+  function notifyDataUpdated(at?: Date) {
+    const nowMs = Date.now()
+    if (nowMs - lastDataNotifyRef.current < 20_000) return
+    lastDataNotifyRef.current = nowMs
+    try { localStorage.setItem('rto_last_notify_ms', String(nowMs)) } catch {}
+    pushNotification('success', 'Data successfully updated', at)
+  }
   useEffect(() => {
     aliveRef.current = true
     return () => { aliveRef.current = false }
@@ -221,7 +235,7 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
     )
   }
 
-  const load = useCallback(async (notify = false, silent = false) => {
+  const load = useCallback(async (silent = false) => {
     // ✅ Silent update: loading state change nahi hoti — values foran swap hoti hain
     if (!silent) setLoading(true)
     try {
@@ -234,8 +248,6 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
       setAttendance(att.filter(r => !isStaff(r)))
       setEmployees(emp)
       setBaseValues((bv.data ?? []) as { label: string; value: number; sort_order: number; type: string; present_target?: number | null }[])
-      // ✅ Notification sirf jab naya data aaya ho — refresh/mount par nahi
-      if (notify) pushNotification('success', 'Data successfully fetched and updated')
     } catch (e) {
       console.error('Load error:', e)
       notifyError('Error: Portal Issue')
@@ -279,13 +291,10 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
     })()
   }, [lastSync])
 
-  // ✅ Heartbeat poll: har 3 second mein backend ki health check karo
-  //    - data_updated event → EK hi time (heartbeat updated_at) → time pill + notification DONO mein same
+  // ✅ Heartbeat poll: har 15 second mein server health check (Penalties jaisa pattern)
   useEffect(() => {
-    const POLL_MS = 3_000
-    const HEARTBEAT_MAX_MS = 40_000
+    const POLL_MS = 15_000
     const HEARTBEAT_HARD_MS = 90_000
-    const ALIVE_STATUSES = ['running', 'started', 'data_updated', 'fetching', 'syncing', 'loading']
     const ERROR_STATUSES = ['error', 'portal_error', 'failed', 'stopped']
 
     async function check() {
@@ -301,72 +310,47 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
         const ageMs = hbTime ? Date.now() - hbTime : Infinity
         const status = String(hb?.status ?? '').toLowerCase()
         const hbKey = hb?.updated_at ? String(hb.updated_at) : ''
-        // ✅ EK hi event time — notification aur time pill dono mein SAME show hogi
         const evTime = hbTime ? new Date(hbTime) : new Date()
 
-        if (status === 'stopped') {
-          // 🛑 Server STOP event — sirf ek dafa notify (event time ke sath)
+        // ✅ Server health check — heartbeat 90s+ purani = process band
+        if (!hb || ageMs > HEARTBEAT_HARD_MS) {
+          notifyError('Server Stopped')
+        } else if (status === 'stopped') {
+          // 🛑 Server STOP event — sirf notification
           if (hbKey && hbKey !== lastHbKeyRef.current) pushNotification('error', 'Server Stopped', evTime)
           if (hbKey) rememberHbKey(hbKey)
           setStatus('error')
         } else if (status === 'started') {
-          // 🟢 Server START event — sirf ek dafa notify (event time ke sath)
+          // 🟢 Server START event — sirf notification (hbTime ke sath)
           if (hbKey && hbKey !== lastHbKeyRef.current) pushNotification('success', 'Server Started', evTime)
           if (hbKey) rememberHbKey(hbKey)
           setStatus('live')
         } else if (status === 'data_updated') {
-          // 📦 Data update event — ONE time: time pill + notification DONO mein same
-          if (hbKey && hbKey !== lastHbKeyRef.current) {
-            rememberHbKey(hbKey)
-            setLastSync(evTime)
-            try { localStorage.setItem('rto_last_data_update', evTime.toISOString()) } catch {}
-            pushNotification('success', 'Data successfully updated', evTime)
-            await load(false, true) // ✅ silent data refresh
-          } else if (hbKey) {
-            rememberHbKey(hbKey)
+          // 📦 Data update event — Penalties jaisa EXACT pattern:
+          // Time Pill + Notification DONO mein SAME hbTime (evTime)
+          if (hbKey) rememberHbKey(hbKey)
+          setLastSync(evTime)
+          try { localStorage.setItem('rto_last_data_update', evTime.toISOString()) } catch {}
+          if (hbKey && hbKey !== lastSeenHbKeyRef.current) {
+            notifyDataUpdated(evTime)
+            lastSeenHbKeyRef.current = hbKey
+            try { localStorage.setItem('rto_last_seen_hb', hbKey) } catch {}
           }
           setStatus('live')
         } else if (ERROR_STATUSES.includes(status)) {
-          // ❌ Portal issue — unified message
           if (hbKey) rememberHbKey(hbKey)
           notifyError('Error: Portal Issue')
-        } else if (!hb || ageMs > HEARTBEAT_HARD_MS) {
-          // ❌ Heartbeat missing ya 90s+ purani — process band
-          notifyError('Server Stopped')
-        } else if (ageMs > HEARTBEAT_MAX_MS && !ALIVE_STATUSES.includes(status)) {
-          // ❌ 40s+ purani aur status alive nahi — process band
-          notifyError('Server Stopped')
         } else {
-          // ✅ Running — recovery par sirf pill green (koi notification spam nahi)
+          // ✅ Running / Idle — recovery par pill green
           if (hbKey) rememberHbKey(hbKey)
           if (statusRef.current === 'error') setStatus('live')
         }
-
-        // ✅ Backup check: count change par SIRF silent data reload (koi notification ya time change nahi)
-        const { count, error: cntErr } = await supabase
-          .from('attendance_logs')
-          .select('id', { count: 'exact', head: true })
-        if (cntErr) throw cntErr
-        const cnt = String(count ?? 0)
-        if (lastLogIdRef.current === null) {
-          lastLogIdRef.current = cnt
-        } else if (cnt !== lastLogIdRef.current) {
-          lastLogIdRef.current = cnt
-          setStatus('live')
-          // ✅ Backup: count change → EK hi now-time pill + notification DONO mein same
-          const nowEv = new Date()
-          setLastSync(nowEv)
-          try { localStorage.setItem('rto_last_data_update', nowEv.toISOString()) } catch {}
-          pushNotification('success', 'Data successfully updated', nowEv)
-          await load(false, true) // ✅ silent refresh only
-        }
       } catch (e) {
-        // ❌ Supabase se connect hi nahi ho raha
         notifyError('Error: Portal Issue')
       }
     }
 
-    check()   // ✅ Mount par FORAN check — 3 second ka intezar nahi
+    check()   // ✅ Mount par FORAN check — 15 second ka intezar nahi
     const timer = setInterval(check, POLL_MS)
     return () => clearInterval(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -552,6 +536,11 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
                           const item = JSON.parse(saved)
                           item.unread = false
                           localStorage.setItem('rto_latest_notification', JSON.stringify(item))
+                        }
+                        // ✅ Bell click par seen mark karo (Penalties jaisa)
+                        if (lastHbKeyRef.current) {
+                          lastSeenHbKeyRef.current = lastHbKeyRef.current
+                          localStorage.setItem('rto_last_seen_hb', lastHbKeyRef.current)
                         }
                       } catch {}
                     }}

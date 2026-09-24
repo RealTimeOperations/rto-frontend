@@ -31,6 +31,15 @@ function dutyDuration(checkin?: string, checkout?: string): string {
   return `${h}h ${m}m`
 }
 
+/* ✅ Duty minutes: checkin → checkout ka farq (minutes mein). Agar checkout nahi hua to null */
+function dutyMinutes(checkin?: string, checkout?: string): number | null {
+  if (!checkin || !checkout) return null
+  const a = new Date(String(checkin).replace(' ', 'T'))
+  const b = new Date(String(checkout).replace(' ', 'T'))
+  const mins = Math.round((b.getTime() - a.getTime()) / 60000)
+  if (isNaN(mins) || mins < 0) return null
+  return mins
+}
 function empType(code?: string): string {
   return String(code ?? '').toUpperCase().includes('MC') ? 'MC' : 'Contractor'
 }
@@ -39,6 +48,8 @@ export default function AttendanceReport({ rows, employees, loading }: Props) {
   const [search, setSearch] = useState('')
   const [ucWard, setUcWard] = useState('')
   const [filter, setFilter] = useState<'all' | 'present' | 'absent' | 'on-duty'>('all')
+  // ✅ 8 Hours filter: yes = 8h poori kar ke checkout, no = 8h se pehle checkout, all = sab
+  const [eightHours, setEightHours] = useState<'all' | 'yes' | 'no'>('all')
   
   // ✅ Custom searchable dropdown states for UC/Ward
   const [isUcDropdownOpen, setIsUcDropdownOpen] = useState(false)
@@ -115,6 +126,7 @@ export default function AttendanceReport({ rows, employees, loading }: Props) {
         checkinTime: att.checkin ?? '—',
         checkoutTime: att.checkout ?? '—',
         duty: dutyDuration(att.checkin, att.checkout),
+        dutyMins: dutyMinutes(att.checkin, att.checkout),
         empType: empType(e.employee_code),
       }
     })
@@ -142,6 +154,16 @@ export default function AttendanceReport({ rows, employees, loading }: Props) {
       list = list.filter(r => r.checkin === 'P' && r.checkout === '--')
     }
 
+    // 2b. ✅ 8 Hours filter:
+    // Yes  = checkout maujood hai AUR duty >= 8 hours (480 minutes)
+    // No   = checkout maujood hai AUR duty < 8 hours (8h se pehle checkout kar diya)
+    // All  = sab (default) — on-duty (bina checkout) walay sirf All mein aayenge
+    if (eightHours === 'yes') {
+      list = list.filter(r => r.dutyMins !== null && r.dutyMins >= 480)
+    } else if (eightHours === 'no') {
+      list = list.filter(r => r.dutyMins !== null && r.dutyMins < 480)
+    }
+
     // 3. Search filter
     const q = norm(search)
     if (q) {
@@ -166,7 +188,7 @@ export default function AttendanceReport({ rows, employees, loading }: Props) {
 
     list.forEach((r, i) => (r.sr = i + 1))
     return list
-  }, [report, ucWard, filter, search])
+  }, [report, ucWard, filter, eightHours, search])
 
   // ✅ Build copy list: filters applied + sorted by Designation → UC/Ward → Attendance Point
   function copyList(kind: 'onduty' | 'absent') {
@@ -424,6 +446,17 @@ export default function AttendanceReport({ rows, employees, loading }: Props) {
             <option value="present">Present</option>
             <option value="absent">Absent</option>
             <option value="on-duty">On Duty</option>
+          </select>
+
+          {/* ✅ 8 Hours Filter — Yes: 8h poori kar ke checkout | No: 8h se pehle checkout | All: sab */}
+          <select
+            value={eightHours}
+            onChange={e => setEightHours(e.target.value as 'all' | 'yes' | 'no')}
+            className="flex-1 min-w-[45%] order-5 sm:order-none sm:flex-none sm:min-w-0 rounded-full border border-white/15 bg-[#071b15] px-3 sm:px-4 h-9 text-xs sm:text-sm font-semibold text-white/80 outline-none focus:border-emerald-400/60"
+          >
+            <option value="all">8 Hours: All</option>
+            <option value="yes">8 Hours: Yes</option>
+            <option value="no">8 Hours: No</option>
           </select>
 
           {/* 2. UC/Ward Searchable Dropdown (Same as TotalHR) */}
