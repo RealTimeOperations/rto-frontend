@@ -262,14 +262,10 @@ function notifyDataUpdated(at?: Date) {
       const syncTime = maxT ? new Date(maxT) : null
       // ✅ Initial: pill khali ho to sync time se bhar do
       if (syncTime) setLastUpdated(prev => prev ?? syncTime)
-      // ✅ Data change: fetched_at change = naya data aaya → pill + notification DONO mein SAME time
+      // ✅ Data change: fetched_at change = naya data aaya → sirf pill update (notification heartbeat block se handle hogi)
       if (syncTime && syncTime.getTime() !== lastSyncTimeRef.current) {
-        const isChange = lastSyncTimeRef.current !== 0
         lastSyncTimeRef.current = syncTime.getTime()
-        if (isChange) {
-          setLastUpdated(syncTime)
-          notifyDataUpdated(syncTime)
-        }
+        setLastUpdated(syncTime)
       }
       // Containers heartbeat (id = 2) — data_updated event hi ORIGINAL time source hai
       const h = hb.data
@@ -288,7 +284,14 @@ function notifyDataUpdated(at?: Date) {
         if (hbKey) rememberHbKey(hbKey)
         setStatus('live')
         } else if (status === 'containers_data_updated') {
-          // ✅ Pill + notification upar syncTime-change se handle hoti hai (heartbeat status race-free)
+          // ✅ Notification: lastSeenHbKeyRef use karein taake tab band (close) hone ke baad open karne par bhi notify kare
+          // Time pill aur notification dono mein SAME time (syncTime) use hoga
+          const notifyTime = syncTime || evTime
+          if (hbKey && hbKey !== lastSeenHbKeyRef.current) {
+            notifyDataUpdated(notifyTime)
+            lastSeenHbKeyRef.current = hbKey
+            try { localStorage.setItem('rto_cont_last_seen_hb', hbKey) } catch {}
+          }
           if (hbKey) rememberHbKey(hbKey)
           setStatus('live')
         } else if (status === 'containers_error') {
