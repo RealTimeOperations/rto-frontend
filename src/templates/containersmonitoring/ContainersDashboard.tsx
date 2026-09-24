@@ -225,13 +225,15 @@ function notifyDataUpdated(at?: Date) {
   try { localStorage.setItem('rto_cont_last_notify_ms', String(nowMs)) } catch {}
   pushNotification('success', 'Data successfully updated', at)
 }
+  // ✅ Last sync time (fetched_at max) — data change detection ke liye (race-free)
+  const lastSyncTimeRef = useRef<number>(0)
   // ✅ Server-start notification with 20s dedup (VBS / bat / admin — har tarika cover)
   const lastStartNotifyRef = useRef(0)
-  function notifyServerStarted() {
+  function notifyServerStarted(at?: Date) {
     const nowMs = Date.now()
     if (nowMs - lastStartNotifyRef.current < 20_000) return
     lastStartNotifyRef.current = nowMs
-    pushNotification('success', 'Server Started')
+    pushNotification('success', 'Server Started', at)
   }
 
   // ---- Load locations + portal data + containers heartbeat
@@ -251,13 +253,24 @@ function notifyDataUpdated(at?: Date) {
       const porRows = por.data ?? []
       setLocations(locRows)
       setPortal(porRows)
-      // ✅ Initial fallback: pill khali ho to fetched_at se bhar do (sirf pehli dafa)
+      // ✅ fetched_at max = asal sync time (backend har upsert par fresh karta hai)
       let maxT = 0
       for (const r of porRows) {
         const t = r.fetched_at ? parseLocal(r.fetched_at).getTime() : 0
         if (t > maxT) maxT = t
       }
-      if (maxT) setLastUpdated(prev => prev ?? new Date(maxT))
+      const syncTime = maxT ? new Date(maxT) : null
+      // ✅ Initial: pill khali ho to sync time se bhar do
+      if (syncTime) setLastUpdated(prev => prev ?? syncTime)
+      // ✅ Data change: fetched_at change = naya data aaya → pill + notification DONO mein SAME time
+      if (syncTime && syncTime.getTime() !== lastSyncTimeRef.current) {
+        const isChange = lastSyncTimeRef.current !== 0
+        lastSyncTimeRef.current = syncTime.getTime()
+        if (isChange) {
+          setLastUpdated(syncTime)
+          notifyDataUpdated(syncTime)
+        }
+      }
       // Containers heartbeat (id = 2) — data_updated event hi ORIGINAL time source hai
       const h = hb.data
       const hbKeyRaw = h?.updated_at ? String(h.updated_at) : ''
@@ -271,19 +284,12 @@ function notifyDataUpdated(at?: Date) {
         if (hbKey) rememberHbKey(hbKey)
         setStatus('error')
       } else if (status === 'containers_started') {
-        if (hbKey && hbKey !== lastHbKeyRef.current) notifyServerStarted()
+        if (hbKey && hbKey !== lastHbKeyRef.current) notifyServerStarted(evTime)
         if (hbKey) rememberHbKey(hbKey)
         setStatus('live')
         } else if (status === 'containers_data_updated') {
-          // ✅ EK hi event time (heartbeat updated_at) → pill + notification DONO mein SAME
+          // ✅ Pill + notification upar syncTime-change se handle hoti hai (heartbeat status race-free)
           if (hbKey) rememberHbKey(hbKey)
-          const ev = hbTime ? new Date(hbTime) : new Date()
-          setLastUpdated(ev)
-          if (hbKey && hbKey !== lastSeenHbKeyRef.current) {
-            notifyDataUpdated(ev)
-            lastSeenHbKeyRef.current = hbKey
-            try { localStorage.setItem('rto_cont_last_seen_hb', hbKey) } catch {}
-          }
           setStatus('live')
         } else if (status === 'containers_error') {
         if (hbKey) rememberHbKey(hbKey)
@@ -510,6 +516,11 @@ function notifyDataUpdated(at?: Date) {
                       const item = JSON.parse(saved)
                       item.unread = false
                       localStorage.setItem('rto_cont_latest_notification', JSON.stringify(item))
+                    }
+                    // ✅ Bell click par seen mark karein taake duplicate notification na aaye
+                    if (lastHbKeyRef.current) {
+                      lastSeenHbKeyRef.current = lastHbKeyRef.current
+                      localStorage.setItem('rto_cont_last_seen_hb', lastHbKeyRef.current)
                     }
                   } catch {}
                 }}
