@@ -79,6 +79,8 @@ const CS_ROWS = [
   { key: 'spa', label: 'SPA Portal', icon: 'doc', badge: 'border-teal-400/30 bg-teal-500/10 text-teal-300' },
   { key: 'website', label: 'Public Website', icon: 'globe', badge: 'border-amber-400/30 bg-amber-500/10 text-amber-300' },
   { key: 'obs', label: 'Observations', icon: 'eye', badge: 'border-slate-400/30 bg-slate-500/10 text-slate-300' },
+  { key: 'imu', label: 'IMU Complaints', icon: 'alert', badge: 'border-rose-400/30 bg-rose-500/10 text-rose-300' },
+  { key: 'shahri', label: 'Suthra Punjab Shahri', icon: 'building', badge: 'border-cyan-400/30 bg-cyan-500/10 text-cyan-300' },
 ]
 function CsIcon({ name }: { name: string }) {
   const cls = 'h-3.5 w-3.5'
@@ -89,6 +91,8 @@ function CsIcon({ name }: { name: string }) {
     case 'doc': return (<svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>)
     case 'globe': return (<svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></svg>)
     case 'eye': return (<svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>)
+    case 'alert': return (<svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>)
+    case 'building': return (<svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" /><line x1="9" y1="6" x2="10" y2="6" /><line x1="14" y1="6" x2="15" y2="6" /><line x1="9" y1="10" x2="10" y2="10" /><line x1="14" y1="10" x2="15" y2="10" /><line x1="9" y1="14" x2="10" y2="14" /><line x1="14" y1="14" x2="15" y2="14" /><path d="M10 22v-4h4v4" /></svg>)
     default: return null
   }
 }
@@ -212,6 +216,9 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
     setCsCopying(true)
     const headingEl = csHeadingRef.current
     headingEl?.classList.remove('hidden')   // ✅ Copy ke waqt heading temporary show
+    // ✅ Cross buttons copy image mein nahi dikhenge
+    const xBtns = Array.from(csReportRef.current.querySelectorAll<HTMLElement>('[data-csonly]'))
+    xBtns.forEach(b => { b.style.display = 'none' })
     try {
       const blob = await toBlob(csReportRef.current, { pixelRatio: 2 })   // ✅ transparent corners → rounded card
       if (!blob) throw new Error('Image not generated')
@@ -228,6 +235,7 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
     } catch (e: any) {
       alert(`Copy failed: ${e?.message ?? e}`)
     } finally {
+      xBtns.forEach(b => { b.style.display = '' })   // ✅ cross buttons wapis show
       headingEl?.classList.add('hidden')   // ✅ copy ke baad wapis hide
       setCsCopying(false)
     }
@@ -248,10 +256,13 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
   const [csEdits, setCsEdits] = useState<Record<string, string>>({})
   const [editingCsKey, setEditingCsKey] = useState<string | null>(null)
   const [editCsVal, setEditCsVal] = useState('')
+  // ✅ Skipped (crossed) rows — temporary, popup band hote hi reset
+  const [csHidden, setCsHidden] = useState<Record<string, boolean>>({})
   useEffect(() => {
     // ✅ Open ya close — edits hamesha fresh (koi localStorage persist nahi)
     setCsEdits({})
     setEditingCsKey(null)
+    setCsHidden({})
   }, [csReportOpen])
   const [notifOpen, setNotifOpen] = useState(false)
   const popupTimer = useRef<number | null>(null)
@@ -354,16 +365,46 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
       </span>
     )
   }
-  // ✅ Grand Total = sab rows ka sum (edited values ke sath auto-calculate)
+  // ✅ Description label bhi editable (double-click) — temporary
+  const csLabelView = (key: string, defaultLabel: string, cls: string) => {
+    const k = `${key}_label`
+    if (editingCsKey === k) return (
+      <input
+        autoFocus
+        type="text"
+        value={editCsVal}
+        onChange={e => setEditCsVal(e.target.value)}
+        onBlur={() => commitCsEdit(k)}
+        onKeyDown={e => {
+          if (e.key === 'Enter') commitCsEdit(k)
+          else if (e.key === 'Escape') setEditingCsKey(null)
+        }}
+        className="w-28 sm:w-40 bg-[#021b16] border border-emerald-400/60 rounded-md px-2 py-0.5 text-emerald-200 text-xs sm:text-sm font-semibold text-left outline-none"
+      />
+    )
+    const ev = csEdits[k]
+    const shown = ev !== undefined ? ev : defaultLabel
+    return (
+      <span
+        onDoubleClick={() => { setEditingCsKey(k); setEditCsVal(ev !== undefined ? ev : defaultLabel) }}
+        title="Double-click to edit name (temporary)"
+        className={`cursor-pointer ${cls}`}
+      >
+        {shown}
+      </span>
+    )
+  }
+  // ✅ Grand Total = sirf VISIBLE rows ka sum (skipped rows include nahi)
   const csNum = (key: string) => {
     const v = csEdits[key]
     if (v === undefined) return 0
     const n = Number(String(v).replace(/,/g, ''))
     return isFinite(n) ? n : 0
   }
-  const csGrandTotal = CS_ROWS.reduce((s, r) => s + csNum(`${r.key}_total`), 0)
-  const csGrandResolved = CS_ROWS.reduce((s, r) => s + csNum(`${r.key}_resolved`), 0)
-  const csGrandPending = CS_ROWS.reduce((s, r) => s + csNum(`${r.key}_pending`), 0)
+  const csVisibleRows = CS_ROWS.filter(r => !csHidden[r.key])
+  const csGrandTotal = csVisibleRows.reduce((s, r) => s + csNum(`${r.key}_total`), 0)
+  const csGrandResolved = csVisibleRows.reduce((s, r) => s + csNum(`${r.key}_resolved`), 0)
+  const csGrandPending = csVisibleRows.reduce((s, r) => s + csNum(`${r.key}_pending`), 0)
 
   function pushNotification(type: 'success' | 'error', message: string, at?: Date) {
     notifId.current += 1
@@ -1563,7 +1604,7 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
         <>
           <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" onClick={() => setCsReportOpen(false)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
-            <div className="pointer-events-auto w-full max-w-lg rounded-2xl border border-emerald-400/30 bg-[#04231c] shadow-[0_30px_80px_rgba(0,0,0,0.6)]">
+            <div className="pointer-events-auto w-full max-w-xl rounded-2xl border border-emerald-400/30 bg-[#04231c] shadow-[0_30px_80px_rgba(0,0,0,0.6)]">
               {/* ✅ Top bar: Complains Summary + Date + Copy + Cross */}
               <div className="flex items-center justify-between gap-3 px-5 pt-4">
                 <div className="flex items-baseline gap-2 min-w-0">
@@ -1611,21 +1652,31 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
                   <table className="w-full table-fixed text-[11px] sm:text-sm">
                     <thead>
                       <tr className="text-left font-bold tracking-wider text-emerald-200/90 bg-[#0a4038] border-b border-emerald-400/20">
-                        <th className="w-[34%] px-2.5 sm:px-3 py-2.5 uppercase whitespace-nowrap">Description</th>
+                        <th className="w-[40%] px-2.5 sm:px-3 py-2.5 uppercase whitespace-nowrap">Description</th>
                         <th className="px-2 py-2.5 text-center uppercase whitespace-nowrap">Total</th>
                         <th className="px-2 py-2.5 text-center uppercase whitespace-nowrap">Resolved</th>
                         <th className="px-2 py-2.5 text-center uppercase whitespace-nowrap">Pending</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {CS_ROWS.map(r => (
+                      {csVisibleRows.map(r => (
                         <tr key={r.key} className="border-b border-white/10 last:border-0 hover:bg-white/5 transition">
                           <td className="px-2.5 sm:px-3 py-2.5">
                             <span className="flex items-center gap-2 sm:gap-2.5 font-semibold text-white/85 min-w-0">
                               <span className={`flex h-6 w-6 sm:h-7 sm:w-7 shrink-0 items-center justify-center rounded-full border ${r.badge}`}>
                                 <CsIcon name={r.icon} />
                               </span>
-                              <span className="truncate">{r.label}</span>
+                              {csLabelView(r.key, r.label, 'leading-tight break-words whitespace-normal')}
+                              {/* ✅ Chota cross — row skip (temporary), copy image mein hidden */}
+                              <button
+                                type="button"
+                                data-csonly
+                                onClick={() => setCsHidden(prev => ({ ...prev, [r.key]: true }))}
+                                title="Skip this row (temporary)"
+                                className="ml-auto shrink-0 flex h-4 w-4 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white/50 hover:bg-red-500/15 hover:border-red-400/40 hover:text-red-300 transition"
+                              >
+                                <svg className="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                              </button>
                             </span>
                           </td>
                           <td className="px-2 py-2.5 text-center">{csCellView(`${r.key}_total`, 0, CS_TOTAL_CLS)}</td>
@@ -1650,6 +1701,24 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
                   </table>
                 </div>
               </div>
+
+              {/* ✅ Skipped rows — restore chips (copy image mein include NAHI hoti) */}
+              {CS_ROWS.some(r => csHidden[r.key]) && (
+                <div className="px-5 pb-4 -mt-1 flex flex-wrap gap-1.5">
+                  {CS_ROWS.filter(r => csHidden[r.key]).map(r => (
+                    <button
+                      key={r.key}
+                      type="button"
+                      onClick={() => setCsHidden(prev => ({ ...prev, [r.key]: false }))}
+                      title="Restore this row"
+                      className="inline-flex items-center gap-1 rounded-full border border-white/15 bg-white/5 px-2 py-0.5 text-[10px] font-bold text-white/60 hover:bg-emerald-500/15 hover:border-emerald-400/40 hover:text-emerald-300 transition"
+                    >
+                      <svg className="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                      {csEdits[`${r.key}_label`] ?? r.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </>
