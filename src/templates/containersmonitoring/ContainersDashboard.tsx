@@ -202,10 +202,14 @@ export default function ContainersDashboard({ onHomeClick }: Props) {
     setStatus('error')
   }
 
-  // Heartbeat event dedup key
-  const lastHbKeyRef = useRef<string>((() => {
-    try { return localStorage.getItem('rto_cont_hb_key') || '' } catch { return '' }
-  })())
+// Heartbeat event dedup key
+const lastHbKeyRef = useRef<string>((() => {
+  try { return localStorage.getItem('rto_cont_hb_key') || '' } catch { return '' }
+})())
+// ✅ Last sync time (fetched_at max) — data change detection ke liye (race-free, persists across mounts)
+const lastSyncMsRef = useRef<number>((() => {
+  try { return Number(localStorage.getItem('rto_cont_last_sync_ms')) || 0 } catch { return 0 }
+})())
 function rememberHbKey(key: string) {
   lastHbKeyRef.current = key
   try { localStorage.setItem('rto_cont_hb_key', key) } catch {}
@@ -250,14 +254,20 @@ function notifyDataUpdated(at?: Date) {
       }
       if (maxT > 0) {
         const newSyncTime = new Date(maxT)
-        setLastUpdated(prev => {
-          const prevMs = prev ? prev.getTime() : 0
-          // Data change detect: pill update + notification (missed update bhi catch)
-          if (maxT !== prevMs && prevMs > 0) {
+        const prevMs = lastSyncMsRef.current
+        
+        // ✅ Pill hamesha DB time par set karo
+        setLastUpdated(newSyncTime)
+        
+        // ✅ Data change detect: agar DB time purane stored time se naya hai, to notification push karo
+        //    (Missed update catch: home page par thay, component unmount tha, DB update hua, ab mount par notify hoga)
+        if (maxT !== prevMs) {
+          lastSyncMsRef.current = maxT
+          try { localStorage.setItem('rto_cont_last_sync_ms', String(maxT)) } catch {}
+          if (prevMs > 0) {
             notifyDataUpdated(newSyncTime)
           }
-          return prev ?? newSyncTime  // initial fill ya update
-        })
+        }
       }
       // Containers heartbeat (id = 2) — data_updated event hi ORIGINAL time source hai
       const h = hb.data

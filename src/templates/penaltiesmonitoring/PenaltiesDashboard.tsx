@@ -98,6 +98,11 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
       return isNaN(d) ? 0 : d
     } catch { return 0 }
   })())
+  // ✅ Last NOTIFIED data time (persisted) — pill marker se ALAG,
+  //    taake missed update (jab monitoring band thi) hamesha notify ho
+  const lastNotifiedMsRef = useRef<number>((() => {
+    try { return Number(localStorage.getItem('rto_pen_last_notified_ms')) || 0 } catch { return 0 }
+  })())
 
   // Server status (penalties heartbeat id = 3)
   const [serverStatus, setServerStatus] = useState<'live' | 'error'>(() => {
@@ -272,6 +277,10 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
   const lastHbKeyRef = useRef<string>((() => {
     try { return localStorage.getItem('rto_pen_hb_key') || '' } catch { return '' }
   })())
+  // ✅ Last sync time (fetched_at max) — data change detection ke liye (race-free, persists across mounts)
+  const lastSyncMsRef = useRef<number>((() => {
+    try { return Number(localStorage.getItem('rto_pen_last_sync_ms')) || 0 } catch { return 0 }
+  })())
   const lastSeenHbKeyRef = useRef<string>((() => {
     try { return localStorage.getItem('rto_pen_last_seen_hb') || '' } catch { return '' }
   })())
@@ -312,11 +321,18 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
       const d = new Date(maxT)
       setLastUpdated(d)   // ✅ pill hamesha DB time par (static jab tak data na badle)
       if (maxT !== lastUpdatedMsRef.current) {
-        const prev = lastUpdatedMsRef.current
         lastUpdatedMsRef.current = maxT
         try { localStorage.setItem('rto_pen_last_data_update', d.toISOString()) } catch {}
-        // ✅ Notification SIRF asal data change par — pill wala SAME time (missed update bhi catch)
-        if (prev > 0) pushNotification('success', 'Data successfully updated', d)
+      }
+      // ✅ Notification apne ALAG persisted marker se compare hoti hai:
+      //    - Tab band tha aur data aya → mount par foran notify (pill wala SAME time)
+      //    - Tab open hai → live notify
+      //    - Dobara same data par spam nahi
+      if (maxT !== lastNotifiedMsRef.current) {
+        const hadPrev = lastNotifiedMsRef.current > 0
+        lastNotifiedMsRef.current = maxT
+        try { localStorage.setItem('rto_pen_last_notified_ms', String(maxT)) } catch {}
+        if (hadPrev) pushNotification('success', 'Data successfully updated', d)
       }
     }
 
@@ -362,6 +378,34 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
     const t = setInterval(() => load(true), 15_000)
     return () => clearInterval(t)
   }, [load])
+
+  // ✅ Doosre tabs mein bhi bell + pill LIVE sync (same browser, storage event sirf doosre tabs mein chalta hai)
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'rto_pen_latest_notification' && e.newValue) {
+        try {
+          const item = JSON.parse(e.newValue)
+          if (item && item.message) {
+            setNotifications([item])
+            setUnread(item.unread ? 1 : 0)
+          }
+        } catch {}
+      }
+      if (e.key === 'rto_pen_last_notified_ms' && e.newValue) {
+        lastNotifiedMsRef.current = Number(e.newValue) || lastNotifiedMsRef.current
+      }
+      if (e.key === 'rto_pen_last_data_update' && e.newValue) {
+        const d = new Date(e.newValue)
+        if (!isNaN(d.getTime())) {
+          setLastUpdated(d)
+          lastUpdatedMsRef.current = d.getTime()
+        }
+      }
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // ---- Sliding pill (header tabs)
   const navRef = useRef<HTMLDivElement>(null)
