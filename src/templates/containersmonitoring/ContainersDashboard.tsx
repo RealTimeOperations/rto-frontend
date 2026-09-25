@@ -210,6 +210,11 @@ const lastHbKeyRef = useRef<string>((() => {
 const lastSyncMsRef = useRef<number>((() => {
   try { return Number(localStorage.getItem('rto_cont_last_sync_ms')) || 0 } catch { return 0 }
 })())
+// ✅ Last NOTIFIED data time (persisted) — notification ka decision pill marker se ALAG hai,
+//    is liye missed update (jab containers band tha) mount par foran catch hota hai
+const lastNotifiedMsRef = useRef<number>((() => {
+  try { return Number(localStorage.getItem('rto_cont_last_notified_ms')) || 0 } catch { return 0 }
+})())
 function rememberHbKey(key: string) {
   lastHbKeyRef.current = key
   try { localStorage.setItem('rto_cont_hb_key', key) } catch {}
@@ -254,19 +259,18 @@ function notifyDataUpdated(at?: Date) {
       }
       if (maxT > 0) {
         const newSyncTime = new Date(maxT)
-        const prevMs = lastSyncMsRef.current
-        
-        // ✅ Pill hamesha DB time par set karo
+        // ✅ PILL = DB ka fetched_at max — har jagah same, static jab tak asal data na badle
         setLastUpdated(newSyncTime)
-        
-        // ✅ Data change detect: agar DB time purane stored time se naya hai, to notification push karo
-        //    (Missed update catch: home page par thay, component unmount tha, DB update hua, ab mount par notify hoga)
-        if (maxT !== prevMs) {
-          lastSyncMsRef.current = maxT
-          try { localStorage.setItem('rto_cont_last_sync_ms', String(maxT)) } catch {}
-          if (prevMs > 0) {
-            notifyDataUpdated(newSyncTime)
-          }
+        lastSyncMsRef.current = maxT
+        try { localStorage.setItem('rto_cont_last_sync_ms', String(maxT)) } catch {}
+        // ✅ NOTIFICATION = sirf jab asal data change hua ho (apne alag persisted marker se)
+        //    - Containers open tha → live notify
+        //    - Containers band tha → mount par missed update foran notify (sahi time ke sath)
+        if (maxT !== lastNotifiedMsRef.current) {
+          const hadPrev = lastNotifiedMsRef.current > 0
+          lastNotifiedMsRef.current = maxT
+          try { localStorage.setItem('rto_cont_last_notified_ms', String(maxT)) } catch {}
+          if (hadPrev) notifyDataUpdated(newSyncTime)
         }
       }
       // Containers heartbeat (id = 2) — data_updated event hi ORIGINAL time source hai
@@ -313,6 +317,33 @@ function notifyDataUpdated(at?: Date) {
     const t = setInterval(() => load(true), 15_000)
     return () => clearInterval(t)
   }, [load])
+
+  // ✅ Doosre open tabs mein bhi bell + pill LIVE sync (same browser, storage event sirf doosre tabs mein chalta hai)
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'rto_cont_latest_notification' && e.newValue) {
+        try {
+          const item = JSON.parse(e.newValue)
+          if (item && item.message) {
+            setNotifications([item])
+            setUnread(item.unread ? 1 : 0)
+          }
+        } catch {}
+      }
+      if (e.key === 'rto_cont_last_notified_ms' && e.newValue) {
+        lastNotifiedMsRef.current = Number(e.newValue) || lastNotifiedMsRef.current
+      }
+      if (e.key === 'rto_cont_last_sync_ms' && e.newValue) {
+        const t = Number(e.newValue) || 0
+        if (t > 0) {
+          lastSyncMsRef.current = t
+          setLastUpdated(new Date(t))
+        }
+      }
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [])
 
   // ---- Sliding pill (header tabs)
   const navRef = useRef<HTMLDivElement>(null)
