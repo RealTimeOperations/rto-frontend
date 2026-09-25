@@ -210,23 +210,10 @@ function rememberHbKey(key: string) {
   lastHbKeyRef.current = key
   try { localStorage.setItem('rto_cont_hb_key', key) } catch {}
 }
-// ✅ Last seen heartbeat key — bell click par seen mark hota hai
-const lastSeenHbKeyRef = useRef<string>((() => {
-  try { return localStorage.getItem('rto_cont_last_seen_hb') || '' } catch { return '' }
-})())
-// ✅ Data-update notification — event time pass hoti hai (20s dedup)
-const lastDataNotifyRef = useRef<number>((() => {
-  try { return Number(localStorage.getItem('rto_cont_last_notify_ms')) || 0 } catch { return 0 }
-})())
+// ✅ Data-update notification — time = DB ka fetched_at (pill wala SAME time)
 function notifyDataUpdated(at?: Date) {
-  const nowMs = Date.now()
-  if (nowMs - lastDataNotifyRef.current < 20_000) return
-  lastDataNotifyRef.current = nowMs
-  try { localStorage.setItem('rto_cont_last_notify_ms', String(nowMs)) } catch {}
   pushNotification('success', 'Data successfully updated', at)
 }
-  // ✅ Last sync time (fetched_at max) — data change detection ke liye (race-free)
-  const lastSyncTimeRef = useRef<number>(0)
   // ✅ Server-start notification with 20s dedup (VBS / bat / admin — har tarika cover)
   const lastStartNotifyRef = useRef(0)
   function notifyServerStarted(at?: Date) {
@@ -253,19 +240,24 @@ function notifyDataUpdated(at?: Date) {
       const porRows = por.data ?? []
       setLocations(locRows)
       setPortal(porRows)
-      // ✅ fetched_at max = asal sync time (backend har upsert par fresh karta hai)
+      // ✅ PILL TIME = fetched_at max (DB ka sacha last-data-update time)
+      //    Data same → fetched_at same → pill PURANI time par static
+      //    Data change → fetched_at change → pill update + notification SAME time
       let maxT = 0
       for (const r of porRows) {
         const t = r.fetched_at ? parseLocal(r.fetched_at).getTime() : 0
         if (t > maxT) maxT = t
       }
-      const syncTime = maxT ? new Date(maxT) : null
-      // ✅ Initial: pill khali ho to sync time se bhar do
-      if (syncTime) setLastUpdated(prev => prev ?? syncTime)
-      // ✅ Data change: fetched_at change = naya data aaya → sirf pill update (notification heartbeat block se handle hogi)
-      if (syncTime && syncTime.getTime() !== lastSyncTimeRef.current) {
-        lastSyncTimeRef.current = syncTime.getTime()
-        setLastUpdated(syncTime)
+      if (maxT > 0) {
+        const newSyncTime = new Date(maxT)
+        setLastUpdated(prev => {
+          const prevMs = prev ? prev.getTime() : 0
+          // Data change detect: pill update + notification (missed update bhi catch)
+          if (maxT !== prevMs && prevMs > 0) {
+            notifyDataUpdated(newSyncTime)
+          }
+          return prev ?? newSyncTime  // initial fill ya update
+        })
       }
       // Containers heartbeat (id = 2) — data_updated event hi ORIGINAL time source hai
       const h = hb.data
@@ -284,14 +276,8 @@ function notifyDataUpdated(at?: Date) {
         if (hbKey) rememberHbKey(hbKey)
         setStatus('live')
         } else if (status === 'containers_data_updated') {
-          // ✅ Notification: lastSeenHbKeyRef use karein taake tab band (close) hone ke baad open karne par bhi notify kare
-          // Time pill aur notification dono mein SAME time (syncTime) use hoga
-          const notifyTime = syncTime || evTime
-          if (hbKey && hbKey !== lastSeenHbKeyRef.current) {
-            notifyDataUpdated(notifyTime)
-            lastSeenHbKeyRef.current = hbKey
-            try { localStorage.setItem('rto_cont_last_seen_hb', hbKey) } catch {}
-          }
+          // ✅ Pill + notification upar fetched_at-change se handle hoti hai —
+          //    heartbeat yahan SIRF green dot (LIVE) ke liye hai
           if (hbKey) rememberHbKey(hbKey)
           setStatus('live')
         } else if (status === 'containers_error') {
@@ -519,11 +505,6 @@ function notifyDataUpdated(at?: Date) {
                       const item = JSON.parse(saved)
                       item.unread = false
                       localStorage.setItem('rto_cont_latest_notification', JSON.stringify(item))
-                    }
-                    // ✅ Bell click par seen mark karein taake duplicate notification na aaye
-                    if (lastHbKeyRef.current) {
-                      lastSeenHbKeyRef.current = lastHbKeyRef.current
-                      localStorage.setItem('rto_cont_last_seen_hb', lastHbKeyRef.current)
                     }
                   } catch {}
                 }}

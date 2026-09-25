@@ -89,6 +89,15 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
   const [penalties, setPenalties] = useState<Row[]>([])
   const [loading, setLoading] = useState(true)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  // ✅ lastUpdated ka ms mirror (ref + localStorage) — change detection ke liye
+  //    (state updater ke andar side-effect NAHI karte — wahi purana bug tha)
+  const lastUpdatedMsRef = useRef<number>((() => {
+    try {
+      const t = localStorage.getItem('rto_pen_last_data_update')
+      const d = t ? new Date(t).getTime() : 0
+      return isNaN(d) ? 0 : d
+    } catch { return 0 }
+  })())
 
   // Server status (penalties heartbeat id = 3)
   const [serverStatus, setServerStatus] = useState<'live' | 'error'>(() => {
@@ -270,17 +279,6 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
     lastHbKeyRef.current = key
     try { localStorage.setItem('rto_pen_hb_key', key) } catch {}
   }
-  const lastDataNotifyRef = useRef<number>((() => {
-    try { return Number(localStorage.getItem('rto_pen_last_notify_ms')) || 0 } catch { return 0 }
-  })())
-  function notifyDataUpdated(at?: Date) {
-    const nowMs = Date.now()
-    if (nowMs - lastDataNotifyRef.current < 20_000) return
-    lastDataNotifyRef.current = nowMs
-    try { localStorage.setItem('rto_pen_last_notify_ms', String(nowMs)) } catch {}
-    pushNotification('success', 'Data successfully updated', at)
-  }
-
   // ---- Load penalties + heartbeat (id = 3)
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
@@ -301,15 +299,26 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
       if (pen.error) throw pen.error
       if (hb.error) throw hb.error
 
-      const rows = pen.data ?? []
-      setPenalties(rows)
-
-      let maxT = 0
-      for (const r of rows) {
-        const t = r.fetched_at ? parseLocal(r.fetched_at).getTime() : 0
-        if (t > maxT) maxT = t
+    const rows = pen.data ?? []
+    setPenalties(rows)
+    // ✅ PILL TIME = fetched_at max (DB ka sacha last-data-update time)
+    //    Data same → fetched_at same → pill STATIC (koi jump nahi)
+    let maxT = 0
+    for (const r of rows) {
+      const t = r.fetched_at ? parseLocal(r.fetched_at).getTime() : 0
+      if (t > maxT) maxT = t
+    }
+    if (maxT > 0) {
+      const d = new Date(maxT)
+      setLastUpdated(d)   // ✅ pill hamesha DB time par (static jab tak data na badle)
+      if (maxT !== lastUpdatedMsRef.current) {
+        const prev = lastUpdatedMsRef.current
+        lastUpdatedMsRef.current = maxT
+        try { localStorage.setItem('rto_pen_last_data_update', d.toISOString()) } catch {}
+        // ✅ Notification SIRF asal data change par — pill wala SAME time (missed update bhi catch)
+        if (prev > 0) pushNotification('success', 'Data successfully updated', d)
       }
-      if (maxT) setLastUpdated(prev => prev ?? new Date(maxT))
+    }
 
       const h = hb.data
       const hbTime = h?.updated_at ? parseLocal(h.updated_at).getTime() : 0
@@ -328,14 +337,9 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
         if (hbKey) rememberHbKey(hbKey)
         setStatus('live')
       } else if (status === 'penalties_data_updated') {
+        // ✅ Pill + notification upar fetched_at-change se handle hoti hai —
+        //    heartbeat yahan SIRF green dot (LIVE) ke liye hai
         if (hbKey) rememberHbKey(hbKey)
-        const ev = hbTime ? new Date(hbTime) : new Date()
-        setLastUpdated(ev)
-        if (hbKey && hbKey !== lastSeenHbKeyRef.current) {
-          notifyDataUpdated(ev)
-          lastSeenHbKeyRef.current = hbKey
-          try { localStorage.setItem('rto_pen_last_seen_hb', hbKey) } catch {}
-        }
         setStatus('live')
       } else if (status === 'penalties_error') {
         if (hbKey) rememberHbKey(hbKey)
@@ -633,10 +637,6 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
                       const item = JSON.parse(saved)
                       item.unread = false
                       localStorage.setItem('rto_pen_latest_notification', JSON.stringify(item))
-                    }
-                    if (lastHbKeyRef.current) {
-                      lastSeenHbKeyRef.current = lastHbKeyRef.current
-                      localStorage.setItem('rto_pen_last_seen_hb', lastHbKeyRef.current)
                     }
                   } catch {}
                 }}

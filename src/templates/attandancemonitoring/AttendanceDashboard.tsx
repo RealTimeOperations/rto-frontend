@@ -5,6 +5,15 @@ import AttendanceLogs from './AttendanceLogs'
 import TotalHR from './TotalHR'
 import AttendanceReport from './AttendanceReport'
 import { resetMonitoringTabs } from '../../lib/resetTabs'
+
+// ✅ Supabase timestamptz ko UTC samajh kar store karta hai (Python naive local time bhejta hai) —
+// is liye offset ignore kar ke string ko LOCAL time samjho, taake pill ka time notification se match kare
+function parseLocal(s: string): Date {
+  const clean = String(s).replace('Z', '').replace(/[+-]\d{2}:\d{2}$/, '').replace(' ', 'T')
+  const d = new Date(clean)
+  return isNaN(d.getTime()) ? new Date(s) : d
+}
+
 type Props = {
   onHomeClick?: () => void
 }
@@ -33,17 +42,16 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
   const [slider, setSlider] = useState({ left: 0, width: 0 })
   const [menuOpen, setMenuOpen] = useState(false)
 
-  // ✅ Last sync time = sirf asal data update ka waqt (localStorage se persist hota hai)
-  const [lastSync, setLastSync] = useState<Date | null>(() => {
+  // ✅ Last sync time (Penalties jaisa pattern — null start, load() set karega)
+  const [lastSync, setLastSync] = useState<Date | null>(null)
+  // ✅ lastSync ka ms mirror (ref) — closure stale nahi hota, refresh par localStorage se compare
+  const lastSyncMsRef = useRef<number>((() => {
     try {
       const t = localStorage.getItem('rto_last_data_update')
-      if (t) {
-        const d = new Date(t)
-        if (!isNaN(d.getTime())) return d
-      }
-    } catch {}
-    return null
-  })
+      const d = t ? new Date(t).getTime() : 0
+      return isNaN(d) ? 0 : d
+    } catch { return 0 }
+  })())
   const [notifications, setNotifications] = useState<{ id: number; type: 'success' | 'error'; message: string; time: string; unread?: boolean }[]>(() => {
     try {
       const saved = localStorage.getItem('rto_latest_notification')
@@ -187,8 +195,15 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
     lastHbKeyRef.current = key
     try { localStorage.setItem('rto_last_hb_key', key) } catch {}
   }
-  // ✅ Popup hamesha show ho jab data update ho (Bell icon ka dedup lastSeenHbKeyRef se ho raha hai)
+  // ✅ Data-update notification with 20s dedup (Penalties jaisa) — double notification rokta hai
+  const lastDataNotifyRef = useRef<number>((() => {
+    try { return Number(localStorage.getItem('rto_last_notify_ms')) || 0 } catch { return 0 }
+  })())
   function notifyDataUpdated(at?: Date) {
+    const nowMs = Date.now()
+    if (nowMs - lastDataNotifyRef.current < 20_000) return
+    lastDataNotifyRef.current = nowMs
+    try { localStorage.setItem('rto_last_notify_ms', String(nowMs)) } catch {}
     pushNotification('success', 'Data successfully updated', at)
   }
   useEffect(() => {
@@ -228,19 +243,74 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
     )
   }
 
+    // ---- Load attendance + heartbeat (id = 1) — EXACTLY Penalties jaisa flow
   const load = useCallback(async (silent = false) => {
-    // ✅ Silent update: loading state change nahi hoti — values foran swap hoti hain
     if (!silent) setLoading(true)
     try {
-      const [att, emp, bv] = await Promise.all([
+      const [att, emp, bv, hb] = await Promise.all([
         fetchAll('attendance_logs'),
         fetchAll('assigned_employees'),
         supabase.from('base_values').select('label, value, sort_order, type, present_target').order('sort_order', { ascending: true }),
+        supabase.from('system_heartbeat').select('status, message, updated_at').eq('id', 1).maybeSingle(),
       ])
       if (!aliveRef.current) return
+
       setAttendance(att.filter(r => !isStaff(r)))
       setEmployees(emp)
       setBaseValues((bv.data ?? []) as { label: string; value: number; sort_order: number; type: string; present_target?: number | null }[])
+
+      // ✅ LAST UPDATED ka SINGLE SOURCE: attendance_logs ka sab se naya created_at
+      //    Refresh par STABLE (localStorage se compare), data update par foran update + notification SAME time
+      let maxT = 0
+      for (const r of att) {
+        const t = r.created_at ? parseLocal(r.created_at).getTime() : 0
+        if (t > maxT) maxT = t
+      }
+      if (maxT > 0) {
+        if (maxT !== lastSyncMsRef.current) {
+          const prev = lastSyncMsRef.current
+          lastSyncMsRef.current = maxT
+          const d = new Date(maxT)
+          setLastSync(d)
+          try { localStorage.setItem('rto_last_data_update', d.toISOString()) } catch {}
+          if (prev > 0) notifyDataUpdated(d)   // ✅ pill aur notification DONO mein SAME time
+        } else {
+          // ✅ Time same hai (refresh), lekin pill show karni hai pehli baar mount par
+          setLastSync(prev => prev ?? new Date(maxT))
+        }
+      } else {
+        // ✅ Koi data nahi, current time use karo taake pill foran dikhe
+        setLastSync(prev => prev ?? new Date())
+      }
+
+      // ✅ Heartbeat processing (EXACTLY like Penalties)
+      const h = hb.data
+      const hbTime = h?.updated_at ? new Date(h.updated_at).getTime() : 0
+      const ageMs = hbTime ? Date.now() - hbTime : Infinity
+      const status = String(h?.status ?? '').toLowerCase()
+      const hbKey = h?.updated_at ? String(h.updated_at) : ''
+
+      if (!h || ageMs > 90_000) {
+        notifyError('Server Stopped')
+      } else if (status === 'stopped') {
+        if (hbKey && hbKey !== lastHbKeyRef.current) pushNotification('error', 'Server Stopped', hbTime ? new Date(hbTime) : undefined)
+        if (hbKey) rememberHbKey(hbKey)
+        setStatus('error')
+      } else if (status === 'started') {
+        if (hbKey && hbKey !== lastHbKeyRef.current) pushNotification('success', 'Server Started', hbTime ? new Date(hbTime) : undefined)
+        if (hbKey) rememberHbKey(hbKey)
+        setStatus('live')
+      } else if (status === 'data_updated') {
+        // ✅ Pill + notification upar maxT-change se handle hoti hai (single source) — yahan sirf status
+        if (hbKey) rememberHbKey(hbKey)
+        setStatus('live')
+      } else if (['error', 'portal_error', 'failed'].includes(status)) {
+        if (hbKey) rememberHbKey(hbKey)
+        notifyError('Error: Portal Issue')
+      } else {
+        if (hbKey) rememberHbKey(hbKey)
+        if (statusRef.current === 'error') setStatus('live')
+      }
     } catch (e) {
       console.error('Load error:', e)
       notifyError('Error: Portal Issue')
@@ -251,103 +321,16 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
   }, [])
 
   useEffect(() => {
-    load()
+    load(false)
+    const t = setInterval(() => load(true), 15_000)
+    return () => clearInterval(t)
   }, [load])
 
-  // ✅ Agar lastSync null hai, to DB se time lao (ya fallback use karo) taake pill foran dikhe
+  // ✅ Tab focus wapis aane par foran silent refresh (background ke updates foran catch)
   useEffect(() => {
-    if (lastSync !== null) return
-    ;(async () => {
-      let d: Date | null = null
-      try {
-        const { data: attData } = await supabase
-          .from('attendance_logs')
-          .select('created_at, date_time, date')
-          .order('id', { ascending: false })
-          .limit(1)
-        const row = attData?.[0] as Record<string, any> | undefined
-        const t = row?.created_at || row?.date_time || row?.date
-        if (t) {
-          const parsed = new Date(t)
-          if (!isNaN(parsed.getTime())) d = parsed
-        }
-      } catch (e) {
-        console.warn('DB fetch failed:', e)
-      }
-      
-      // ✅ Fallback: agar DB se time nahi mila, to current time use karo aur foran save kar lo
-      // Is se pill foran show hogi, aur next refresh par clock ka time change nahi hoga
-      if (!d) d = new Date()
-      
-      setLastSync(d)
-      try { localStorage.setItem('rto_last_data_update', d.toISOString()) } catch {}
-    })()
-  }, [lastSync])
-
-  // ✅ Heartbeat poll: har 15 second mein server health check (Penalties jaisa pattern)
-  useEffect(() => {
-    const POLL_MS = 15_000
-    const HEARTBEAT_HARD_MS = 90_000
-    const ERROR_STATUSES = ['error', 'portal_error', 'failed', 'stopped']
-
-    async function check() {
-      try {
-        const { data: hb, error: hbErr } = await supabase
-          .from('system_heartbeat')
-          .select('status, message, updated_at')
-          .eq('id', 1)
-          .maybeSingle()
-        if (hbErr) throw hbErr
-
-        const hbTime = hb?.updated_at ? new Date(hb.updated_at).getTime() : 0
-        const ageMs = hbTime ? Date.now() - hbTime : Infinity
-        const status = String(hb?.status ?? '').toLowerCase()
-        const hbKey = hb?.updated_at ? String(hb.updated_at) : ''
-        const evTime = hbTime ? new Date(hbTime) : new Date()
-
-        // ✅ Server health check — heartbeat 90s+ purani = process band
-        if (!hb || ageMs > HEARTBEAT_HARD_MS) {
-          notifyError('Server Stopped')
-        } else if (status === 'stopped') {
-          // 🛑 Server STOP event — sirf notification
-          if (hbKey && hbKey !== lastHbKeyRef.current) pushNotification('error', 'Server Stopped', evTime)
-          if (hbKey) rememberHbKey(hbKey)
-          setStatus('error')
-        } else if (status === 'started') {
-          // 🟢 Server START event — sirf notification (hbTime ke sath)
-          if (hbKey && hbKey !== lastHbKeyRef.current) pushNotification('success', 'Server Started', evTime)
-          if (hbKey) rememberHbKey(hbKey)
-          setStatus('live')
-        } else if (status === 'data_updated') {
-          // 📦 Data update event — Penalties jaisa EXACT pattern:
-          // Time Pill + Notification DONO mein SAME hbTime (evTime)
-          if (hbKey) rememberHbKey(hbKey)
-          setLastSync(evTime)
-          try { localStorage.setItem('rto_last_data_update', evTime.toISOString()) } catch {}
-          if (hbKey && hbKey !== lastSeenHbKeyRef.current) {
-            notifyDataUpdated(evTime)
-            lastSeenHbKeyRef.current = hbKey
-            try { localStorage.setItem('rto_last_seen_hb', hbKey) } catch {}
-          }
-          setStatus('live')
-          await load(true) // ✅ Silent data refresh — tab open hone par data foran update hoga
-        } else if (ERROR_STATUSES.includes(status)) {
-          if (hbKey) rememberHbKey(hbKey)
-          notifyError('Error: Portal Issue')
-        } else {
-          // ✅ Running / Idle — recovery par pill green
-          if (hbKey) rememberHbKey(hbKey)
-          if (statusRef.current === 'error') setStatus('live')
-        }
-      } catch (e) {
-        notifyError('Error: Portal Issue')
-      }
-    }
-
-    check()   // ✅ Mount par FORAN check — 15 second ka intezar nahi
-    const timer = setInterval(check, POLL_MS)
-    return () => clearInterval(timer)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const onVis = () => { if (!document.hidden) load(true) }
+    document.addEventListener('visibilitychange', onVis)
+    return () => document.removeEventListener('visibilitychange', onVis)
   }, [load])
 
   const tabs: { key: View; label: string }[] = [
