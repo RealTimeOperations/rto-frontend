@@ -71,6 +71,31 @@ function isYes(v: any) {
   return s === 'yes' || s === '1' || s === 'true' || s === 'y'
 }
 
+// ✅ Complains Summary rows (image jaisi layout)
+const CS_ROWS = [
+  { key: 'helpline', label: '1139 Helpline', icon: 'headset', badge: 'border-sky-400/30 bg-sky-500/10 text-sky-300' },
+  { key: 'cmportal', label: 'CM Portal', icon: 'monitor', badge: 'border-emerald-400/30 bg-emerald-500/10 text-emerald-300' },
+  { key: 'cmosmu', label: 'CMO-SMU', icon: 'users', badge: 'border-purple-400/30 bg-purple-500/10 text-purple-300' },
+  { key: 'spa', label: 'SPA Portal', icon: 'doc', badge: 'border-teal-400/30 bg-teal-500/10 text-teal-300' },
+  { key: 'website', label: 'Public Website', icon: 'globe', badge: 'border-amber-400/30 bg-amber-500/10 text-amber-300' },
+  { key: 'obs', label: 'Observations', icon: 'eye', badge: 'border-slate-400/30 bg-slate-500/10 text-slate-300' },
+]
+function CsIcon({ name }: { name: string }) {
+  const cls = 'h-3.5 w-3.5'
+  switch (name) {
+    case 'headset': return (<svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6" /><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3z" /><path d="M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" /></svg>)
+    case 'monitor': return (<svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" /></svg>)
+    case 'users': return (<svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>)
+    case 'doc': return (<svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>)
+    case 'globe': return (<svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></svg>)
+    case 'eye': return (<svg className={cls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>)
+    default: return null
+  }
+}
+const CS_TOTAL_CLS = 'text-base sm:text-lg font-extrabold bg-[linear-gradient(180deg,#f59e0b,#fbbf24,#fde68a,#fbbf24,#f59e0b)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]'
+const CS_RES_CLS = 'text-base sm:text-lg font-extrabold bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]'
+const CS_PEND_CLS = 'text-base sm:text-lg font-extrabold bg-[linear-gradient(180deg,#ef4444,#f87171,#fca5a5,#f87171,#ef4444)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]'
+
 export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) {
   const navigate = useNavigate()
 
@@ -161,7 +186,7 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
     const headingEl = reportHeadingRef.current
     headingEl?.classList.remove('hidden')   // ✅ Copy ke waqt heading temporary show
     try {
-      const blob = await toBlob(hndReportRef.current, { backgroundColor: '#04231c', pixelRatio: 2 })
+      const blob = await toBlob(hndReportRef.current, { pixelRatio: 2 })   // ✅ transparent corners → rounded card
       if (!blob) throw new Error('Image not generated')
       if (typeof ClipboardItem !== 'undefined' && navigator.clipboard && 'write' in navigator.clipboard) {
         await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
@@ -181,11 +206,53 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
     }
   }
 
+  // ✅ Copy Complains Summary as image — SIRF table area copy hogi (buttons include nahi honge)
+  async function copyCsReportAsImage() {
+    if (!csReportRef.current || csCopying) return
+    setCsCopying(true)
+    const headingEl = csHeadingRef.current
+    headingEl?.classList.remove('hidden')   // ✅ Copy ke waqt heading temporary show
+    try {
+      const blob = await toBlob(csReportRef.current, { pixelRatio: 2 })   // ✅ transparent corners → rounded card
+      if (!blob) throw new Error('Image not generated')
+      if (typeof ClipboardItem !== 'undefined' && navigator.clipboard && 'write' in navigator.clipboard) {
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
+      } else {
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = 'Complains-Summary.png'
+        a.click()
+        URL.revokeObjectURL(url)
+      }
+    } catch (e: any) {
+      alert(`Copy failed: ${e?.message ?? e}`)
+    } finally {
+      headingEl?.classList.add('hidden')   // ✅ copy ke baad wapis hide
+      setCsCopying(false)
+    }
+  }
+
   // ✅ HND Popup Temporary Edits (double-click to edit)
   const HND_EDITS_KEY = 'rto_hnd_report_edits_temp'
   const [hndEdits, setHndEdits] = useState<Record<string, string>>({})
   const [editingHndKey, setEditingHndKey] = useState<string | null>(null)
   const [editHndVal, setEditHndVal] = useState('')
+
+  // ✅ Complains Summary popup — "Statistics" heading click se khulta hai
+  const [csReportOpen, setCsReportOpen] = useState(false)
+  const csReportRef = useRef<HTMLDivElement>(null)
+  const csHeadingRef = useRef<HTMLDivElement>(null)
+  const [csCopying, setCsCopying] = useState(false)
+  // ✅ Complains Summary edits TEMPORARY hain — sirf popup khula hai tab tak, band hote hi reset
+  const [csEdits, setCsEdits] = useState<Record<string, string>>({})
+  const [editingCsKey, setEditingCsKey] = useState<string | null>(null)
+  const [editCsVal, setEditCsVal] = useState('')
+  useEffect(() => {
+    // ✅ Open ya close — edits hamesha fresh (koi localStorage persist nahi)
+    setCsEdits({})
+    setEditingCsKey(null)
+  }, [csReportOpen])
   const [notifOpen, setNotifOpen] = useState(false)
   const popupTimer = useRef<number | null>(null)
   const notifId = useRef(0)
@@ -231,7 +298,7 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
         if (e.key === 'Enter') commitHndEdit(key)
         else if (e.key === 'Escape') setEditingHndKey(null)
       }}
-      className="w-20 sm:w-24 bg-[#021b16] border border-emerald-400/60 rounded-md px-2 py-1 text-emerald-200 text-sm sm:text-base font-bold text-right outline-none"
+      className="w-24 sm:w-44 bg-[#021b16] border border-emerald-400/60 rounded-md px-2 py-1 text-emerald-200 text-sm sm:text-base font-bold text-right outline-none"
     />
   )
   const hndCellView = (key: string, computed: number | string, cls: string) => {
@@ -248,6 +315,55 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
       </span>
     )
   }
+
+  // ✅ Complains Summary: edited value commit (sirf in-memory — popup band hote hi reset)
+  function commitCsEdit(key: string) {
+    const val = editCsVal.trim()
+    setCsEdits(prev => {
+      const next = { ...prev }
+      if (val === '') delete next[key]
+      else next[key] = val
+      return next
+    })
+    setEditingCsKey(null)
+  }
+  const csCellView = (key: string, computed: number, cls: string) => {
+    if (editingCsKey === key) return (
+      <input
+        autoFocus
+        type="text"
+        value={editCsVal}
+        onChange={e => setEditCsVal(e.target.value)}
+        onBlur={() => commitCsEdit(key)}
+        onKeyDown={e => {
+          if (e.key === 'Enter') commitCsEdit(key)
+          else if (e.key === 'Escape') setEditingCsKey(null)
+        }}
+        className="w-14 sm:w-20 bg-[#021b16] border border-emerald-400/60 rounded-md px-2 py-0.5 text-emerald-200 text-sm font-bold text-right outline-none"
+      />
+    )
+    const ev = csEdits[key]
+    const shown = ev !== undefined ? fmtNum(ev) : computed.toLocaleString()
+    return (
+      <span
+        onDoubleClick={() => { setEditingCsKey(key); setEditCsVal(ev !== undefined ? ev : String(computed)) }}
+        title="Double-click to edit (temporary)"
+        className={`cursor-pointer ${cls}`}
+      >
+        {shown}
+      </span>
+    )
+  }
+  // ✅ Grand Total = sab rows ka sum (edited values ke sath auto-calculate)
+  const csNum = (key: string) => {
+    const v = csEdits[key]
+    if (v === undefined) return 0
+    const n = Number(String(v).replace(/,/g, ''))
+    return isFinite(n) ? n : 0
+  }
+  const csGrandTotal = CS_ROWS.reduce((s, r) => s + csNum(`${r.key}_total`), 0)
+  const csGrandResolved = CS_ROWS.reduce((s, r) => s + csNum(`${r.key}_resolved`), 0)
+  const csGrandPending = CS_ROWS.reduce((s, r) => s + csNum(`${r.key}_pending`), 0)
 
   function pushNotification(type: 'success' | 'error', message: string, at?: Date) {
     notifId.current += 1
@@ -581,7 +697,8 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
     <div className="min-h-dvh overflow-x-clip bg-[#021b16] text-white">
       {/* ===== Top Navbar ===== */}
       <header className="fixed top-0 left-0 right-0 z-40 pointer-events-none">
-        <div className="relative flex items-center px-3 sm:px-6 py-3 pointer-events-auto md:pointer-events-none bg-[#021b16] border-b border-white/10 md:border-b-0 shadow-[0_6px_24px_rgba(0,0,0,0.45)] md:shadow-none">
+        <div className="pointer-events-none bg-[#021b16] border-b border-white/10 md:border-b-0 shadow-[0_6px_24px_rgba(0,0,0,0.45)] md:shadow-none">
+        <div className="relative flex items-center px-3 sm:px-6 py-2 sm:py-3 pointer-events-auto md:pointer-events-none">
           <div className="flex-1 flex justify-start pointer-events-auto">
             <button
               onClick={() => {
@@ -764,9 +881,10 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
           </div>
         </div>
 
-        {/* ✅ Mobile: compact LIVE pill */}
+        {/* ✅ Mobile: compact LIVE pill — header ke ANDAR alag row (koi overlap nahi) */}
         {lastUpdated && (
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 lg:hidden flex items-center gap-1 rounded-full border border-emerald-400/40 bg-[#021b16]/70 px-2 py-[3px] pointer-events-none">
+          <div className="lg:hidden flex justify-center pb-1.5 pointer-events-none">
+          <div className="flex items-center gap-1 rounded-full border border-emerald-400/40 bg-[#021b16] px-2 py-[3px]">
             {serverStatus === 'live' ? (
               <span className="relative flex h-1.5 w-1.5">
                 <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60 animate-ping" />
@@ -790,11 +908,13 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
               {lastUpdated.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
             </span>
           </div>
+          </div>
         )}
+        </div>
       </header>
 
       {/* ===== Content ===== */}
-      <main className="px-4 sm:px-6 max-w-[1750px] mx-auto flex flex-col gap-6 pt-24 pb-6">
+      <main className="px-4 sm:px-6 max-w-[1750px] mx-auto flex flex-col gap-6 pt-32 lg:pt-24 pb-6">
         {view === 'dashboard' && (
           <div className="flex flex-col gap-4">
             {/* ✅ No Access Message */}
@@ -899,56 +1019,59 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
                         </div>
                       ) : (
                         <div className="rounded-xl border border-white/10 overflow-hidden">
-                          <table className="w-full table-fixed text-[8px] sm:text-[10px] md:text-xs">
-                            <thead>
-                              <tr className="text-left font-bold tracking-wider text-emerald-200/90 bg-[#0a4038] border-b border-emerald-400/20">
-                                <th className="w-[18%] sm:w-[20%] px-1.5 sm:px-2 py-2 sm:py-3 uppercase whitespace-nowrap">Sub Type</th>
-                                {subTypeFmoMatrix.fmos.map(f => (
-                                  <th key={f} title={titleCase(f)} className="px-1 sm:px-2 py-2 sm:py-3 text-center border-l border-white/10">
-                                    <span className="block leading-tight break-words md:[overflow-wrap:normal] text-[6px] lg:text-[7px] xl:text-[8px] 2xl:text-[10px]">{titleCase(f)}</span>
-                                  </th>
-                                ))}
-                                <th className="w-[10%] sm:w-[8%] px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40 uppercase text-emerald-300 whitespace-nowrap">Total</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {subTypeFmoMatrix.subs.map((s, i) => {
-                                const rowTotal = subTypeFmoMatrix.fmos.reduce((sum, f) => sum + (subTypeFmoMatrix.cells.get(s)?.get(f) || 0), 0)
-                                return (
-                                  <tr key={s} className="border-b border-white/10 last:border-0 hover:bg-white/5 transition">
-                                    <td className="px-1.5 sm:px-2 py-1.5 sm:py-2.5 font-semibold text-white/85 break-words">
-                                      <span className="text-white/40 font-bold">{i + 1}.</span> {s}
-                                    </td>
-                                    {subTypeFmoMatrix.fmos.map(f => {
-                                      const c = subTypeFmoMatrix.cells.get(s)?.get(f) || 0
-                                      return (
-                                        <td key={f} className="px-1 sm:px-2 py-1.5 sm:py-2.5 text-center border-l border-white/10">
-                                          {c > 0 ? <span className="font-bold text-emerald-300">{c}</span> : <span className="text-white/30 font-bold">-</span>}
-                                        </td>
-                                      )
-                                    })}
-                                    <td className="px-1.5 sm:px-2 py-1.5 sm:py-2.5 text-center border-l border-emerald-400/40">
-                                      <span className="font-extrabold text-amber-300">{rowTotal}</span>
-                                    </td>
-                                  </tr>
-                                )
-                              })}
-                              <tr className="bg-[#0a4038]/60 border-t-2 border-emerald-400/40 font-bold">
-                                <td className="px-1.5 sm:px-2 py-2 sm:py-3 text-emerald-300 uppercase tracking-wider whitespace-nowrap">Total</td>
-                                {subTypeFmoMatrix.fmos.map(f => {
-                                  const colTotal = subTypeFmoMatrix.subs.reduce((sum, s) => sum + (subTypeFmoMatrix.cells.get(s)?.get(f) || 0), 0)
+                          {/* ✅ Mobile horizontal scroll wrapper */}
+                          <div className="overflow-x-auto [-ms-overflow-style:none] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-emerald-500/30 [&::-webkit-scrollbar-thumb]:rounded-full">
+                            <table className="min-w-[500px] w-full table-fixed text-[8px] sm:text-[10px] md:text-xs">
+                              <thead>
+                                <tr className="text-left font-bold tracking-wider text-emerald-200/90 bg-[#0a4038] border-b border-emerald-400/20">
+                                  <th className="w-[18%] sm:w-[20%] px-1.5 sm:px-2 py-2 sm:py-3 uppercase whitespace-nowrap">Sub Type</th>
+                                  {subTypeFmoMatrix.fmos.map(f => (
+                                    <th key={f} title={titleCase(f)} className="px-1 sm:px-2 py-2 sm:py-3 text-center border-l border-white/10">
+                                      <span className="block leading-tight break-words md:[overflow-wrap:normal] text-[6px] lg:text-[7px] xl:text-[8px] 2xl:text-[10px]">{titleCase(f)}</span>
+                                    </th>
+                                  ))}
+                                  <th className="w-[10%] sm:w-[8%] px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40 uppercase text-emerald-300 whitespace-nowrap">Total</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {subTypeFmoMatrix.subs.map((s, i) => {
+                                  const rowTotal = subTypeFmoMatrix.fmos.reduce((sum, f) => sum + (subTypeFmoMatrix.cells.get(s)?.get(f) || 0), 0)
                                   return (
-                                    <td key={f} className="px-1 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40">
-                                      <span className="font-extrabold text-amber-300">{colTotal}</span>
-                                    </td>
+                                    <tr key={s} className="border-b border-white/10 last:border-0 hover:bg-white/5 transition">
+                                      <td className="px-1.5 sm:px-2 py-1.5 sm:py-2.5 font-semibold text-white/85 break-words">
+                                        <span className="text-white/40 font-bold">{i + 1}.</span> {s}
+                                      </td>
+                                      {subTypeFmoMatrix.fmos.map(f => {
+                                        const c = subTypeFmoMatrix.cells.get(s)?.get(f) || 0
+                                        return (
+                                          <td key={f} className="px-1 sm:px-2 py-1.5 sm:py-2.5 text-center border-l border-white/10">
+                                            {c > 0 ? <span className="font-bold text-emerald-300">{c}</span> : <span className="text-white/30 font-bold">-</span>}
+                                          </td>
+                                        )
+                                      })}
+                                      <td className="px-1.5 sm:px-2 py-1.5 sm:py-2.5 text-center border-l border-emerald-400/40">
+                                        <span className="font-extrabold text-amber-300">{rowTotal}</span>
+                                      </td>
+                                    </tr>
                                   )
                                 })}
-                                <td className="px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40">
-                                  <span className="font-extrabold text-emerald-300">{penalties.length}</span>
-                                </td>
-                              </tr>
-                            </tbody>
-                          </table>
+                                <tr className="bg-[#0a4038]/60 border-t-2 border-emerald-400/40 font-bold">
+                                  <td className="px-1.5 sm:px-2 py-2 sm:py-3 text-emerald-300 uppercase tracking-wider whitespace-nowrap">Total</td>
+                                  {subTypeFmoMatrix.fmos.map(f => {
+                                    const colTotal = subTypeFmoMatrix.subs.reduce((sum, s) => sum + (subTypeFmoMatrix.cells.get(s)?.get(f) || 0), 0)
+                                    return (
+                                      <td key={f} className="px-1 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40">
+                                        <span className="font-extrabold text-amber-300">{colTotal}</span>
+                                      </td>
+                                    )
+                                  })}
+                                  <td className="px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40">
+                                    <span className="font-extrabold text-emerald-300">{penalties.length}</span>
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -1018,56 +1141,59 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
                         <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-center text-xs text-white/40">{loading ? 'Loading…' : 'No data available'}</div>
                       ) : (
                         <div className="rounded-xl border border-white/10 overflow-hidden">
-                          <table className="w-full table-fixed text-[8px] sm:text-[10px] md:text-xs">
-                            <thead>
-                              <tr className="text-left font-bold tracking-wider text-emerald-200/90 bg-[#0a4038] border-b border-emerald-400/20">
-                                <th className="w-[18%] sm:w-[20%] px-1.5 sm:px-2 py-2 sm:py-3 uppercase whitespace-nowrap">Sub Type</th>
-                                {hndSubTypeFmoMatrix.fmos.map(f => (
-                                  <th key={f} title={titleCase(f)} className="px-0.5 sm:px-1 py-2 sm:py-3 text-center border-l border-white/10 align-top">
-                                    <span className="block leading-tight break-words md:[overflow-wrap:normal] text-[6px] lg:text-[7px] xl:text-[8px] 2xl:text-[10px]">{titleCase(f)}</span>
-                                  </th>
-                                ))}
-                                <th className="w-[10%] sm:w-[8%] px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40 uppercase text-emerald-300 whitespace-nowrap">Total</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {hndSubTypeFmoMatrix.subs.map((s, i) => {
-                                const rowTotal = hndSubTypeFmoMatrix.fmos.reduce((sum, f) => sum + (hndSubTypeFmoMatrix.cells.get(s)?.get(f) || 0), 0)
-                                return (
-                                  <tr key={s} className="border-b border-white/10 last:border-0 hover:bg-white/5 transition">
-                                    <td className="px-1.5 sm:px-2 py-1.5 sm:py-2.5 font-semibold text-white/85 break-words">
-                                      <span className="text-white/40 font-bold">{i + 1}.</span> {s}
-                                    </td>
-                                    {hndSubTypeFmoMatrix.fmos.map(f => {
-                                      const c = hndSubTypeFmoMatrix.cells.get(s)?.get(f) || 0
-                                      return (
-                                        <td key={f} className="px-1 sm:px-2 py-1.5 sm:py-2.5 text-center border-l border-white/10">
-                                          {c > 0 ? <span className="font-bold text-emerald-300">{c}</span> : <span className="text-white/30 font-bold">-</span>}
-                                        </td>
-                                      )
-                                    })}
-                                    <td className="px-1.5 sm:px-2 py-1.5 sm:py-2.5 text-center border-l border-emerald-400/40">
-                                      <span className="font-extrabold text-amber-300">{rowTotal}</span>
-                                    </td>
-                                  </tr>
-                                )
-                              })}
-                              <tr className="bg-[#0a4038]/60 border-t-2 border-emerald-400/40 font-bold">
-                                <td className="px-1.5 sm:px-2 py-2 sm:py-3 text-emerald-300 uppercase tracking-wider whitespace-nowrap">Total</td>
-                                {hndSubTypeFmoMatrix.fmos.map(f => {
-                                  const colTotal = hndSubTypeFmoMatrix.subs.reduce((sum, s) => sum + (hndSubTypeFmoMatrix.cells.get(s)?.get(f) || 0), 0)
+                          {/* ✅ Mobile horizontal scroll wrapper */}
+                          <div className="overflow-x-auto [-ms-overflow-style:none] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-emerald-500/30 [&::-webkit-scrollbar-thumb]:rounded-full">
+                            <table className="min-w-[500px] w-full table-fixed text-[8px] sm:text-[10px] md:text-xs">
+                              <thead>
+                                <tr className="text-left font-bold tracking-wider text-emerald-200/90 bg-[#0a4038] border-b border-emerald-400/20">
+                                  <th className="w-[18%] sm:w-[20%] px-1.5 sm:px-2 py-2 sm:py-3 uppercase whitespace-nowrap">Sub Type</th>
+                                  {hndSubTypeFmoMatrix.fmos.map(f => (
+                                    <th key={f} title={titleCase(f)} className="px-0.5 sm:px-1 py-2 sm:py-3 text-center border-l border-white/10 align-top">
+                                      <span className="block leading-tight break-words md:[overflow-wrap:normal] text-[6px] lg:text-[7px] xl:text-[8px] 2xl:text-[10px]">{titleCase(f)}</span>
+                                    </th>
+                                  ))}
+                                  <th className="w-[10%] sm:w-[8%] px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40 uppercase text-emerald-300 whitespace-nowrap">Total</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {hndSubTypeFmoMatrix.subs.map((s, i) => {
+                                  const rowTotal = hndSubTypeFmoMatrix.fmos.reduce((sum, f) => sum + (hndSubTypeFmoMatrix.cells.get(s)?.get(f) || 0), 0)
                                   return (
-                                    <td key={f} className="px-1 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40">
-                                      <span className="font-extrabold text-amber-300">{colTotal}</span>
-                                    </td>
+                                    <tr key={s} className="border-b border-white/10 last:border-0 hover:bg-white/5 transition">
+                                      <td className="px-1.5 sm:px-2 py-1.5 sm:py-2.5 font-semibold text-white/85 break-words">
+                                        <span className="text-white/40 font-bold">{i + 1}.</span> {s}
+                                      </td>
+                                      {hndSubTypeFmoMatrix.fmos.map(f => {
+                                        const c = hndSubTypeFmoMatrix.cells.get(s)?.get(f) || 0
+                                        return (
+                                          <td key={f} className="px-1 sm:px-2 py-1.5 sm:py-2.5 text-center border-l border-white/10">
+                                            {c > 0 ? <span className="font-bold text-emerald-300">{c}</span> : <span className="text-white/30 font-bold">-</span>}
+                                          </td>
+                                        )
+                                      })}
+                                      <td className="px-1.5 sm:px-2 py-1.5 sm:py-2.5 text-center border-l border-emerald-400/40">
+                                        <span className="font-extrabold text-amber-300">{rowTotal}</span>
+                                      </td>
+                                    </tr>
                                   )
                                 })}
-                                <td className="px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40">
-                                  <span className="font-extrabold text-emerald-300">{hndPenalties.length}</span>
-                                </td>
-                              </tr>
-                            </tbody>
-                          </table>
+                                <tr className="bg-[#0a4038]/60 border-t-2 border-emerald-400/40 font-bold">
+                                  <td className="px-1.5 sm:px-2 py-2 sm:py-3 text-emerald-300 uppercase tracking-wider whitespace-nowrap">Total</td>
+                                  {hndSubTypeFmoMatrix.fmos.map(f => {
+                                    const colTotal = hndSubTypeFmoMatrix.subs.reduce((sum, s) => sum + (hndSubTypeFmoMatrix.cells.get(s)?.get(f) || 0), 0)
+                                    return (
+                                      <td key={f} className="px-1 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40">
+                                        <span className="font-extrabold text-amber-300">{colTotal}</span>
+                                      </td>
+                                    )
+                                  })}
+                                  <td className="px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40">
+                                    <span className="font-extrabold text-emerald-300">{hndPenalties.length}</span>
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -1137,56 +1263,59 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
                         <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-center text-xs text-white/40">{loading ? 'Loading…' : 'No data available'}</div>
                       ) : (
                         <div className="rounded-xl border border-white/10 overflow-hidden">
-                          <table className="w-full table-fixed text-[8px] sm:text-[10px] md:text-xs">
-                            <thead>
-                              <tr className="text-left font-bold tracking-wider text-emerald-200/90 bg-[#0a4038] border-b border-emerald-400/20">
-                                <th className="w-[18%] sm:w-[20%] px-1.5 sm:px-2 py-2 sm:py-3 uppercase whitespace-nowrap">Sub Type</th>
-                                {faqirwaliSubTypeFmoMatrix.fmos.map(f => (
-                                  <th key={f} title={titleCase(f)} className="px-1 sm:px-2 py-2 sm:py-3 text-center border-l border-white/10">
-                                    <span className="block leading-tight break-words md:[overflow-wrap:normal] text-[6px] lg:text-[7px] xl:text-[8px] 2xl:text-[10px]">{titleCase(f)}</span>
-                                  </th>
-                                ))}
-                                <th className="w-[10%] sm:w-[8%] px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40 uppercase text-emerald-300 whitespace-nowrap">Total</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {faqirwaliSubTypeFmoMatrix.subs.map((s, i) => {
-                                const rowTotal = faqirwaliSubTypeFmoMatrix.fmos.reduce((sum, f) => sum + (faqirwaliSubTypeFmoMatrix.cells.get(s)?.get(f) || 0), 0)
-                                return (
-                                  <tr key={s} className="border-b border-white/10 last:border-0 hover:bg-white/5 transition">
-                                    <td className="px-1.5 sm:px-2 py-1.5 sm:py-2.5 font-semibold text-white/85 break-words">
-                                      <span className="text-white/40 font-bold">{i + 1}.</span> {s}
-                                    </td>
-                                    {faqirwaliSubTypeFmoMatrix.fmos.map(f => {
-                                      const c = faqirwaliSubTypeFmoMatrix.cells.get(s)?.get(f) || 0
-                                      return (
-                                        <td key={f} className="px-1 sm:px-2 py-1.5 sm:py-2.5 text-center border-l border-white/10">
-                                          {c > 0 ? <span className="font-bold text-emerald-300">{c}</span> : <span className="text-white/30 font-bold">-</span>}
-                                        </td>
-                                      )
-                                    })}
-                                    <td className="px-1.5 sm:px-2 py-1.5 sm:py-2.5 text-center border-l border-emerald-400/40">
-                                      <span className="font-extrabold text-amber-300">{rowTotal}</span>
-                                    </td>
-                                  </tr>
-                                )
-                              })}
-                              <tr className="bg-[#0a4038]/60 border-t-2 border-emerald-400/40 font-bold">
-                                <td className="px-1.5 sm:px-2 py-2 sm:py-3 text-emerald-300 uppercase tracking-wider whitespace-nowrap">Total</td>
-                                {faqirwaliSubTypeFmoMatrix.fmos.map(f => {
-                                  const colTotal = faqirwaliSubTypeFmoMatrix.subs.reduce((sum, s) => sum + (faqirwaliSubTypeFmoMatrix.cells.get(s)?.get(f) || 0), 0)
+                          {/* ✅ Mobile horizontal scroll wrapper */}
+                          <div className="overflow-x-auto [-ms-overflow-style:none] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-emerald-500/30 [&::-webkit-scrollbar-thumb]:rounded-full">
+                            <table className="min-w-[500px] w-full table-fixed text-[8px] sm:text-[10px] md:text-xs">
+                              <thead>
+                                <tr className="text-left font-bold tracking-wider text-emerald-200/90 bg-[#0a4038] border-b border-emerald-400/20">
+                                  <th className="w-[18%] sm:w-[20%] px-1.5 sm:px-2 py-2 sm:py-3 uppercase whitespace-nowrap">Sub Type</th>
+                                  {faqirwaliSubTypeFmoMatrix.fmos.map(f => (
+                                    <th key={f} title={titleCase(f)} className="px-1 sm:px-2 py-2 sm:py-3 text-center border-l border-white/10">
+                                      <span className="block leading-tight break-words md:[overflow-wrap:normal] text-[6px] lg:text-[7px] xl:text-[8px] 2xl:text-[10px]">{titleCase(f)}</span>
+                                    </th>
+                                  ))}
+                                  <th className="w-[10%] sm:w-[8%] px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40 uppercase text-emerald-300 whitespace-nowrap">Total</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {faqirwaliSubTypeFmoMatrix.subs.map((s, i) => {
+                                  const rowTotal = faqirwaliSubTypeFmoMatrix.fmos.reduce((sum, f) => sum + (faqirwaliSubTypeFmoMatrix.cells.get(s)?.get(f) || 0), 0)
                                   return (
-                                    <td key={f} className="px-1 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40">
-                                      <span className="font-extrabold text-amber-300">{colTotal}</span>
-                                    </td>
+                                    <tr key={s} className="border-b border-white/10 last:border-0 hover:bg-white/5 transition">
+                                      <td className="px-1.5 sm:px-2 py-1.5 sm:py-2.5 font-semibold text-white/85 break-words">
+                                        <span className="text-white/40 font-bold">{i + 1}.</span> {s}
+                                      </td>
+                                      {faqirwaliSubTypeFmoMatrix.fmos.map(f => {
+                                        const c = faqirwaliSubTypeFmoMatrix.cells.get(s)?.get(f) || 0
+                                        return (
+                                          <td key={f} className="px-1 sm:px-2 py-1.5 sm:py-2.5 text-center border-l border-white/10">
+                                            {c > 0 ? <span className="font-bold text-emerald-300">{c}</span> : <span className="text-white/30 font-bold">-</span>}
+                                          </td>
+                                        )
+                                      })}
+                                      <td className="px-1.5 sm:px-2 py-1.5 sm:py-2.5 text-center border-l border-emerald-400/40">
+                                        <span className="font-extrabold text-amber-300">{rowTotal}</span>
+                                      </td>
+                                    </tr>
                                   )
                                 })}
-                                <td className="px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40">
-                                  <span className="font-extrabold text-emerald-300">{faqirwaliPenalties.length}</span>
-                                </td>
-                              </tr>
-                            </tbody>
-                          </table>
+                                <tr className="bg-[#0a4038]/60 border-t-2 border-emerald-400/40 font-bold">
+                                  <td className="px-1.5 sm:px-2 py-2 sm:py-3 text-emerald-300 uppercase tracking-wider whitespace-nowrap">Total</td>
+                                  {faqirwaliSubTypeFmoMatrix.fmos.map(f => {
+                                    const colTotal = faqirwaliSubTypeFmoMatrix.subs.reduce((sum, s) => sum + (faqirwaliSubTypeFmoMatrix.cells.get(s)?.get(f) || 0), 0)
+                                    return (
+                                      <td key={f} className="px-1 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40">
+                                        <span className="font-extrabold text-amber-300">{colTotal}</span>
+                                      </td>
+                                    )
+                                  })}
+                                  <td className="px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40">
+                                    <span className="font-extrabold text-emerald-300">{faqirwaliPenalties.length}</span>
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -1209,7 +1338,10 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
                             className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite] select-none"
                             onDoubleClick={() => { if (allowedOffices.includes('hnd')) setHndReportOpen(true) }}
                           >Penalties </span>
-                          <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Statistics</span>
+                          <span
+                            className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite] select-none"
+                            onDoubleClick={() => { if (allowedOffices.includes('hnd')) setCsReportOpen(true) }}
+                          >Statistics</span>
                         </h2>
                         <div className="flex flex-col gap-1.5 sm:gap-2">
                           {[
@@ -1264,56 +1396,59 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
                         <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-center text-xs text-white/40">{loading ? 'Loading…' : 'No data available'}</div>
                       ) : (
                         <div className="rounded-xl border border-white/10 overflow-hidden">
-                          <table className="w-full table-fixed text-[8px] sm:text-[10px] md:text-xs">
-                            <thead>
-                              <tr className="text-left font-bold tracking-wider text-emerald-200/90 bg-[#0a4038] border-b border-emerald-400/20">
-                                <th className="w-[18%] sm:w-[20%] px-1.5 sm:px-2 py-2 sm:py-3 uppercase whitespace-nowrap">Sub Type</th>
-                                {subTypeFmoMatrix.fmos.map(f => (
-                                  <th key={f} title={titleCase(f)} className="px-1 sm:px-2 py-2 sm:py-3 text-center border-l border-white/10">
-                                    <span className="block leading-tight break-words md:[overflow-wrap:normal] text-[6px] lg:text-[7px] xl:text-[8px] 2xl:text-[10px]">{titleCase(f)}</span>
-                                  </th>
-                                ))}
-                                <th className="w-[10%] sm:w-[8%] px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40 uppercase text-emerald-300 whitespace-nowrap">Total</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {subTypeFmoMatrix.subs.map((s, i) => {
-                                const rowTotal = subTypeFmoMatrix.fmos.reduce((sum, f) => sum + (subTypeFmoMatrix.cells.get(s)?.get(f) || 0), 0)
-                                return (
-                                  <tr key={s} className="border-b border-white/10 last:border-0 hover:bg-white/5 transition">
-                                    <td className="px-1.5 sm:px-2 py-1.5 sm:py-2.5 font-semibold text-white/85 break-words">
-                                      <span className="text-white/40 font-bold">{i + 1}.</span> {s}
-                                    </td>
-                                    {subTypeFmoMatrix.fmos.map(f => {
-                                      const c = subTypeFmoMatrix.cells.get(s)?.get(f) || 0
-                                      return (
-                                        <td key={f} className="px-1 sm:px-2 py-1.5 sm:py-2.5 text-center border-l border-white/10">
-                                          {c > 0 ? <span className="font-bold text-emerald-300">{c}</span> : <span className="text-white/30 font-bold">-</span>}
-                                        </td>
-                                      )
-                                    })}
-                                    <td className="px-1.5 sm:px-2 py-1.5 sm:py-2.5 text-center border-l border-emerald-400/40">
-                                      <span className="font-extrabold text-amber-300">{rowTotal}</span>
-                                    </td>
-                                  </tr>
-                                )
-                              })}
-                              <tr className="bg-[#0a4038]/60 border-t-2 border-emerald-400/40 font-bold">
-                                <td className="px-1.5 sm:px-2 py-2 sm:py-3 text-emerald-300 uppercase tracking-wider whitespace-nowrap">Total</td>
-                                {subTypeFmoMatrix.fmos.map(f => {
-                                  const colTotal = subTypeFmoMatrix.subs.reduce((sum, s) => sum + (subTypeFmoMatrix.cells.get(s)?.get(f) || 0), 0)
+                          {/* ✅ Mobile horizontal scroll wrapper */}
+                          <div className="overflow-x-auto [-ms-overflow-style:none] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-emerald-500/30 [&::-webkit-scrollbar-thumb]:rounded-full">
+                            <table className="min-w-[500px] w-full table-fixed text-[8px] sm:text-[10px] md:text-xs">
+                              <thead>
+                                <tr className="text-left font-bold tracking-wider text-emerald-200/90 bg-[#0a4038] border-b border-emerald-400/20">
+                                  <th className="w-[18%] sm:w-[20%] px-1.5 sm:px-2 py-2 sm:py-3 uppercase whitespace-nowrap">Sub Type</th>
+                                  {subTypeFmoMatrix.fmos.map(f => (
+                                    <th key={f} title={titleCase(f)} className="px-1 sm:px-2 py-2 sm:py-3 text-center border-l border-white/10">
+                                      <span className="block leading-tight break-words md:[overflow-wrap:normal] text-[6px] lg:text-[7px] xl:text-[8px] 2xl:text-[10px]">{titleCase(f)}</span>
+                                    </th>
+                                  ))}
+                                  <th className="w-[10%] sm:w-[8%] px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40 uppercase text-emerald-300 whitespace-nowrap">Total</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {subTypeFmoMatrix.subs.map((s, i) => {
+                                  const rowTotal = subTypeFmoMatrix.fmos.reduce((sum, f) => sum + (subTypeFmoMatrix.cells.get(s)?.get(f) || 0), 0)
                                   return (
-                                    <td key={f} className="px-1 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40">
-                                      <span className="font-extrabold text-amber-300">{colTotal}</span>
-                                    </td>
+                                    <tr key={s} className="border-b border-white/10 last:border-0 hover:bg-white/5 transition">
+                                      <td className="px-1.5 sm:px-2 py-1.5 sm:py-2.5 font-semibold text-white/85 break-words">
+                                        <span className="text-white/40 font-bold">{i + 1}.</span> {s}
+                                      </td>
+                                      {subTypeFmoMatrix.fmos.map(f => {
+                                        const c = subTypeFmoMatrix.cells.get(s)?.get(f) || 0
+                                        return (
+                                          <td key={f} className="px-1 sm:px-2 py-1.5 sm:py-2.5 text-center border-l border-white/10">
+                                            {c > 0 ? <span className="font-bold text-emerald-300">{c}</span> : <span className="text-white/30 font-bold">-</span>}
+                                          </td>
+                                        )
+                                      })}
+                                      <td className="px-1.5 sm:px-2 py-1.5 sm:py-2.5 text-center border-l border-emerald-400/40">
+                                        <span className="font-extrabold text-amber-300">{rowTotal}</span>
+                                      </td>
+                                    </tr>
                                   )
                                 })}
-                                <td className="px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40">
-                                  <span className="font-extrabold text-emerald-300">{filteredPenalties.length}</span>
-                                </td>
-                              </tr>
-                            </tbody>
-                          </table>
+                                <tr className="bg-[#0a4038]/60 border-t-2 border-emerald-400/40 font-bold">
+                                  <td className="px-1.5 sm:px-2 py-2 sm:py-3 text-emerald-300 uppercase tracking-wider whitespace-nowrap">Total</td>
+                                  {subTypeFmoMatrix.fmos.map(f => {
+                                    const colTotal = subTypeFmoMatrix.subs.reduce((sum, s) => sum + (subTypeFmoMatrix.cells.get(s)?.get(f) || 0), 0)
+                                    return (
+                                      <td key={f} className="px-1 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40">
+                                        <span className="font-extrabold text-amber-300">{colTotal}</span>
+                                      </td>
+                                    )
+                                  })}
+                                  <td className="px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40">
+                                    <span className="font-extrabold text-emerald-300">{filteredPenalties.length}</span>
+                                  </td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -1379,7 +1514,7 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
               </div>
               </div>
 
-              <div ref={hndReportRef} className="p-5 flex flex-col gap-2">
+              <div ref={hndReportRef} className="p-5 flex flex-col gap-2 rounded-2xl bg-[#04231c]">
                 {/* ✅ Image heading — popup mein hidden, sirf copied image mein dikhegi */}
                 <div ref={reportHeadingRef} className="hidden">
                   <div className="flex flex-wrap items-center justify-between gap-2 px-1 pb-1">
@@ -1402,21 +1537,117 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
                   <span className="text-xs sm:text-sm font-semibold text-white/70">Un Resolved</span>
                   {hndCellView('unresolved', loading ? '—' : hndUnresolved, 'text-xl sm:text-2xl font-extrabold bg-[linear-gradient(180deg,#ef4444,#f87171,#fca5a5,#f87171,#ef4444)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]')}
                 </div>
-                {/* ✅ First Imposed Time: sab se pehle expire hone wali unresolved penalty ka deadline */}
+                {/* ✅ First Imposed Time: deadline (ab double-click se editable — temporary, popup band hone par reset) */}
                 <div className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-3 ${lastImposedOverdue ? 'border-red-400/25 bg-red-500/10' : 'border-sky-400/25 bg-sky-500/10'}`}>
                   <span className="text-xs sm:text-sm font-semibold text-white/70">First Imposed Time</span>
-                  <span
-                    title="Earliest deadline among unresolved penalties (Created + TAT)"
-                    className={`text-sm sm:text-lg font-extrabold bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite] whitespace-nowrap ${
+                  {hndCellView(
+                    'first_imposed',
+                    loading ? '—' : lastImposedInfo
+                      ? lastImposedInfo.toLocaleString('en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })
+                      : '—',
+                    `text-sm sm:text-lg font-extrabold bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite] whitespace-nowrap ${
                       lastImposedOverdue
                         ? 'bg-[linear-gradient(180deg,#ef4444,#f87171,#fca5a5,#f87171,#ef4444)]'
                         : 'bg-[linear-gradient(180deg,#0ea5e9,#38bdf8,#7dd3fc,#38bdf8,#0ea5e9)]'
-                    }`}
+                    }`
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ✅ Complains Summary Popup — "Statistics" heading click se khulta hai */}
+      {csReportOpen && (
+        <>
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" onClick={() => setCsReportOpen(false)} />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+            <div className="pointer-events-auto w-full max-w-lg rounded-2xl border border-emerald-400/30 bg-[#04231c] shadow-[0_30px_80px_rgba(0,0,0,0.6)]">
+              {/* ✅ Top bar: Complains Summary + Date + Copy + Cross */}
+              <div className="flex items-center justify-between gap-3 px-5 pt-4">
+                <div className="flex items-baseline gap-2 min-w-0">
+                  <div className="text-sm sm:text-base font-extrabold truncate">
+                    <span className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Complains </span>
+                    <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Summary</span>
+                  </div>
+                  <div className="text-[10px] sm:text-[11px] font-bold text-emerald-300 whitespace-nowrap">{hndReportDateLabel}</div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={copyCsReportAsImage}
+                    disabled={csCopying}
+                    className="h-9 px-3 rounded-xl border border-emerald-400/40 bg-emerald-500/10 text-emerald-300 text-[10px] sm:text-xs font-bold hover:bg-emerald-500/25 hover:text-white transition flex items-center gap-1.5 whitespace-nowrap disabled:opacity-50"
                   >
-                    {loading ? '—' : lastImposedInfo
-                      ? lastImposedInfo.toLocaleString('en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })
-                      : '—'}
-                  </span>
+                    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+                    {csCopying ? 'Copying…' : 'Copy'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCsReportOpen(false)}
+                    aria-label="Close summary"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/5 text-white/70 hover:bg-red-500/15 hover:border-red-400/40 hover:text-red-300 transition"
+                  >
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                  </button>
+                </div>
+              </div>
+
+              {/* ✅ Table area (yahi hissa copy hota hai) */}
+              <div ref={csReportRef} className="p-5 rounded-2xl bg-[#04231c]">
+                {/* ✅ Image heading — popup mein hidden, sirf copied image mein dikhegi */}
+                <div ref={csHeadingRef} className="hidden">
+                  <div className="flex flex-wrap items-center justify-between gap-2 px-1 pb-2">
+                    <div className="text-sm sm:text-base font-extrabold">
+                      <span className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Complains </span>
+                      <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Summary</span>
+                    </div>
+                    <div className="text-[10px] sm:text-xs font-extrabold text-emerald-300 whitespace-nowrap">{hndReportDateLabel}</div>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-white/10 overflow-hidden">
+                  <table className="w-full table-fixed text-[11px] sm:text-sm">
+                    <thead>
+                      <tr className="text-left font-bold tracking-wider text-emerald-200/90 bg-[#0a4038] border-b border-emerald-400/20">
+                        <th className="w-[34%] px-2.5 sm:px-3 py-2.5 uppercase whitespace-nowrap">Description</th>
+                        <th className="px-2 py-2.5 text-center uppercase whitespace-nowrap">Total</th>
+                        <th className="px-2 py-2.5 text-center uppercase whitespace-nowrap">Resolved</th>
+                        <th className="px-2 py-2.5 text-center uppercase whitespace-nowrap">Pending</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {CS_ROWS.map(r => (
+                        <tr key={r.key} className="border-b border-white/10 last:border-0 hover:bg-white/5 transition">
+                          <td className="px-2.5 sm:px-3 py-2.5">
+                            <span className="flex items-center gap-2 sm:gap-2.5 font-semibold text-white/85 min-w-0">
+                              <span className={`flex h-6 w-6 sm:h-7 sm:w-7 shrink-0 items-center justify-center rounded-full border ${r.badge}`}>
+                                <CsIcon name={r.icon} />
+                              </span>
+                              <span className="truncate">{r.label}</span>
+                            </span>
+                          </td>
+                          <td className="px-2 py-2.5 text-center">{csCellView(`${r.key}_total`, 0, CS_TOTAL_CLS)}</td>
+                          <td className="px-2 py-2.5 text-center">{csCellView(`${r.key}_resolved`, 0, CS_RES_CLS)}</td>
+                          <td className="px-2 py-2.5 text-center">{csCellView(`${r.key}_pending`, 0, CS_PEND_CLS)}</td>
+                        </tr>
+                      ))}
+                      <tr className="bg-[#0a4038]/60 border-t-2 border-emerald-400/40 font-bold">
+                        <td className="px-2.5 sm:px-3 py-3 text-emerald-300 uppercase tracking-wider whitespace-nowrap">
+                          <span className="flex items-center gap-2 sm:gap-2.5">
+                            <span className="flex h-6 w-6 sm:h-7 sm:w-7 shrink-0 items-center justify-center rounded-full border border-emerald-400/30 bg-emerald-500/10 text-emerald-300">
+                              <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 7V4H6l6 8-6 8h12v-3" /></svg>
+                            </span>
+                            Grand Total
+                          </span>
+                        </td>
+                        <td className="px-2 py-3 text-center"><span className={CS_TOTAL_CLS}>{csGrandTotal.toLocaleString()}</span></td>
+                        <td className="px-2 py-3 text-center"><span className={CS_RES_CLS}>{csGrandResolved.toLocaleString()}</span></td>
+                        <td className="px-2 py-3 text-center"><span className={CS_PEND_CLS}>{csGrandPending.toLocaleString()}</span></td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>

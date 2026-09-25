@@ -344,7 +344,8 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
     <div className="min-h-dvh overflow-x-clip bg-[#021b16] text-white">
       {/* ===== Top Navbar (solid + visible) ===== */}
       <header className="fixed top-0 left-0 right-0 z-40 pointer-events-none">
-        <div className="relative flex items-center px-3 sm:px-6 py-3 pointer-events-auto md:pointer-events-none bg-[#021b16] border-b border-white/10 md:border-b-0 shadow-[0_6px_24px_rgba(0,0,0,0.45)] md:shadow-none">
+        <div className="pointer-events-none bg-[#021b16] border-b border-white/10 md:border-b-0 shadow-[0_6px_24px_rgba(0,0,0,0.45)] md:shadow-none">
+        <div className="relative flex items-center px-3 sm:px-6 py-2 sm:py-3 pointer-events-auto md:pointer-events-none">
           {/* Left: Home button only */}
           <div className="flex-1 flex justify-start pointer-events-auto">
             <button
@@ -610,9 +611,11 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
 
           </div>
 
-      {/* ✅ Mobile: LIVE pill — compact (Penalties jaisi), bell se overlap nahi hogi */}
-      {lastSync && (
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 lg:hidden flex items-center gap-1 rounded-full border border-emerald-400/40 bg-[#021b16]/70 px-2 py-[3px] pointer-events-none">
+          </div>
+        {/* ✅ Mobile: LIVE pill — header ke ANDAR alag row (koi overlap nahi) */}
+        {lastSync && (
+          <div className="lg:hidden flex justify-center pb-1.5 pointer-events-none">
+          <div className="flex items-center gap-1 rounded-full border border-emerald-400/40 bg-[#021b16] px-2 py-[3px]">
           {serverStatus === 'live' ? (
             <span className="relative flex h-1.5 w-1.5">
               <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60 animate-ping" />
@@ -633,15 +636,16 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
               ? 'bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)]'
               : 'bg-[linear-gradient(180deg,#ef4444,#f87171,#fca5a5,#f87171,#ef4444)]'
           }`}>
-            {lastSync.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
-          </span>
-        </div>
-      )}
-        </div>
-      </header>
+          {lastSync.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
+        </span>
+      </div>
+      </div>
+    )}
+      </div>
+    </header>
 
       {/* ===== Content ===== */}
-      <main className="pt-24 pb-4 px-4 sm:px-6 max-w-[1750px] mx-auto flex flex-col">
+      <main className="pt-32 lg:pt-24 pb-4 px-4 sm:px-6 max-w-[1750px] mx-auto flex flex-col">
         {view === 'dashboard' && <StatsView attendance={attendance} employees={employees} baseValues={baseValues} loading={loading} />}
         {view === 'attendance' && <AttendanceLogs rows={attendance} loading={loading} />}
         {view === 'hr' && <TotalHR rows={employees} loading={loading} onRefresh={load} />}
@@ -823,7 +827,7 @@ function StatsView({ attendance, employees, baseValues, loading }: { attendance:
   return (
     <div>
       {/* ✅ Sticky heading block — scroll par cards is ke PEECHE se guzarti hain */}
-      <div className="sticky top-[60px] sm:top-[64px] z-30 -mx-4 sm:-mx-6 -mt-8 px-4 sm:px-6 pt-6 sm:pt-8 pb-4 bg-[#021b16]">
+        <div className="sticky top-[82px] sm:top-[90px] lg:top-[64px] z-30 -mx-4 sm:-mx-6 -mt-8 px-4 sm:px-6 pt-6 sm:pt-8 pb-4 bg-[#021b16]">
         <h1 className="text-center text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight leading-none">
           <span className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Attendance </span>
           <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Dashboard</span>

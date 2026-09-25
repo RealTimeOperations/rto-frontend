@@ -266,11 +266,27 @@ function notifyDataUpdated(at?: Date) {
         // ✅ NOTIFICATION = sirf jab asal data change hua ho (apne alag persisted marker se)
         //    - Containers open tha → live notify
         //    - Containers band tha → mount par missed update foran notify (sahi time ke sath)
+        // ✅ FORCE SYNC: Agar page open karne par Pill ka time Bell ke time se alag hai, to Bell ko foran update karo
         if (maxT !== lastNotifiedMsRef.current) {
           const hadPrev = lastNotifiedMsRef.current > 0
           lastNotifiedMsRef.current = maxT
           try { localStorage.setItem('rto_cont_last_notified_ms', String(maxT)) } catch {}
+          // Agar data change hua hai to notify karo, warna sirf Bell ka time Pill ke sath sync karo
           if (hadPrev) notifyDataUpdated(newSyncTime)
+          else {
+            // Pehli dafa open karne par ya silent sync ke liye Bell ka time update karo
+            const saved = localStorage.getItem('rto_cont_latest_notification')
+            if (saved) {
+              try {
+                const item = JSON.parse(saved)
+                if (item && item.message === 'Data successfully updated') {
+                  item.time = newSyncTime.toLocaleString('en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })
+                  localStorage.setItem('rto_cont_latest_notification', JSON.stringify(item))
+                  setNotifications([item])
+                }
+              } catch {}
+            }
+          }
         }
       }
       // Containers heartbeat (id = 2) — data_updated event hi ORIGINAL time source hai
@@ -436,7 +452,8 @@ function notifyDataUpdated(at?: Date) {
       `}</style>
       {/* ===== Top Navbar (attendance jaisa) ===== */}
       <header className="fixed top-0 left-0 right-0 z-40 pointer-events-none">
-        <div className="relative flex items-center px-3 sm:px-6 py-3 pointer-events-auto md:pointer-events-none bg-[#021b16] border-b border-white/10 md:border-b-0 shadow-[0_6px_24px_rgba(0,0,0,0.45)] md:shadow-none">
+        <div className="pointer-events-none bg-[#021b16] border-b border-white/10 md:border-b-0 shadow-[0_6px_24px_rgba(0,0,0,0.45)] md:shadow-none">
+        <div className="relative flex items-center px-3 sm:px-6 py-2 sm:py-3 pointer-events-auto md:pointer-events-none">
           {/* Left: Home */}
           <div className="flex-1 flex justify-start pointer-events-auto">
             <button
@@ -629,9 +646,11 @@ function notifyDataUpdated(at?: Date) {
             </button>
           </div>
 
-      {/* ✅ Mobile: LIVE pill — compact (Penalties jaisi), bell se overlap nahi hogi */}
+        </div>
+      {/* ✅ Mobile: LIVE pill — header ke ANDAR alag row (koi overlap nahi) */}
       {lastUpdated && (
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 lg:hidden flex items-center gap-1 rounded-full border border-emerald-400/40 bg-[#021b16]/70 px-2 py-[3px] pointer-events-none">
+        <div className="lg:hidden flex justify-center pb-1.5 pointer-events-none">
+        <div className="flex items-center gap-1 rounded-full border border-emerald-400/40 bg-[#021b16] px-2 py-[3px]">
           {serverStatus === 'live' ? (
             <span className="relative flex h-1.5 w-1.5">
               <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60 animate-ping" />
@@ -652,22 +671,23 @@ function notifyDataUpdated(at?: Date) {
               ? 'bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)]'
               : 'bg-[linear-gradient(180deg,#ef4444,#f87171,#fca5a5,#f87171,#ef4444)]'
           }`}>
-            {lastUpdated.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
-          </span>
-        </div>
-      )}
-        </div>
-      </header>
+          {lastUpdated.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
+        </span>
+    </div>
+    </div>
+  )}
+    </div>
+  </header>
 
       {/* ===== Content ===== */}
       {view === 'map' && <ContainersMap containers={containers} />}
 
       {view !== 'map' && (
-      <main className={`px-4 sm:px-6 max-w-[1750px] mx-auto flex flex-col ${view === 'report' ? 'pt-24 pb-4 h-dvh overflow-hidden' : 'pt-24 pb-6'}`}>
+      <main className={`px-4 sm:px-6 max-w-[1750px] mx-auto flex flex-col ${view === 'report' ? 'pt-32 lg:pt-24 pb-4 h-dvh overflow-hidden' : 'pt-32 lg:pt-24 pb-6'}`}>
         {view === 'stats' && (
           <div className="flex flex-col gap-6">
             {/* ===== Sticky heading block — scroll par cards is ke PEECHE se guzarti hain ===== */}
-            <div className="sticky top-[60px] sm:top-[64px] z-30 -mx-4 sm:-mx-6 -mt-8 px-4 sm:px-6 pt-6 sm:pt-8 pb-4 bg-[#021b16]">
+            <div className="sticky top-[82px] sm:top-[90px] lg:top-[64px] z-30 -mx-4 sm:-mx-6 -mt-8 px-4 sm:px-6 pt-6 sm:pt-8 pb-4 bg-[#021b16]">
               <h1 className="text-center text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight leading-none">
                 <span className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Containers </span>
                 <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Dashboard</span>
