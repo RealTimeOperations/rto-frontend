@@ -62,6 +62,13 @@ function escXml(s: string) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
+// ✅ Dashboard (Time Pill) jaisa exact time parse karne ke liye (UTC/Timezone offset ko ignore karta hai)
+function parseLocal(s: string): Date {
+  const clean = String(s).replace('Z', '').replace(/[+-]\d{2}:\d{2}$/, '').replace(' ', 'T')
+  const d = new Date(clean)
+  return isNaN(d.getTime()) ? new Date(s) : d
+}
+
 export default function ContainersReport({ locations, portal }: { locations: Row[]; portal: Row[] }) {
   const [filter, setFilter] = useState<FilterKey>('mismatch')
   const [supFilter, setSupFilter] = useState('all')
@@ -151,7 +158,8 @@ export default function ContainersReport({ locations, portal }: { locations: Row
   const lastUpdated = useMemo(() => {
     let maxT = 0
     for (const r of portal) {
-      const t = r.fetched_at ? new Date(r.fetched_at).getTime() : 0
+      // ✅ parseLocal use karo taake Time Pill aur Copy Image ka time 100% same ho
+      const t = r.fetched_at ? parseLocal(r.fetched_at).getTime() : 0
       if (t > maxT) maxT = t
     }
     return maxT ? new Date(maxT) : null
