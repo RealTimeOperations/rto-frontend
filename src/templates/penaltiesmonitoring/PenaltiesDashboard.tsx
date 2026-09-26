@@ -80,7 +80,7 @@ const CS_ROWS = [
   { key: 'website', label: 'Public Website', icon: 'globe', badge: 'border-amber-400/30 bg-amber-500/10 text-amber-300' },
   { key: 'obs', label: 'Observations', icon: 'eye', badge: 'border-slate-400/30 bg-slate-500/10 text-slate-300' },
   { key: 'imu', label: 'IMU Complaints', icon: 'alert', badge: 'border-rose-400/30 bg-rose-500/10 text-rose-300' },
-  { key: 'shahri', label: 'Suthra Punjab Shahri', icon: 'building', badge: 'border-cyan-400/30 bg-cyan-500/10 text-cyan-300' },
+  { key: 'shahri', label: 'Suthra Punjab Shehri', icon: 'building', badge: 'border-cyan-400/30 bg-cyan-500/10 text-cyan-300' },
 ]
 function CsIcon({ name }: { name: string }) {
   const cls = 'h-3.5 w-3.5'
@@ -1555,7 +1555,7 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
               </div>
               </div>
 
-              <div ref={hndReportRef} className="p-5 flex flex-col gap-2 rounded-2xl bg-[#04231c]">
+              <div ref={hndReportRef} className="p-5 flex flex-col gap-2 bg-[#04231c]">
                 {/* ✅ Image heading — popup mein hidden, sirf copied image mein dikhegi */}
                 <div ref={reportHeadingRef} className="hidden">
                   <div className="flex flex-wrap items-center justify-between gap-2 px-1 pb-1">
@@ -1636,7 +1636,7 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
               </div>
 
               {/* ✅ Table area (yahi hissa copy hota hai) */}
-              <div ref={csReportRef} className="p-5 rounded-2xl bg-[#04231c]">
+              <div ref={csReportRef} className="p-5 bg-[#04231c]">
                 {/* ✅ Image heading — popup mein hidden, sirf copied image mein dikhegi */}
                 <div ref={csHeadingRef} className="hidden">
                   <div className="flex flex-wrap items-center justify-between gap-2 px-1 pb-2">
