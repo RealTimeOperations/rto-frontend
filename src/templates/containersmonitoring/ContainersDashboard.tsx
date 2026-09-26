@@ -687,7 +687,7 @@ function notifyDataUpdated(at?: Date) {
         {view === 'stats' && (
           <div className="flex flex-col gap-6">
             {/* ===== Sticky heading block — scroll par cards is ke PEECHE se guzarti hain ===== */}
-            <div className="sticky top-[82px] sm:top-[90px] lg:top-[64px] z-30 -mx-4 sm:-mx-6 -mt-4 sm:-mt-6 px-4 sm:px-6 pt-3 sm:pt-4 pb-2 bg-[#021b16]">
+            <div className="sticky top-[82px] sm:top-[90px] lg:top-[64px] z-30 -mx-4 sm:-mx-6 -mt-4 sm:-mt-6 px-4 sm:px-6 pt-3 sm:pt-4 pb-0 bg-[#021b16]">
               <h1 className="text-center text-lg sm:text-xl md:text-2xl font-extrabold tracking-tight leading-none">
                 <span className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Containers </span>
                 <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Dashboard</span>
@@ -698,7 +698,7 @@ function notifyDataUpdated(at?: Date) {
             </div>
 
             {/* ===== Section heading ===== */}
-            <h2 className="text-lg sm:text-xl md:text-2xl font-extrabold flex items-center gap-3 -mb-2">
+            <h2 className="text-lg sm:text-xl md:text-2xl font-extrabold flex items-center gap-3 -mt-4 sm:-mt-5 -mb-2">
               <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-emerald-400/30 bg-emerald-500/10 text-emerald-300">
                 <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M3 3v18h18" />
