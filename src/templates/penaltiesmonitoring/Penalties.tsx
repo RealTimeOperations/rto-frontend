@@ -182,6 +182,15 @@ export default function Penalties({ penalties, loading = false, permissions }: P
       return
     }
     setAttachLoading(true)
+    // ✅ Backend reachability check — saaf error agar API is device se door ho
+    try {
+      const hs = await fetch(API_BASE + '/penalties/status')
+      if (!hs.ok) throw new Error('HTTP ' + hs.status)
+    } catch {
+      setAttachError('Backend API unreachable: ' + API_BASE + ' — server binding / firewall check karein')
+      setAttachLoading(false)
+      return
+    }
     // ✅ PARALLEL + PROGRESSIVE: sab images ek sath fetch hon, har image aate hi foran show ho
     const slots: ({ url: string; blob: Blob } | null)[] = urls.map(() => null)
     try {
