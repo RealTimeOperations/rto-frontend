@@ -698,9 +698,9 @@ function notifyDataUpdated(at?: Date) {
             </div>
 
             {/* ===== Section heading ===== */}
-            <h2 className="text-lg sm:text-xl md:text-2xl font-extrabold flex items-center gap-3 -mt-4 sm:-mt-5 -mb-2">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-emerald-400/30 bg-emerald-500/10 text-emerald-300">
-                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <h2 className="text-base sm:text-lg md:text-xl font-extrabold flex items-center gap-2.5 -mt-4 sm:-mt-5 -mb-2">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-400/30 bg-emerald-500/10 text-emerald-300">
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M3 3v18h18" />
                   <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3" />
                 </svg>
@@ -849,9 +849,9 @@ function notifyDataUpdated(at?: Date) {
 
             {/* Vehicle Performance */}
             <div>
-              <h3 className="text-xl sm:text-2xl font-extrabold mb-5 flex items-center gap-3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-sky-400/30 bg-sky-500/10 text-sky-300">
-                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <h3 className="text-lg sm:text-xl font-extrabold mb-4 flex items-center gap-2.5">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-sky-400/30 bg-sky-500/10 text-sky-300">
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M10 17h4V5H2v12h3" />
                     <path d="M20 17h2v-3.34a4 4 0 0 0-1.17-2.83L19 9h-5v8h1" />
                     <circle cx="7.5" cy="17.5" r="2.5" />
@@ -903,8 +903,8 @@ function notifyDataUpdated(at?: Date) {
 
             {/* Supervisor Performance */}
             <div>
-              <h3 className="text-xl sm:text-2xl font-extrabold mb-5 flex items-center gap-3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-base">👥</span>
+              <h3 className="text-lg sm:text-xl font-extrabold mb-4 flex items-center gap-2.5">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/20 bg-white/10 text-sm">👥</span>
                 <span className={WHITE_NUM}>Supervisor </span>
                 <span className={EMERALD_NUM}>Performance</span>
               </h3>
