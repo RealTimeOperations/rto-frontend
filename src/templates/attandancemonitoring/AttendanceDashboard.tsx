@@ -52,6 +52,11 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
       return isNaN(d) ? 0 : d
     } catch { return 0 }
   })())
+  // ✅ Last NOTIFIED data time (persisted) — pill marker se ALAG (Penalties jaisa),
+  //    taake missed update (jab monitoring band thi) mount par foran notify ho
+  const lastNotifiedMsRef = useRef<number>((() => {
+    try { return Number(localStorage.getItem('rto_last_notified_ms')) || 0 } catch { return 0 }
+  })())
   const [notifications, setNotifications] = useState<{ id: number; type: 'success' | 'error'; message: string; time: string; unread?: boolean }[]>(() => {
     try {
       const saved = localStorage.getItem('rto_latest_notification')
@@ -195,15 +200,9 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
     lastHbKeyRef.current = key
     try { localStorage.setItem('rto_last_hb_key', key) } catch {}
   }
-  // ✅ Data-update notification with 20s dedup (Penalties jaisa) — double notification rokta hai
-  const lastDataNotifyRef = useRef<number>((() => {
-    try { return Number(localStorage.getItem('rto_last_notify_ms')) || 0 } catch { return 0 }
-  })())
+  // ✅ Data-update notification — time = DB ka latest data time (pill wala SAME time)
+  //    (double-notification ka guard lastNotifiedMsRef marker hai, koi dedup timer nahi)
   function notifyDataUpdated(at?: Date) {
-    const nowMs = Date.now()
-    if (nowMs - lastDataNotifyRef.current < 20_000) return
-    lastDataNotifyRef.current = nowMs
-    try { localStorage.setItem('rto_last_notify_ms', String(nowMs)) } catch {}
     pushNotification('success', 'Data successfully updated', at)
   }
   useEffect(() => {
@@ -259,29 +258,32 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
       setEmployees(emp)
       setBaseValues((bv.data ?? []) as { label: string; value: number; sort_order: number; type: string; present_target?: number | null }[])
 
-      // ✅ LAST UPDATED ka SINGLE SOURCE: attendance_logs ka sab se naya created_at
-      //    Refresh par STABLE (localStorage se compare), data update par foran update + notification SAME time
+      // ✅ LAST UPDATED ka SINGLE SOURCE: attendance_logs ka sab se naya date_time (portal event time)
+      //    (clean schema mein created_at mojood NAHI — isi wajah se pill refresh par jump karti thi)
+      //    Data same → maxT same → pill STATIC; data change → pill + notification SAME time
       let maxT = 0
       for (const r of att) {
-        const t = r.created_at ? parseLocal(r.created_at).getTime() : 0
+        const rawT = r.date_time ?? r.created_at
+        const t = rawT ? parseLocal(rawT).getTime() : 0
         if (t > maxT) maxT = t
       }
       if (maxT > 0) {
+        const d = new Date(maxT)
+        setLastSync(d)   // ✅ pill hamesha DB time par — refresh par change NAHI hoti
+        // ✅ Pill marker (persisted)
         if (maxT !== lastSyncMsRef.current) {
-          const prev = lastSyncMsRef.current
           lastSyncMsRef.current = maxT
-          const d = new Date(maxT)
-          setLastSync(d)
           try { localStorage.setItem('rto_last_data_update', d.toISOString()) } catch {}
-          if (prev > 0) notifyDataUpdated(d)   // ✅ pill aur notification DONO mein SAME time
-        } else {
-          // ✅ Time same hai (refresh), lekin pill show karni hai pehli baar mount par
-          setLastSync(prev => prev ?? new Date(maxT))
         }
-      } else {
-        // ✅ Koi data nahi, current time use karo taake pill foran dikhe
-        setLastSync(prev => prev ?? new Date())
+        // ✅ Notification marker (ALAG persisted) — missed update mount par catch hoti hai
+        if (maxT !== lastNotifiedMsRef.current) {
+          const hadPrev = lastNotifiedMsRef.current > 0
+          lastNotifiedMsRef.current = maxT
+          try { localStorage.setItem('rto_last_notified_ms', String(maxT)) } catch {}
+          if (hadPrev) notifyDataUpdated(d)   // ✅ pill aur notification DONO mein SAME time
+        }
       }
+      // ✅ maxT === 0 (koi data nahi): pill HIDDEN rahe — current time kabhi use NAHI hota
 
       // ✅ Heartbeat processing (EXACTLY like Penalties)
       const h = hb.data
@@ -332,6 +334,34 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
     document.addEventListener('visibilitychange', onVis)
     return () => document.removeEventListener('visibilitychange', onVis)
   }, [load])
+
+  // ✅ Doosre tabs mein bhi bell + pill LIVE sync (same browser — storage event sirf doosre tabs mein chalta hai)
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'rto_latest_notification' && e.newValue) {
+        try {
+          const item = JSON.parse(e.newValue)
+          if (item && item.message) {
+            setNotifications([item])
+            setUnread(item.unread ? 1 : 0)
+          }
+        } catch {}
+      }
+      if (e.key === 'rto_last_notified_ms' && e.newValue) {
+        lastNotifiedMsRef.current = Number(e.newValue) || lastNotifiedMsRef.current
+      }
+      if (e.key === 'rto_last_data_update' && e.newValue) {
+        const d = new Date(e.newValue)
+        if (!isNaN(d.getTime())) {
+          setLastSync(d)
+          lastSyncMsRef.current = d.getTime()
+        }
+      }
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const tabs: { key: View; label: string }[] = [
     { key: 'dashboard', label: 'Dashboard' },
