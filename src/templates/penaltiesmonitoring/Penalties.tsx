@@ -104,6 +104,8 @@ export default function Penalties({ penalties, loading = false, permissions }: P
   const [attachError, setAttachError] = useState('')
   const [copyMsg, setCopyMsg] = useState('')
   const flashTimer = useRef<number | null>(null)
+  // ✅ Session memory cache — popup dobara kholne par images instant (koi network nahi)
+  const attachCacheRef = useRef<Map<string, { url: string; blob: Blob }[]>>(new Map())
 
   // ✅ 1. Office-wise FMO assignments
   const [fmoAssignments, setFmoAssignments] = useState<{ fmo_name: string; hnd_office: boolean; faqirwali_office: boolean }[]>([])
@@ -166,6 +168,12 @@ export default function Penalties({ penalties, loading = false, permissions }: P
     setAttachImgs([])
     setAttachError('')
     setCopyMsg('')
+    // ✅ Session cache: popup dobara kholne par foran images (koi network call nahi)
+    const cached = attachCacheRef.current.get(String(p.id ?? ''))
+    if (cached && cached.length > 0) {
+      setAttachImgs(cached)
+      return
+    }
     // ✅ Images ki list DB (penaltiesdata.attachments) se — auto-sync store karta hai
     const urls: string[] = normalizeAttachments(p.attachments)
     if (urls.length === 0) {
@@ -173,17 +181,23 @@ export default function Penalties({ penalties, loading = false, permissions }: P
       return
     }
     setAttachLoading(true)
+    // ✅ PARALLEL + PROGRESSIVE: sab images ek sath fetch hon, har image aate hi foran show ho
+    const slots: ({ url: string; blob: Blob } | null)[] = urls.map(() => null)
     try {
-      const loaded: { url: string; blob: Blob }[] = []
-      for (const u of urls) {
+      await Promise.all(urls.map(async (u, i) => {
         try {
           const pr = await fetch(API_BASE + '/penalties/attachment-image?url=' + encodeURIComponent(u))
-          if (!pr.ok) continue
+          if (!pr.ok) return
           const blob = await pr.blob()
-          if (blob.size > 0) loaded.push({ url: URL.createObjectURL(blob), blob })
+          if (blob.size > 0) {
+            slots[i] = { url: URL.createObjectURL(blob), blob }
+            setAttachImgs(slots.filter((s): s is { url: string; blob: Blob } => s !== null))
+          }
         } catch {}
-      }
+      }))
+      const loaded = slots.filter((s): s is { url: string; blob: Blob } => s !== null)
       if (loaded.length === 0) throw new Error('Failed to load images')
+      attachCacheRef.current.set(String(p.id ?? ''), loaded)   // ✅ session cache mein save
       setAttachImgs(loaded)
     } catch (e: any) {
       setAttachError(e?.message || 'Failed to load images')
@@ -192,7 +206,7 @@ export default function Penalties({ penalties, loading = false, permissions }: P
     }
   }
   function closeAttachments() {
-    attachImgs.forEach(im => URL.revokeObjectURL(im.url))
+    // ✅ Object URLs revoke NAHI karte — session cache mein reuse hoti hain
     setAttachImgs([])
     setAttachPen(null)
     setAttachError('')
