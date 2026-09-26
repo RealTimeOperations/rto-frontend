@@ -975,12 +975,12 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
               <>
                 {/* ✅ Center heading */}
                 <div className="flex flex-col items-center -mb-1">
-                  <h1 className="text-center text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight leading-none whitespace-nowrap">
+                  <h1 className="text-center text-lg sm:text-xl md:text-2xl font-extrabold tracking-tight leading-none whitespace-nowrap">
                     <span className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Penalties </span>
                     <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Dashboard</span>
                   </h1>
-                  <p className="mt-2 sm:mt-3 text-center text-[11px] sm:text-sm font-semibold tracking-[0.08em] text-white/40 whitespace-nowrap">
-                    Live monitoring — {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  <p className="mt-1.5 sm:mt-2 text-center text-[10px] sm:text-xs font-semibold tracking-[0.08em] text-white/40 whitespace-nowrap">
+                    Live Monitoring - <span className="text-[8px] sm:text-[10px] mx-0.5 opacity-70"></span> {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                   </p>
                 </div>
 

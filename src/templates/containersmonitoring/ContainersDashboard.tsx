@@ -687,13 +687,13 @@ function notifyDataUpdated(at?: Date) {
         {view === 'stats' && (
           <div className="flex flex-col gap-6">
             {/* ===== Sticky heading block — scroll par cards is ke PEECHE se guzarti hain ===== */}
-            <div className="sticky top-[82px] sm:top-[90px] lg:top-[64px] z-30 -mx-4 sm:-mx-6 -mt-8 px-4 sm:px-6 pt-6 sm:pt-8 pb-4 bg-[#021b16]">
-              <h1 className="text-center text-xl sm:text-2xl md:text-3xl font-extrabold tracking-tight leading-none">
+            <div className="sticky top-[82px] sm:top-[90px] lg:top-[64px] z-30 -mx-4 sm:-mx-6 -mt-4 sm:-mt-6 px-4 sm:px-6 pt-3 sm:pt-4 pb-2 bg-[#021b16]">
+              <h1 className="text-center text-lg sm:text-xl md:text-2xl font-extrabold tracking-tight leading-none">
                 <span className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Containers </span>
                 <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Dashboard</span>
               </h1>
-              <p className="mt-2 sm:mt-3 text-center text-[11px] sm:text-sm md:text-[15px] font-semibold tracking-[0.08em] text-white/40 whitespace-nowrap">
-                Live monitoring — {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+              <p className="mt-1 sm:mt-1.5 text-center text-[10px] sm:text-xs md:text-sm font-semibold tracking-[0.08em] text-white/40 whitespace-nowrap">
+                Live Monitoring - {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
               </p>
             </div>
 
