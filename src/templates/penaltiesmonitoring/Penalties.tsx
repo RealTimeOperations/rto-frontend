@@ -179,31 +179,36 @@ export default function Penalties({ penalties, loading = false, permissions }: P
       return
     }
     setAttachLoading(true)
-    // ✅ Backend reachability check — saaf error agar API is device se door ho
+    // ✅ Backend probe (SOFT) — ngrok warning bypass header ke sath; probe fail ho to bhi images try hoti hain
+    let probeErr = ''
     try {
-      const hs = await fetch(API_BASE + '/penalties/status')
-      if (!hs.ok) throw new Error('HTTP ' + hs.status)
-    } catch {
-      setAttachError('Backend API unreachable: ' + API_BASE + ' — server binding / firewall check karein')
-      setAttachLoading(false)
-      return
+      const hs = await fetch(API_BASE + '/penalties/status', { headers: { 'ngrok-skip-browser-warning': '1' } })
+      if (!hs.ok) probeErr = 'HTTP ' + hs.status
+    } catch (e: any) {
+      probeErr = e?.message || 'network error'
     }
     // ✅ PARALLEL + PROGRESSIVE: sab images ek sath fetch hon, har image aate hi foran show ho
     const slots: ({ url: string; blob: Blob } | null)[] = urls.map(() => null)
+    const failCodes: number[] = []
     try {
       await Promise.all(urls.map(async (u, i) => {
         try {
-          const pr = await fetch(API_BASE + '/penalties/attachment-image?url=' + encodeURIComponent(u))
-          if (!pr.ok) return
+          const pr = await fetch(API_BASE + '/penalties/attachment-image?url=' + encodeURIComponent(u), { headers: { 'ngrok-skip-browser-warning': '1' } })
+          if (!pr.ok) { failCodes.push(pr.status); return }
           const blob = await pr.blob()
-          if (blob.size > 0) {
+          // ✅ Sirf asli image blob accept karo (ngrok/portal ka HTML error page nahi)
+          if (blob.size > 0 && (blob.type || '').startsWith('image/')) {
             slots[i] = { url: URL.createObjectURL(blob), blob }
             setAttachImgs(slots.filter((s): s is { url: string; blob: Blob } => s !== null))
           }
         } catch {}
       }))
       const loaded = slots.filter((s): s is { url: string; blob: Blob } => s !== null)
-      if (loaded.length === 0) throw new Error('Failed to load images')
+      if (loaded.length === 0) {
+        if (probeErr) throw new Error('Backend/tunnel unreachable (' + probeErr + ') — PC par backend + ngrok DONO on hon')
+        if (failCodes.length) throw new Error('Image proxy failed (HTTP ' + failCodes[0] + ') — backend tunnel check karein')
+        throw new Error('Failed to load images')
+      }
       attachCacheRef.current.set(String(p.id ?? ''), loaded)   // ✅ session cache mein save
       setAttachImgs(loaded)
     } catch (e: any) {
