@@ -2,9 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { API_BASE } from '../../lib/apiBase'
 
-// ✅ Attachments normalize: DB mein comma-joined string / JSON string / array — sab handle karo
-//    e.g. '["url1.jpg,/path2.jpg"]' → ['https://.../url1.jpg', 'https://suthra.punjab.gov.pk/path2.jpg']
-function normalizeAttachments(v: any): string[] {
+// ✅ Attachments normalize: DB mein grouped object {before,after,other} YA legacy flat array/string
+type AttGroups = { before: string[]; after: string[]; other: string[] }
+function splitPieces(v: any): string[] {
   let arr: any[] = []
   if (Array.isArray(v)) arr = v
   else if (typeof v === 'string') {
@@ -12,7 +12,7 @@ function normalizeAttachments(v: any): string[] {
     if (s.startsWith('[')) {
       try { arr = JSON.parse(s) } catch { arr = [s] }
     } else arr = [s]
-  }
+  } else if (v && typeof v === 'object') return []
   const out: string[] = []
   for (const item of arr) {
     for (let piece of String(item ?? '').split(',')) {
@@ -23,7 +23,28 @@ function normalizeAttachments(v: any): string[] {
       else if (piece.startsWith('/')) out.push('https://suthra.punjab.gov.pk' + piece)
     }
   }
-  return [...new Set(out)]
+  return out
+}
+function normalizeAttachmentGroups(v: any): AttGroups {
+  const g: AttGroups = { before: [], after: [], other: [] }
+  const push = (bucket: keyof AttGroups, val: any) => {
+    for (const u of splitPieces(val)) if (!g[bucket].includes(u)) g[bucket].push(u)
+  }
+  if (v && typeof v === 'object' && !Array.isArray(v)) {
+    push('before', (v as any).before)
+    push('after', (v as any).after)
+    push('other', (v as any).other)
+    if (!g.before.length && !g.after.length && !g.other.length) {
+      for (const val of Object.values(v as any)) push('other', val)
+    }
+  } else {
+    push('other', v)   // ✅ Legacy flat array/string → single group
+  }
+  return g
+}
+function normalizeAttachments(v: any): string[] {
+  const g = normalizeAttachmentGroups(v)
+  return [...g.before, ...g.after, ...g.other]   // ✅ order: before → after → other
 } 
 
 type Row = Record<string, any>
@@ -311,6 +332,31 @@ export default function Penalties({ penalties, loading = false, permissions }: P
     }
   }
 
+  // ✅ Before/After groups (DB grouped object se; legacy flat → single "other" group)
+  const attGroups = useMemo(() => normalizeAttachmentGroups(attachPen?.attachments), [attachPen])
+  const beforeSet = useMemo(() => new Set(attGroups.before), [attGroups])
+  const afterSet = useMemo(() => new Set(attGroups.after), [attGroups])
+  const hasGroups = attGroups.before.length + attGroups.after.length > 0
+  const beforeImgs = attachImgs.filter(im => beforeSet.has(im.url))
+  const afterImgs = attachImgs.filter(im => afterSet.has(im.url))
+  const otherImgs = attachImgs.filter(im => !beforeSet.has(im.url) && !afterSet.has(im.url))
+  function renderImgCard(im: { url: string; blob: Blob }) {
+    const i = attachImgs.indexOf(im)
+    return (
+      <div key={im.url} className="flex flex-col gap-2 rounded-xl border border-white/10 bg-black/20 p-2">
+        <img src={im.url} alt={`Penalty image ${i + 1}`} className="w-full rounded-lg object-contain bg-white/5 max-h-[45dvh]" />
+        <button
+          type="button"
+          onClick={() => copySingleImage(i)}
+          className="h-8 px-3 rounded-lg border border-emerald-400/40 bg-emerald-500/10 text-emerald-300 text-[10px] sm:text-xs font-bold hover:bg-emerald-500/25 hover:text-white transition flex items-center justify-center gap-1.5"
+        >
+          <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+          Copy Image {i + 1}
+        </button>
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col gap-3 h-[calc(100dvh-120px)] min-h-[420px]">
       <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3 flex-shrink-0">
@@ -385,21 +431,42 @@ export default function Penalties({ penalties, loading = false, permissions }: P
                 </div>
               ) : attachError ? (
                 <div className="px-4 py-6 rounded-xl border border-red-400/30 bg-red-500/10 text-red-300 text-xs font-bold text-center">{attachError}</div>
-              ) : (
+              ) : !hasGroups ? (
                 <div className={`grid gap-4 ${attachImgs.length > 1 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
-                  {attachImgs.map((im, i) => (
-                    <div key={i} className="flex flex-col gap-2 rounded-xl border border-white/10 bg-black/20 p-2">
-                      <img src={im.url} alt={`Penalty image ${i + 1}`} className="w-full rounded-lg object-contain bg-white/5 max-h-[45dvh]" />
-                      <button
-                        type="button"
-                        onClick={() => copySingleImage(i)}
-                        className="h-8 px-3 rounded-lg border border-emerald-400/40 bg-emerald-500/10 text-emerald-300 text-[10px] sm:text-xs font-bold hover:bg-emerald-500/25 hover:text-white transition flex items-center justify-center gap-1.5"
-                      >
-                        <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
-                        Copy Image {i + 1}
-                      </button>
+                  {attachImgs.map(im => renderImgCard(im))}
+                </div>
+              ) : (
+                <div className="flex flex-col gap-4">
+                  {beforeImgs.length > 0 && (
+                    <div>
+                      <div className="mb-2 flex items-center gap-2 text-[10px] sm:text-[11px] font-extrabold tracking-widest text-amber-300 uppercase">
+                        <span className="h-2 w-2 rounded-full bg-amber-400" /> Before Images (FMO)
+                      </div>
+                      <div className={`grid gap-4 ${beforeImgs.length > 1 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
+                        {beforeImgs.map(im => renderImgCard(im))}
+                      </div>
                     </div>
-                  ))}
+                  )}
+                  {afterImgs.length > 0 && (
+                    <div>
+                      <div className="mb-2 flex items-center gap-2 text-[10px] sm:text-[11px] font-extrabold tracking-widest text-emerald-300 uppercase">
+                        <span className="h-2 w-2 rounded-full bg-emerald-400" /> After Images (GPS)
+                      </div>
+                      <div className={`grid gap-4 ${afterImgs.length > 1 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
+                        {afterImgs.map(im => renderImgCard(im))}
+                      </div>
+                    </div>
+                  )}
+                  {otherImgs.length > 0 && (
+                    <div>
+                      <div className="mb-2 flex items-center gap-2 text-[10px] sm:text-[11px] font-extrabold tracking-widest text-white/60 uppercase">
+                        <span className="h-2 w-2 rounded-full bg-white/40" /> Other Images
+                      </div>
+                      <div className={`grid gap-4 ${otherImgs.length > 1 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
+                        {otherImgs.map(im => renderImgCard(im))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
