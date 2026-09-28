@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toBlob } from 'html-to-image'
 import { supabase } from '../../lib/supabase'
+import { API_BASE } from '../../lib/apiBase'
 
 type Row = Record<string, any>
 
@@ -26,7 +27,8 @@ function fmtDateLabel(dateStr: string) {
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
-const API = 'http://localhost:8000'
+// ✅ Central API base — local/LAN par direct backend, live (pages.dev) par ngrok tunnel
+const API = API_BASE
 
 export default function FMOStatistics({ penalties, loading = false, permissions }: Props) {
   const [detailFmo, setDetailFmo] = useState<string | null>(null)
@@ -84,7 +86,7 @@ export default function FMOStatistics({ penalties, loading = false, permissions 
     try {
       const res = await fetch(`${API}/penalties/imposed-report`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1' },
         body: JSON.stringify({ date: pickerDate }),
       })
       const json = await res.json().catch(() => ({}))

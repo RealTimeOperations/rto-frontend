@@ -1,9 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-
-// ✅ Backend API (penalties attachments + image proxy) — har device se kaam kare
-//    (usi machine par localhost, LAN/deploy par frontend wala hi host)
-const API_BASE = `http://${window.location.hostname}:8000`
+import { API_BASE } from '../../lib/apiBase'
 
 // ✅ Attachments normalize: DB mein comma-joined string / JSON string / array — sab handle karo
 //    e.g. '["url1.jpg,/path2.jpg"]' → ['https://.../url1.jpg', 'https://suthra.punjab.gov.pk/path2.jpg']

@@ -5,6 +5,7 @@ import AttendanceLogs from './AttendanceLogs'
 import TotalHR from './TotalHR'
 import AttendanceReport from './AttendanceReport'
 import { resetMonitoringTabs } from '../../lib/resetTabs'
+import { API_BASE } from '../../lib/apiBase'
 
 // ✅ Supabase timestamptz ko UTC samajh kar store karta hai (Python naive local time bhejta hai) —
 // is liye offset ignore kar ke string ko LOCAL time samjho, taake pill ka time notification se match kare
@@ -115,8 +116,8 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
       window.removeEventListener('resize', update)
     }
   }, [view])
-  // ✅ Backend sync API (Update HR button) — deploy par apna server URL dalein
-  const SYNC_API = 'http://localhost:8000'
+  // ✅ Backend sync API — central apiBase (local/LAN direct, live par ngrok tunnel)
+  const SYNC_API = API_BASE
   const [isAdmin, setIsAdmin] = useState(false)
   const [hrSync, setHrSync] = useState<null | { stage: 'confirm' } | { stage: 'loading' } | { stage: 'done'; type: 'success' | 'warn' | 'error'; message: string }>(null)
 
