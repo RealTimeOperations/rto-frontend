@@ -177,6 +177,12 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
   const reportHeadingRef = useRef<HTMLDivElement>(null)
   const [copying, setCopying] = useState(false)
 
+  // ✅ FaqirWali Office secret report popup — sirf "Penalties" heading par double-click se khulta hai
+  const [faqirwaliReportOpen, setFaqirwaliReportOpen] = useState(false)
+  const faqirwaliReportRef = useRef<HTMLDivElement>(null)
+  const faqirwaliReportHeadingRef = useRef<HTMLDivElement>(null)
+  const [faqirwaliCopying, setFaqirwaliCopying] = useState(false)
+
   // ✅ Report heading date label (dd Mmm yyyy)
   const hndReportDateLabel = useMemo(
     () => new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
@@ -207,6 +213,33 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
     } finally {
       headingEl?.classList.add('hidden')   // ✅ copy ke baad wapis hide
       setCopying(false)
+    }
+  }
+
+  // ✅ Copy FaqirWali Report as image — SIRF report area copy hoga (buttons include nahi honge)
+  async function copyFaqirwaliReportAsImage() {
+    if (!faqirwaliReportRef.current || faqirwaliCopying) return
+    setFaqirwaliCopying(true)
+    const headingEl = faqirwaliReportHeadingRef.current
+    headingEl?.classList.remove('hidden')
+    try {
+      const blob = await toBlob(faqirwaliReportRef.current, { pixelRatio: 2 })
+      if (!blob) throw new Error('Image not generated')
+      if (typeof ClipboardItem !== 'undefined' && navigator.clipboard && 'write' in navigator.clipboard) {
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
+      } else {
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = 'FaqirWali-Penalties-Report.png'
+        a.click()
+        URL.revokeObjectURL(url)
+      }
+    } catch (e: any) {
+      alert(`Copy failed: ${e?.message ?? e}`)
+    } finally {
+      headingEl?.classList.add('hidden')
+      setFaqirwaliCopying(false)
     }
   }
 
@@ -247,6 +280,12 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
   const [editingHndKey, setEditingHndKey] = useState<string | null>(null)
   const [editHndVal, setEditHndVal] = useState('')
 
+  // ✅ FaqirWali Popup Temporary Edits (double-click to edit)
+  const FAQIRWALI_EDITS_KEY = 'rto_faqirwali_report_edits_temp'
+  const [faqirwaliEdits, setFaqirwaliEdits] = useState<Record<string, string>>({})
+  const [editingFaqirwaliKey, setEditingFaqirwaliKey] = useState<string | null>(null)
+  const [editFaqirwaliVal, setEditFaqirwaliVal] = useState('')
+
   // ✅ Complains Summary popup — "Statistics" heading click se khulta hai
   const [csReportOpen, setCsReportOpen] = useState(false)
   const csReportRef = useRef<HTMLDivElement>(null)
@@ -282,6 +321,21 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
       try { localStorage.removeItem(HND_EDITS_KEY) } catch {}
     }
   }, [hndReportOpen])
+
+  // ✅ FaqirWali Popup Edits Logic
+  useEffect(() => {
+    if (faqirwaliReportOpen) {
+      try {
+        const raw = localStorage.getItem(FAQIRWALI_EDITS_KEY)
+        setFaqirwaliEdits(raw ? JSON.parse(raw) : {})
+      } catch { setFaqirwaliEdits({}) }
+      setEditingFaqirwaliKey(null)
+    } else {
+      setFaqirwaliEdits({})
+      setEditingFaqirwaliKey(null)
+      try { localStorage.removeItem(FAQIRWALI_EDITS_KEY) } catch {}
+    }
+  }, [faqirwaliReportOpen])
 
   const fmtNum = (s: string) => {
     const n = Number(s)
@@ -319,6 +373,46 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
     return (
       <span
         onDoubleClick={() => { setEditingHndKey(key); setEditHndVal(ev !== undefined ? ev : String(computed)) }}
+        title="Double-click to edit (temporary)"
+        className={`cursor-pointer ${cls}`}
+      >
+        {shown}
+      </span>
+    )
+  }
+
+  function commitFaqirwaliEdit(key: string) {
+    const val = editFaqirwaliVal.trim()
+    setFaqirwaliEdits(prev => {
+      const next = { ...prev }
+      if (val === '') delete next[key]
+      else next[key] = val
+      try { localStorage.setItem(FAQIRWALI_EDITS_KEY, JSON.stringify(next)) } catch {}
+      return next
+    })
+    setEditingFaqirwaliKey(null)
+  }
+  const faqirwaliEditInput = (key: string) => (
+    <input
+      autoFocus
+      type="text"
+      value={editFaqirwaliVal}
+      onChange={e => setEditFaqirwaliVal(e.target.value)}
+      onBlur={() => commitFaqirwaliEdit(key)}
+      onKeyDown={e => {
+        if (e.key === 'Enter') commitFaqirwaliEdit(key)
+        else if (e.key === 'Escape') setEditingFaqirwaliKey(null)
+      }}
+      className="w-24 sm:w-44 bg-[#021b16] border border-emerald-400/60 rounded-md px-2 py-1 text-emerald-200 text-sm sm:text-base font-bold text-right outline-none"
+    />
+  )
+  const faqirwaliCellView = (key: string, computed: number | string, cls: string) => {
+    if (editingFaqirwaliKey === key) return faqirwaliEditInput(key)
+    const ev = faqirwaliEdits[key]
+    const shown = ev !== undefined ? fmtNum(ev) : (typeof computed === 'number' ? computed.toLocaleString() : computed)
+    return (
+      <span
+        onDoubleClick={() => { setEditingFaqirwaliKey(key); setEditFaqirwaliVal(ev !== undefined ? ev : String(computed)) }}
         title="Double-click to edit (temporary)"
         className={`cursor-pointer ${cls}`}
       >
@@ -671,6 +765,25 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
     return earliest
   }, [hndPenalties])
   const lastImposedOverdue = lastImposedInfo ? lastImposedInfo.getTime() < Date.now() : false
+
+  // ✅ First Imposed Time: FaqirWali ki UNRESOLVED penalties mein se jis ka deadline (Created + TAT) sab se pehle
+  const lastImposedInfoFaqirwali = useMemo(() => {
+    let earliest: Date | null = null
+    for (const p of faqirwaliPenalties) {
+      const st = String(p.status || '').toLowerCase()
+      if (/resolved|closed|finalized/.test(st)) continue
+      const tat = Number(p.tat)
+      if (!isFinite(tat) || tat <= 0) continue
+      const raw = String(p.created_at ?? '').trim()
+      if (!raw) continue
+      const created = parseLocal(raw)
+      if (isNaN(created.getTime())) continue
+      const deadline = new Date(created.getTime() + tat * 3_600_000)
+      if (!earliest || deadline.getTime() < earliest.getTime()) earliest = deadline
+    }
+    return earliest
+  }, [faqirwaliPenalties])
+  const lastImposedOverdueFaqirwali = lastImposedInfoFaqirwali ? lastImposedInfoFaqirwali.getTime() < Date.now() : false
 
   const faqirwaliResolved = faqirwaliPenalties.filter(p => /resolved|closed/i.test(String(p.status || ''))).length
   const faqirwaliUnresolved = faqirwaliPenalties.length - faqirwaliResolved
@@ -1375,14 +1488,17 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
                               <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3" />
                             </svg>
                           </span>
-                          <span
-                            className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite] select-none"
-                            onDoubleClick={() => { if (allowedOffices.includes('hnd')) setHndReportOpen(true) }}
-                          >Penalties </span>
-                          <span
-                            className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite] select-none"
-                            onDoubleClick={() => { if (allowedOffices.includes('hnd')) setCsReportOpen(true) }}
-                          >Statistics</span>
+                        <span
+                          className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite] select-none"
+                          onDoubleClick={() => { 
+                            if (allowedOffices.includes('hnd')) setHndReportOpen(true)
+                            else if (allowedOffices.includes('faqirwali')) setFaqirwaliReportOpen(true)
+                          }}
+                        >Penalties </span>
+                        <span
+                          className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite] select-none"
+                          onDoubleClick={() => { if (allowedOffices.includes('hnd')) setCsReportOpen(true) }}
+                        >Statistics</span>
                         </h2>
                         <div className="flex flex-col gap-1.5 sm:gap-2">
                           {[
@@ -1599,8 +1715,84 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
         </>
       )}
 
-      {/* ✅ Complains Summary Popup — "Statistics" heading click se khulta hai */}
-      {csReportOpen && (
+   {/* ✅ FaqirWali Office Report Popup — sirf FaqirWali access walon ke liye, double-click se khulta hai */}
+   {faqirwaliReportOpen && (
+     <>
+       <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" onClick={() => setFaqirwaliReportOpen(false)} />
+       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+         <div className="pointer-events-auto w-full max-w-md rounded-2xl border border-emerald-400/30 bg-[#04231c] shadow-[0_30px_80px_rgba(0,0,0,0.6)]">
+           <div className="flex items-center justify-between gap-3 px-5 pt-4">
+             <div className="flex items-baseline gap-2 min-w-0">
+               <div className="text-sm sm:text-base font-extrabold truncate">
+                 <span className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Penalties </span>
+                 <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Report</span>
+               </div>
+               <div className="text-[10px] sm:text-[11px] font-bold text-emerald-300 whitespace-nowrap">{hndReportDateLabel}</div>
+             </div>
+             <div className="flex items-center gap-2 shrink-0">
+             <button
+               type="button"
+               onClick={copyFaqirwaliReportAsImage}
+               disabled={faqirwaliCopying}
+               className="h-9 px-3 rounded-xl border border-emerald-400/40 bg-emerald-500/10 text-emerald-300 text-[10px] sm:text-xs font-bold hover:bg-emerald-500/25 hover:text-white transition flex items-center gap-1.5 whitespace-nowrap disabled:opacity-50"
+             >
+               <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+               {faqirwaliCopying ? 'Copying…' : 'Copy Report'}
+             </button>
+             <button
+               type="button"
+               onClick={() => setFaqirwaliReportOpen(false)}
+               aria-label="Close report"
+               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/5 text-white/70 hover:bg-red-500/15 hover:border-red-400/40 hover:text-red-300 transition"
+             >
+               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+             </button>
+           </div>
+           </div>
+           <div ref={faqirwaliReportRef} className="p-5 flex flex-col gap-2 bg-[#04231c]">
+             <div ref={faqirwaliReportHeadingRef} className="hidden">
+               <div className="flex flex-wrap items-center justify-between gap-2 px-1 pb-1">
+                 <div className="text-sm sm:text-base font-extrabold">
+                   <span className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Penalties </span>
+                   <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Report</span>
+                 </div>
+                 <div className="text-[10px] sm:text-xs font-extrabold text-emerald-300 whitespace-nowrap">{hndReportDateLabel}</div>
+               </div>
+             </div>
+             <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-400/25 bg-amber-500/10 px-4 py-3">
+               <span className="text-xs sm:text-sm font-semibold text-white/70">Total Penalties</span>
+               {faqirwaliCellView('total', loading ? '—' : faqirwaliPenalties.length, 'text-xl sm:text-2xl font-extrabold bg-[linear-gradient(180deg,#f59e0b,#fbbf24,#fde68a,#fbbf24,#f59e0b)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]')}
+             </div>
+             <div className="flex items-center justify-between gap-3 rounded-xl border border-emerald-400/25 bg-emerald-500/10 px-4 py-3">
+               <span className="text-xs sm:text-sm font-semibold text-white/70">Resolved</span>
+               {faqirwaliCellView('resolved', loading ? '—' : faqirwaliResolved, 'text-xl sm:text-2xl font-extrabold bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]')}
+             </div>
+             <div className="flex items-center justify-between gap-3 rounded-xl border border-red-400/25 bg-red-500/10 px-4 py-3">
+               <span className="text-xs sm:text-sm font-semibold text-white/70">Un Resolved</span>
+               {faqirwaliCellView('unresolved', loading ? '—' : faqirwaliUnresolved, 'text-xl sm:text-2xl font-extrabold bg-[linear-gradient(180deg,#ef4444,#f87171,#fca5a5,#f87171,#ef4444)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]')}
+             </div>
+             <div className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-3 ${lastImposedOverdueFaqirwali ? 'border-red-400/25 bg-red-500/10' : 'border-sky-400/25 bg-sky-500/10'}`}>
+               <span className="text-xs sm:text-sm font-semibold text-white/70">First Imposed Time</span>
+               {faqirwaliCellView(
+                 'first_imposed',
+                 loading ? '—' : lastImposedInfoFaqirwali
+                   ? lastImposedInfoFaqirwali.toLocaleString('en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })
+                   : '—',
+                 `text-sm sm:text-lg font-extrabold bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite] whitespace-nowrap ${
+                   lastImposedOverdueFaqirwali
+                     ? 'bg-[linear-gradient(180deg,#ef4444,#f87171,#fca5a5,#f87171,#ef4444)]'
+                     : 'bg-[linear-gradient(180deg,#0ea5e9,#38bdf8,#7dd3fc,#38bdf8,#0ea5e9)]'
+                 }`
+               )}
+             </div>
+           </div>
+         </div>
+       </div>
+     </>
+   )}
+
+   {/* ✅ Complains Summary Popup — "Statistics" heading click se khulta hai */}
+   {csReportOpen && (
         <>
           <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" onClick={() => setCsReportOpen(false)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
