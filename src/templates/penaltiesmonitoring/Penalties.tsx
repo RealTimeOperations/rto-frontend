@@ -460,7 +460,6 @@ export default function Penalties({ penalties, loading = false, permissions }: P
                   {otherImgs.length > 0 && (
                     <div>
                       <div className="mb-2 flex items-center gap-2 text-[10px] sm:text-[11px] font-extrabold tracking-widest text-white/60 uppercase">
-                        <span className="h-2 w-2 rounded-full bg-white/40" /> Other Images
                       </div>
                       <div className={`grid gap-4 ${otherImgs.length > 1 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
                         {otherImgs.map(im => renderImgCard(im))}
