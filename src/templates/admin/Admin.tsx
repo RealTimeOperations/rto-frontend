@@ -48,10 +48,8 @@ export default function Admin({ onHomeClick }: AdminProps) {
   }, [tab])
 
   async function handleLogout() {
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) await supabase.rpc('track_device_logout', { p_user_id: user.id, p_device_id: deviceFingerprint() })
-    } catch {}
+    const { trackDeviceLogout } = await import('../../lib/deviceInfo')
+    await trackDeviceLogout()
     await supabase.auth.signOut()
   }
 
