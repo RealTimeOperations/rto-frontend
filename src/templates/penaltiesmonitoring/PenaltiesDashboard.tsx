@@ -1675,8 +1675,8 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
               </>
             )}
 
-            {/* ✅ Supervisor Statistics — end cards (office-filtered data) */}
-            {supervisorStats.length > 0 && (
+            {/* ✅ Supervisor Statistics — end cards (SIRF admin / dono offices wali access) */}
+            {allowedOffices.length === 2 && supervisorStats.length > 0 && (
               <div className="flex flex-col gap-4">
                 <h2 className="text-sm sm:text-base md:text-lg lg:text-xl font-extrabold flex items-center gap-2 sm:gap-3">
                   <span className="flex h-7 w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 items-center justify-center rounded-lg sm:rounded-xl border border-cyan-400/30 bg-cyan-500/10 text-cyan-300">
