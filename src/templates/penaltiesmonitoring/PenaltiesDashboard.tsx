@@ -172,6 +172,9 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
   })
   const [popup, setPopup] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   // ✅ HND Office secret report popup — sirf "Penalties" heading par double-click se khulta hai
+  // ✅ Office sections toggle — default HIDDEN, button se open/close
+  const [showHnd, setShowHnd] = useState(false)
+  const [showFaq, setShowFaq] = useState(false)
   const [hndReportOpen, setHndReportOpen] = useState(false)
   const hndReportRef = useRef<HTMLDivElement>(null)
   const reportHeadingRef = useRef<HTMLDivElement>(null)
@@ -1270,7 +1273,48 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
                       )}
                     </div>
 
-                    {/* ROW 3: HND Office - Stats + Graphs */}
+                    {/* ✅ Office toggle buttons — Overall Penalty Sub Types card kay foran neeche */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                      <button
+                        type="button"
+                        onClick={() => setShowHnd(v => !v)}
+                        className={`${cardCls} group relative flex flex-col items-center gap-2 p-4 sm:p-5 transition hover:shadow-[0_0_35px_rgba(56,189,248,0.15)]`}
+                      >
+                        <span className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl border border-sky-400/30 bg-sky-500/10 text-sky-300">
+                          <svg className="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                            <polyline points="9 22 9 12 15 12 15 22" />
+                          </svg>
+                        </span>
+                        <span className="text-sm sm:text-base lg:text-lg font-extrabold bg-[linear-gradient(180deg,#0ea5e9,#38bdf8,#7dd3fc,#38bdf8,#0ea5e9)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
+                          HND Office Penalties Statistics
+                        </span>
+                        {/* ✅ Button kay neeche border arrow (notch) — open hone par ulta ho jata hai */}
+                        <span className={`absolute -bottom-[9px] left-1/2 h-4 w-4 -translate-x-1/2 rotate-45 border-b border-r border-emerald-400/25 bg-[#021d17] transition-transform duration-300 ${showHnd ? 'rotate-[225deg]' : ''}`} />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setShowFaq(v => !v)}
+                        className={`${cardCls} group relative flex flex-col items-center gap-2 p-4 sm:p-5 transition hover:shadow-[0_0_35px_rgba(168,85,247,0.15)]`}
+                      >
+                        <span className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl border border-purple-400/30 bg-purple-500/10 text-purple-300">
+                          <svg className="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                            <polyline points="9 22 9 12 15 12 15 22" />
+                          </svg>
+                        </span>
+                        <span className="text-sm sm:text-base lg:text-lg font-extrabold bg-[linear-gradient(180deg,#a855f7,#c084fc,#d8b4fe,#c084fc,#a855f7)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
+                          FaqirWali Office Penalties Statistics
+                        </span>
+                        {/* ✅ Button kay neeche border arrow (notch) */}
+                        <span className={`absolute -bottom-[9px] left-1/2 h-4 w-4 -translate-x-1/2 rotate-45 border-b border-r border-emerald-400/25 bg-[#021d17] transition-transform duration-300 ${showFaq ? 'rotate-[225deg]' : ''}`} />
+                      </button>
+                    </div>
+
+                    {/* ROW 3: HND Office - Stats + Graphs (default HIDDEN — HND button se open) */}
+                    {showHnd && (
+                    <>
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                       <div className={`${cardCls} p-3 sm:p-4 md:p-5 lg:p-6 flex flex-col gap-2 sm:gap-3 md:gap-4`}>
                         <h2 className="text-sm sm:text-base md:text-lg lg:text-xl font-extrabold flex items-center gap-2 sm:gap-3">
@@ -1399,7 +1443,25 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
                       )}
                     </div>
 
-                    {/* ROW 5: FaqirWali Office - Stats + Graphs */}
+                    {/* ✅ HND section ka close arrow — stats kay end par */}
+                      <div className="flex justify-center -mt-2">
+                        <button
+                          type="button"
+                          onClick={() => setShowHnd(false)}
+                          aria-label="Close HND statistics"
+                          className="flex h-9 w-16 items-center justify-center rounded-xl border border-sky-400/30 bg-[#04231c] text-sky-300 hover:bg-sky-500/15 hover:text-white transition"
+                        >
+                          <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M18 15l-6-6-6 6" />
+                          </svg>
+                        </button>
+                      </div>
+                      </>
+                      )}
+
+                      {/* ROW 5: FaqirWali Office - Stats + Graphs (default HIDDEN — FaqirWali button se open) */}
+                      {showFaq && (
+                      <>
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                       <div className={`${cardCls} p-3 sm:p-4 md:p-5 lg:p-6 flex flex-col gap-2 sm:gap-3 md:gap-4`}>
                         <h2 className="text-sm sm:text-base md:text-lg lg:text-xl font-extrabold flex items-center gap-2 sm:gap-3">
@@ -1517,21 +1579,35 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
                                 <td className="px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40">
                                 <span className="font-extrabold text-emerald-300">{faqirwaliPenalties.length}</span>
                                 </td>
-                                <td className="px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-red-400/40">
+                              <td className="px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-red-400/40">
                                 <span className="font-extrabold text-red-300">{faqirwaliSubTypeFmoMatrix.subs.reduce((sum, s) => sum + (faqirwaliSubTypeFmoMatrix.subUnresolved.get(s) || 0), 0)}</span>
-                                </td>
-                                </tr>
-                                </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      )}
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
-                  </>
-                )}
-
-                {/* ✅ SINGLE OFFICE DASHBOARD */}
-                {allowedOffices.length === 1 && (
+                  )}
+                </div>
+                {/* ✅ FaqirWali section ka close arrow — stats kay end par (HND jaisa) */}
+                <div className="flex justify-center -mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowFaq(false)}
+                    aria-label="Close FaqirWali statistics"
+                    className="flex h-9 w-16 items-center justify-center rounded-xl border border-purple-400/30 bg-[#04231c] text-purple-300 hover:bg-purple-500/15 hover:text-white transition"
+                  >
+                    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M18 15l-6-6-6 6" />
+                    </svg>
+                  </button>
+                </div>
+              </>
+            )}
+             </>
+              )}
+            {/* ✅ SINGLE OFFICE DASHBOARD */}
+              {allowedOffices.length === 1 && (
                   <>
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                       <div className={`${cardCls} p-3 sm:p-4 md:p-5 lg:p-6 flex flex-col gap-2 sm:gap-3 md:gap-4`}>
@@ -1674,9 +1750,9 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
                 )}
               </>
             )}
-
-            {/* ✅ Supervisor Statistics — end cards (SIRF admin / dono offices wali access) */}
-            {allowedOffices.length === 2 && supervisorStats.length > 0 && (
+              {/* ✅ Supervisor Statistics — ABI KE LIYE COMMENT-OUT (disable).
+                  Zaroorat par sirf `false && ` hata dein, sab wapis active ho jayega. */}
+              {false && allowedOffices.length === 2 && supervisorStats.length > 0 && (
               <div className="flex flex-col gap-4">
                 <h2 className="text-sm sm:text-base md:text-lg lg:text-xl font-extrabold flex items-center gap-2 sm:gap-3">
                   <span className="flex h-7 w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 items-center justify-center rounded-lg sm:rounded-xl border border-cyan-400/30 bg-cyan-500/10 text-cyan-300">

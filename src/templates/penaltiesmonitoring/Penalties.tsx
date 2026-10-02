@@ -100,7 +100,16 @@ function statusBadge(s: string) {
   if (v.includes('forward')) return 'bg-amber-500/15 text-amber-300 border-amber-400/40'
   return 'bg-white/5 text-white/60 border-white/15'
 }
-
+// ✅ Status clean karne ka function (Unverified remove karne ke liye)
+function formatStatus(s: any): string {
+  if (!s) return '—';
+  let v = String(s);
+  // "Unverified" word ko case-insensitive replace karein
+  v = v.replace(/unverified/gi, '').trim();
+  // Extra spaces, commas, ya dashes ko clean karein jo remove karne ke baad reh jayen
+  v = v.replace(/^[\s,._-]+|[\s,._-]+$/g, '');
+  return String(s || '—').replace(/\s*\(.*?\)\s*/g, '').trim();
+}
 function fmtDate(v: any) {
   const s = String(v || '').trim()
   if (!s) return '—'
@@ -108,6 +117,7 @@ function fmtDate(v: any) {
   if (isNaN(d.getTime())) return s
   return d.toLocaleString('en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })
 }
+
 // ✅ UC/Ward normalize + key (supervisor matching ke liye — format farq handle karta hai)
 function normUc(s: any) {
   return String(s ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
@@ -120,12 +130,15 @@ function ucKey(s: any) {
 
 // ✅ 13 columns ki fixed widths (total = 100%) — header + body dono mein same → alignment barqarar
 const COL_WIDTHS = ['3%','8%','8%','10%','5%','8%','6%','4%','10%','9%','10%','12%','7%']
+
 export default function Penalties({ penalties, loading = false, permissions }: Props) {
   const [search, setSearch] = useState('')
   const [fType, setFType] = useState('')
   const [fStatus, setFStatus] = useState('')
   const [fImposed, setFImposed] = useState('')
   const [fAddedBy, setFAddedBy] = useState('')
+  const [fSupervisor, setFSupervisor] = useState('') // ✅ Naya Supervisor Filter State
+  
   // ✅ Penalty images popup (portal attachments)
   const [attachPen, setAttachPen] = useState<Row | null>(null)
   const [attachImgs, setAttachImgs] = useState<{ url: string; blob: Blob }[]>([])
@@ -133,6 +146,7 @@ export default function Penalties({ penalties, loading = false, permissions }: P
   const [attachError, setAttachError] = useState('')
   const [copyMsg, setCopyMsg] = useState('')
   const flashTimer = useRef<number | null>(null)
+  
   // ✅ Session memory cache — popup dobara kholne par images instant (koi network nahi)
   const attachCacheRef = useRef<Map<string, { url: string; blob: Blob }[]>>(new Map())
 
@@ -155,6 +169,7 @@ export default function Penalties({ penalties, loading = false, permissions }: P
     }
     loadSupervisors()
   }, [])
+  
   const supByUc = useMemo(() => {
     const m = new Map<string, string[]>()
     for (const s of supervisors) {
@@ -193,6 +208,16 @@ export default function Penalties({ penalties, loading = false, permissions }: P
   const addedByOptions = useMemo(() => [...new Set(filteredPenalties.map((p: Row) => String(p.added_by || '').trim()).filter(Boolean))].sort(), [filteredPenalties])
   const imposedOptions = ['TM Imposed', 'FMO Imposed', 'No']
 
+  // ✅ Supervisor Options (Sirf wo supervisors jin ki penalties current list mein hain)
+  const supervisorOptions = useMemo(() => {
+    const sups = new Set<string>()
+    for (const p of filteredPenalties) {
+      const names = supByUc.get(ucKey(p.uc_ward)) || []
+      names.forEach(n => sups.add(n))
+    }
+    return [...sups].sort()
+  }, [filteredPenalties, supByUc])
+
   const filtered = useMemo(() => {
     const s = search.toLowerCase().trim()
     return filteredPenalties.filter((p: Row) => {
@@ -203,9 +228,16 @@ export default function Penalties({ penalties, loading = false, permissions }: P
       if (fImposed === 'FMO Imposed' && !isYes(p.penalty_imposed)) return false
       if (fImposed === 'No' && (isYes(p.tm_imposed) || isYes(p.penalty_imposed))) return false
       if (fAddedBy && String(p.added_by || '').trim() !== fAddedBy) return false
+      
+      // ✅ Supervisor Filter Logic
+      if (fSupervisor) {
+        const names = supByUc.get(ucKey(p.uc_ward)) || []
+        if (!names.includes(fSupervisor)) return false
+      }
+      
       return true
     })
-  }, [filteredPenalties, search, fType, fStatus, fImposed, fAddedBy])
+  }, [filteredPenalties, search, fType, fStatus, fImposed, fAddedBy, fSupervisor, supByUc])
 
   // ✅ Penalty images: portal attachments fetch + popup + copy logic
   function flash(msg: string) {
@@ -213,6 +245,7 @@ export default function Penalties({ penalties, loading = false, permissions }: P
     if (flashTimer.current) window.clearTimeout(flashTimer.current)
     flashTimer.current = window.setTimeout(() => setCopyMsg(''), 2000)
   }
+  
   async function openAttachments(p: Row) {
     setAttachPen(p)
     setAttachImgs([])
@@ -269,6 +302,7 @@ export default function Penalties({ penalties, loading = false, permissions }: P
       setAttachLoading(false)
     }
   }
+  
   function closeAttachments() {
     // ✅ Object URLs revoke NAHI karte — session cache mein reuse hoti hain
     setAttachImgs([])
@@ -276,6 +310,7 @@ export default function Penalties({ penalties, loading = false, permissions }: P
     setAttachError('')
     setCopyMsg('')
   }
+  
   // ✅ Blob → PNG convert (canvas ke zariye) — Clipboard write sirf image/png accept karta hai
   function blobToPng(blob: Blob): Promise<Blob> {
     return new Promise((res, rej) => {
@@ -306,6 +341,7 @@ export default function Penalties({ penalties, loading = false, permissions }: P
       el.src = url
     })
   }
+  
   async function copyBlobToClipboard(blob: Blob) {
     if (typeof ClipboardItem === 'undefined' || !navigator.clipboard || !('write' in navigator.clipboard)) {
       throw new Error('Clipboard not supported')
@@ -317,6 +353,7 @@ export default function Penalties({ penalties, loading = false, permissions }: P
     }
     await navigator.clipboard.write([new ClipboardItem({ 'image/png': out })])
   }
+  
   async function copySingleImage(i: number) {
     const im = attachImgs[i]
     if (!im) return
@@ -327,6 +364,7 @@ export default function Penalties({ penalties, loading = false, permissions }: P
       alert(`Copy failed: ${e?.message || e}`)
     }
   }
+  
   async function copyAllImages() {
     if (attachImgs.length === 0) return
     if (attachImgs.length === 1) return copySingleImage(0)
@@ -371,6 +409,7 @@ export default function Penalties({ penalties, loading = false, permissions }: P
   const beforeImgs = attachImgs.filter(im => beforeSet.has(im.url))
   const afterImgs = attachImgs.filter(im => afterSet.has(im.url))
   const otherImgs = attachImgs.filter(im => !beforeSet.has(im.url) && !afterSet.has(im.url))
+  
   function renderImgCard(im: { url: string; blob: Blob }) {
     const i = attachImgs.indexOf(im)
     return (
@@ -403,6 +442,7 @@ export default function Penalties({ penalties, loading = false, permissions }: P
           <Dropdown label="Status" value={fStatus} options={statusOptions} onChange={setFStatus} width="w-32 sm:w-40" />
           <Dropdown label="Penalty Imposed" value={fImposed} options={imposedOptions} onChange={setFImposed} />
           <Dropdown label="Added By" value={fAddedBy} options={addedByOptions} onChange={setFAddedBy} />
+          <Dropdown label="Supervisor" value={fSupervisor} options={supervisorOptions} onChange={setFSupervisor} width="w-40 sm:w-48" />
           
           <div className="relative w-40 sm:w-52">
             <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search Penalty ID..." className="w-full h-9 sm:h-10 pl-9 pr-9 rounded-xl border border-emerald-400/25 bg-[#071b15]/80 backdrop-blur-md text-[11px] sm:text-xs font-medium text-white placeholder-white/40 outline-none focus:ring-2 focus:ring-emerald-400/50 focus:border-emerald-400/50 transition" />
@@ -556,7 +596,7 @@ export default function Penalties({ penalties, loading = false, permissions }: P
                           <td className="px-2 sm:px-3 py-2.5 text-white/90 text-[11px] font-semibold">{p.penalty_type || '—'}</td>
                           <td className="px-2 sm:px-3 py-2.5 text-white/70 text-[11px]">{p.penalty_sub_type || '—'}</td>
                           <td className="px-2 sm:px-3 py-2.5 text-emerald-300 text-[11px] font-bold whitespace-nowrap">{Number(p.penalty_amount || 0).toLocaleString()}</td>
-                          <td className="px-2 sm:px-3 py-2.5"><span title={String(p.status || '—')} className={`inline-block max-w-full truncate px-2 py-1 rounded-full text-[10px] font-bold border ${statusBadge(p.status)}`}>{p.status || '—'}</span></td>
+                          <td className="px-2 sm:px-3 py-2.5"><span title={String(p.status || '—')} className={`inline-block max-w-full truncate px-2 py-1 rounded-full text-[10px] font-bold border ${statusBadge(p.status)}`}>{formatStatus(p.status)}</span></td>
                           <td className="px-2 sm:px-3 py-2.5"><span className={`inline-block max-w-full truncate px-2 py-1 rounded-full text-[10px] font-bold border ${isYes(p.tm_imposed) ? 'bg-purple-500/15 text-purple-300 border-purple-400/40' : 'bg-white/5 text-white/50 border-white/15'}`}>{isYes(p.tm_imposed) ? 'Yes' : 'No'}</span></td>
                           <td className="px-2 sm:px-3 py-2.5 text-white/70 text-[11px]">{p.tat || '—'}</td>
                           <td className="px-2 sm:px-3 py-2.5 text-white/80 text-[11px]">{p.added_by || '—'}</td>
