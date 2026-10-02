@@ -108,8 +108,18 @@ function fmtDate(v: any) {
   if (isNaN(d.getTime())) return s
   return d.toLocaleString('en-US', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true })
 }
-// ✅ 12 columns ki fixed widths (total = 100%) — header + body dono mein same → alignment barqarar
-const COL_WIDTHS = ['3%','9%','9%','11%','6%','9%','7%','4%','11%','11%','12%','8%']
+// ✅ UC/Ward normalize + key (supervisor matching ke liye — format farq handle karta hai)
+function normUc(s: any) {
+  return String(s ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+}
+function ucKey(s: any) {
+  const t = normUc(s)
+  const m = t.match(/\buc\s*[0-9]+[a-z]?\b/) || t.match(/\bward\s*[0-9]+[a-z]?\b/) || t.match(/\bchak\s*[0-9]+[a-z]?\b/)
+  return m ? m[0].replace(/\s+/g, ' ') : t
+}
+
+// ✅ 13 columns ki fixed widths (total = 100%) — header + body dono mein same → alignment barqarar
+const COL_WIDTHS = ['3%','8%','8%','10%','5%','8%','6%','4%','10%','9%','10%','12%','7%']
 export default function Penalties({ penalties, loading = false, permissions }: Props) {
   const [search, setSearch] = useState('')
   const [fType, setFType] = useState('')
@@ -135,6 +145,27 @@ export default function Penalties({ penalties, loading = false, permissions }: P
     }
     loadAssignments()
   }, [])
+
+  // ✅ Supervisors (assigned_supervisors) — UC/Ward se penalty match karne ke liye
+  const [supervisors, setSupervisors] = useState<{ name: string; uc_ward: string }[]>([])
+  useEffect(() => {
+    async function loadSupervisors() {
+      const { data } = await supabase.from('assigned_supervisors').select('name, uc_ward')
+      setSupervisors((data || []) as { name: string; uc_ward: string }[])
+    }
+    loadSupervisors()
+  }, [])
+  const supByUc = useMemo(() => {
+    const m = new Map<string, string[]>()
+    for (const s of supervisors) {
+      const k = ucKey(s.uc_ward)
+      if (!k) continue
+      const arr = m.get(k) || []
+      if (!arr.includes(s.name)) arr.push(s.name)
+      m.set(k, arr)
+    }
+    return m
+  }, [supervisors])
 
   // ✅ 2. Employee ki allowed offices check karein
   const allowedOffices = useMemo(() => {
@@ -477,7 +508,7 @@ export default function Penalties({ penalties, loading = false, permissions }: P
     <div className="flex-1 min-h-0 rounded-2xl border border-emerald-400/25 bg-[#04231c]/60 overflow-hidden shadow-[0_15px_40px_rgba(0,0,0,0.35)]">
         {/* ✅ Horizontal sync wrapper — mobile par hi scroll; lg+ par content fit */}
         <div className="h-full overflow-x-auto max-lg:[scrollbar-width:none] max-lg:[&::-webkit-scrollbar]:hidden">
-          <div className="min-w-[1200px] lg:min-w-0 h-full flex flex-col">
+          <div className="min-w-[1350px] lg:min-w-0 h-full flex flex-col">
 
             {/* ✅ Header — scroll area se BAHAR, border ke sath joined */}
             <div className="flex-shrink-0 bg-[#0a4038] lg:pr-[10px]">
@@ -498,6 +529,7 @@ export default function Penalties({ penalties, loading = false, permissions }: P
                     <th className="px-2 sm:px-3 py-3">Added By</th>
                     <th className="px-2 sm:px-3 py-3">UC / Ward</th>
                     <th className="px-2 sm:px-3 py-3">Created Date & Time</th>
+                    <th className="px-2 sm:px-3 py-3">Supervisor</th>
                     <th className="px-2 sm:px-3 py-3 text-center">View</th>
                   </tr>
                 </thead>
@@ -512,9 +544,9 @@ export default function Penalties({ penalties, loading = false, permissions }: P
                 </colgroup>
                 <tbody>
                   {loading ? (
-                <tr><td colSpan={12} className="px-4 py-10 text-center text-white/50 text-xs">Loading penalties…</td></tr>
-              ) : filtered.length === 0 ? (
-                <tr><td colSpan={12} className="px-4 py-10 text-center text-white/50 text-xs">{filteredPenalties.length === 0 ? 'No penalties found' : 'No matching penalties'}</td></tr>
+                    <tr><td colSpan={13} className="px-4 py-10 text-center text-white/50 text-xs">Loading penalties…</td></tr>
+                  ) : filtered.length === 0 ? (
+                    <tr><td colSpan={13} className="px-4 py-10 text-center text-white/50 text-xs">{filteredPenalties.length === 0 ? 'No penalties found' : 'No matching penalties'}</td></tr>
                   ) : (
                     filtered.map((p: Row, i: number) => {
                       return (
@@ -530,6 +562,9 @@ export default function Penalties({ penalties, loading = false, permissions }: P
                           <td className="px-2 sm:px-3 py-2.5 text-white/80 text-[11px]">{p.added_by || '—'}</td>
                           <td className="px-2 sm:px-3 py-2.5 text-white/60 text-[11px]">{p.uc_ward || '—'}</td>
                           <td className="px-2 sm:px-3 py-2.5 text-white/60 text-[10px]">{fmtDate(p.created_at)}</td>
+                          <td className="px-2 sm:px-3 py-2.5 text-white/80 text-[11px] truncate" title={(supByUc.get(ucKey(p.uc_ward)) || []).join(', ')}>
+                            {(supByUc.get(ucKey(p.uc_ward)) || []).join(', ') || '—'}
+                          </td>
                           <td className="px-2 sm:px-3 py-2.5 text-center">
                             <button
                               type="button"

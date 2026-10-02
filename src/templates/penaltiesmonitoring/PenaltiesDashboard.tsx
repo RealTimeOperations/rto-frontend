@@ -792,58 +792,98 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
 
   // ✅ Overall Penalty Sub Type × FMO matrix
   const subTypeFmoMatrix = useMemo(() => {
-    const fmoTotals = new Map<string, number>()
-    const subTotals = new Map<string, number>()
-    const cells = new Map<string, Map<string, number>>()
-    for (const p of filteredPenalties) {
-      const fmo = String(p.added_by || '').trim() || 'Unknown'
-      const sub = String(p.penalty_sub_type || '').trim() || '—'
-      fmoTotals.set(fmo, (fmoTotals.get(fmo) || 0) + 1)
-      subTotals.set(sub, (subTotals.get(sub) || 0) + 1)
-      let row = cells.get(sub)
-      if (!row) { row = new Map(); cells.set(sub, row) }
-      row.set(fmo, (row.get(fmo) || 0) + 1)
-    }
-    const fmos = [...fmoTotals.entries()].sort((a, b) => b[1] - a[1]).map(([n]) => n)
-    const subs = [...subTotals.entries()].sort((a, b) => b[1] - a[1]).map(([s]) => s)
-    return { fmos, subs, cells, fmoTotals, subTotals }
+  const fmoTotals = new Map<string, number>()
+  const subTotals = new Map<string, number>()
+  const subUnresolved = new Map<string, number>()
+  const cells = new Map<string, Map<string, number>>()
+  for (const p of filteredPenalties) {
+  const fmo = String(p.added_by || '').trim() || 'Unknown'
+  const sub = String(p.penalty_sub_type || '').trim() || '—'
+  fmoTotals.set(fmo, (fmoTotals.get(fmo) || 0) + 1)
+  subTotals.set(sub, (subTotals.get(sub) || 0) + 1)
+  if (!/resolved|closed/i.test(String(p.status || ''))) subUnresolved.set(sub, (subUnresolved.get(sub) || 0) + 1)
+  let row = cells.get(sub)
+  if (!row) { row = new Map(); cells.set(sub, row) }
+  row.set(fmo, (row.get(fmo) || 0) + 1)
+  }
+  const fmos = [...fmoTotals.entries()].sort((a, b) => b[1] - a[1]).map(([n]) => n)
+  const subs = [...subTotals.entries()].sort((a, b) => b[1] - a[1]).map(([s]) => s)
+  return { fmos, subs, cells, fmoTotals, subTotals, subUnresolved }
   }, [filteredPenalties])
 
   const hndSubTypeFmoMatrix = useMemo(() => {
     const fmoTotals = new Map<string, number>()
     const subTotals = new Map<string, number>()
+    const subUnresolved = new Map<string, number>()
     const cells = new Map<string, Map<string, number>>()
     for (const p of hndPenalties) {
       const fmo = String(p.added_by || '').trim() || 'Unknown'
       const sub = String(p.penalty_sub_type || '').trim() || '—'
       fmoTotals.set(fmo, (fmoTotals.get(fmo) || 0) + 1)
       subTotals.set(sub, (subTotals.get(sub) || 0) + 1)
+      if (!/resolved|closed/i.test(String(p.status || ''))) subUnresolved.set(sub, (subUnresolved.get(sub) || 0) + 1)
       let row = cells.get(sub)
       if (!row) { row = new Map(); cells.set(sub, row) }
       row.set(fmo, (row.get(fmo) || 0) + 1)
-    }
-    const fmos = [...fmoTotals.entries()].sort((a, b) => b[1] - a[1]).map(([n]) => n)
-    const subs = [...subTotals.entries()].sort((a, b) => b[1] - a[1]).map(([s]) => s)
-    return { fmos, subs, cells, fmoTotals, subTotals }
-  }, [hndPenalties])
+      }
+      const fmos = [...fmoTotals.entries()].sort((a, b) => b[1] - a[1]).map(([n]) => n)
+      const subs = [...subTotals.entries()].sort((a, b) => b[1] - a[1]).map(([s]) => s)
+      return { fmos, subs, cells, fmoTotals, subTotals, subUnresolved }
+      }, [hndPenalties])
 
-  const faqirwaliSubTypeFmoMatrix = useMemo(() => {
-    const fmoTotals = new Map<string, number>()
-    const subTotals = new Map<string, number>()
-    const cells = new Map<string, Map<string, number>>()
-    for (const p of faqirwaliPenalties) {
+    const faqirwaliSubTypeFmoMatrix = useMemo(() => {
+      const fmoTotals = new Map<string, number>()
+      const subTotals = new Map<string, number>()
+      const subUnresolved = new Map<string, number>()
+      const cells = new Map<string, Map<string, number>>()
+      for (const p of faqirwaliPenalties) {
       const fmo = String(p.added_by || '').trim() || 'Unknown'
       const sub = String(p.penalty_sub_type || '').trim() || '—'
       fmoTotals.set(fmo, (fmoTotals.get(fmo) || 0) + 1)
       subTotals.set(sub, (subTotals.get(sub) || 0) + 1)
+      if (!/resolved|closed/i.test(String(p.status || ''))) subUnresolved.set(sub, (subUnresolved.get(sub) || 0) + 1)
       let row = cells.get(sub)
       if (!row) { row = new Map(); cells.set(sub, row) }
       row.set(fmo, (row.get(fmo) || 0) + 1)
+      }
+      const fmos = [...fmoTotals.entries()].sort((a, b) => b[1] - a[1]).map(([n]) => n)
+      const subs = [...subTotals.entries()].sort((a, b) => b[1] - a[1]).map(([s]) => s)
+      return { fmos, subs, cells, fmoTotals, subTotals, subUnresolved }
+      }, [faqirwaliPenalties])
+
+  // ✅ Supervisors (assigned_supervisors) — UC/Ward se penalty stats
+  const [supervisors, setSupervisors] = useState<{ name: string; uc_ward: string }[]>([])
+  useEffect(() => {
+    async function loadSupervisors() {
+      const { data } = await supabase.from('assigned_supervisors').select('name, uc_ward')
+      setSupervisors((data || []) as { name: string; uc_ward: string }[])
     }
-    const fmos = [...fmoTotals.entries()].sort((a, b) => b[1] - a[1]).map(([n]) => n)
-    const subs = [...subTotals.entries()].sort((a, b) => b[1] - a[1]).map(([s]) => s)
-    return { fmos, subs, cells, fmoTotals, subTotals }
-  }, [faqirwaliPenalties])
+    loadSupervisors()
+  }, [])
+
+  // ✅ Supervisor-wise stats — filteredPenalties (office-filtered) se, taake single-office scene barqarar rahe
+  const supervisorStats = useMemo(() => {
+    const norm = (s: any) => String(s ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+    const key = (s: any) => {
+      const t = norm(s)
+      const m = t.match(/\buc\s*[0-9]+[a-z]?\b/) || t.match(/\bward\s*[0-9]+[a-z]?\b/) || t.match(/\bchak\s*[0-9]+[a-z]?\b/)
+      return m ? m[0].replace(/\s+/g, ' ') : t
+    }
+    const agg = new Map<string, { total: number; resolved: number; unresolved: number }>()
+    for (const p of filteredPenalties) {
+      const k = key(p.uc_ward)
+      if (!k) continue
+      const a = agg.get(k) || { total: 0, resolved: 0, unresolved: 0 }
+      a.total += 1
+      if (/resolved|closed/i.test(String(p.status || ''))) a.resolved += 1
+      else a.unresolved += 1
+      agg.set(k, a)
+    }
+    return supervisors
+      .map(s => ({ name: s.name, uc_ward: s.uc_ward, ...(agg.get(key(s.uc_ward)) || { total: 0, resolved: 0, unresolved: 0 }) }))
+      .filter(s => s.total > 0)
+      .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name))
+  }, [supervisors, filteredPenalties])
 
   const cardCls = 'rounded-[24px] border border-emerald-400/25 bg-linear-to-b from-[#073b2d] to-[#021d17] shadow-[0_20px_60px_rgba(0,0,0,0.3)]'
 
@@ -1306,10 +1346,11 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
                                       <span className="block leading-tight break-words md:[overflow-wrap:normal] text-[6px] lg:text-[7px] xl:text-[8px] 2xl:text-[10px]">{titleCase(f)}</span>
                                     </th>
                                   ))}
-                                  <th className="w-[10%] sm:w-[8%] px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40 uppercase text-emerald-300 whitespace-nowrap">Total</th>
+                                <th className="w-[10%] sm:w-[8%] px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40 uppercase text-emerald-300 whitespace-nowrap">Total</th>
+                                <th className="w-[10%] sm:w-[8%] px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-red-400/40 uppercase text-red-300 whitespace-nowrap">Unresolved</th>
                                 </tr>
-                              </thead>
-                              <tbody>
+                                </thead>
+                                <tbody>
                                 {hndSubTypeFmoMatrix.subs.map((s, i) => {
                                   const rowTotal = hndSubTypeFmoMatrix.fmos.reduce((sum, f) => sum + (hndSubTypeFmoMatrix.cells.get(s)?.get(f) || 0), 0)
                                   return (
@@ -1325,15 +1366,18 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
                                           </td>
                                         )
                                       })}
-                                      <td className="px-1.5 sm:px-2 py-1.5 sm:py-2.5 text-center border-l border-emerald-400/40">
-                                        <span className="font-extrabold text-amber-300">{rowTotal}</span>
-                                      </td>
+                                    <td className="px-1.5 sm:px-2 py-1.5 sm:py-2.5 text-center border-l border-emerald-400/40">
+                                    <span className="font-extrabold text-amber-300">{rowTotal}</span>
+                                    </td>
+                                    <td className="px-1.5 sm:px-2 py-1.5 sm:py-2.5 text-center border-l border-red-400/40">
+                                    <span className="font-extrabold text-red-300">{hndSubTypeFmoMatrix.subUnresolved.get(s) || 0}</span>
+                                    </td>
                                     </tr>
-                                  )
-                                })}
-                                <tr className="bg-[#0a4038]/60 border-t-2 border-emerald-400/40 font-bold">
-                                  <td className="px-1.5 sm:px-2 py-2 sm:py-3 text-emerald-300 uppercase tracking-wider whitespace-nowrap">Total</td>
-                                  {hndSubTypeFmoMatrix.fmos.map(f => {
+                                    )
+                                    })}
+                                    <tr className="bg-[#0a4038]/60 border-t-2 border-emerald-400/40 font-bold">
+                                    <td className="px-1.5 sm:px-2 py-2 sm:py-3 text-emerald-300 uppercase tracking-wider whitespace-nowrap">Total</td>
+                                    {hndSubTypeFmoMatrix.fmos.map(f => {
                                     const colTotal = hndSubTypeFmoMatrix.subs.reduce((sum, s) => sum + (hndSubTypeFmoMatrix.cells.get(s)?.get(f) || 0), 0)
                                     return (
                                       <td key={f} className="px-1 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40">
@@ -1341,10 +1385,13 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
                                       </td>
                                     )
                                   })}
-                                  <td className="px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40">
-                                    <span className="font-extrabold text-emerald-300">{hndPenalties.length}</span>
-                                  </td>
-                                </tr>
+                              <td className="px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40">
+                              <span className="font-extrabold text-emerald-300">{hndPenalties.length}</span>
+                              </td>
+                              <td className="px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-red-400/40">
+                              <span className="font-extrabold text-red-300">{hndSubTypeFmoMatrix.subs.reduce((sum, s) => sum + (hndSubTypeFmoMatrix.subUnresolved.get(s) || 0), 0)}</span>
+                              </td>
+                              </tr>
                               </tbody>
                             </table>
                           </div>
@@ -1429,10 +1476,11 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
                                     </th>
                                   ))}
                                   <th className="w-[10%] sm:w-[8%] px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40 uppercase text-emerald-300 whitespace-nowrap">Total</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {faqirwaliSubTypeFmoMatrix.subs.map((s, i) => {
+                                  <th className="w-[10%] sm:w-[8%] px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-red-400/40 uppercase text-red-300 whitespace-nowrap">Unresolved</th>
+                                  </tr>
+                                  </thead>
+                                  <tbody>
+                                  {faqirwaliSubTypeFmoMatrix.subs.map((s, i) => {
                                   const rowTotal = faqirwaliSubTypeFmoMatrix.fmos.reduce((sum, f) => sum + (faqirwaliSubTypeFmoMatrix.cells.get(s)?.get(f) || 0), 0)
                                   return (
                                     <tr key={s} className="border-b border-white/10 last:border-0 hover:bg-white/5 transition">
@@ -1447,15 +1495,18 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
                                           </td>
                                         )
                                       })}
-                                      <td className="px-1.5 sm:px-2 py-1.5 sm:py-2.5 text-center border-l border-emerald-400/40">
-                                        <span className="font-extrabold text-amber-300">{rowTotal}</span>
-                                      </td>
+                                    <td className="px-1.5 sm:px-2 py-1.5 sm:py-2.5 text-center border-l border-emerald-400/40">
+                                    <span className="font-extrabold text-amber-300">{rowTotal}</span>
+                                    </td>
+                                    <td className="px-1.5 sm:px-2 py-1.5 sm:py-2.5 text-center border-l border-red-400/40">
+                                    <span className="font-extrabold text-red-300">{faqirwaliSubTypeFmoMatrix.subUnresolved.get(s) || 0}</span>
+                                    </td>
                                     </tr>
-                                  )
-                                })}
-                                <tr className="bg-[#0a4038]/60 border-t-2 border-emerald-400/40 font-bold">
-                                  <td className="px-1.5 sm:px-2 py-2 sm:py-3 text-emerald-300 uppercase tracking-wider whitespace-nowrap">Total</td>
-                                  {faqirwaliSubTypeFmoMatrix.fmos.map(f => {
+                                    )
+                                    })}
+                                    <tr className="bg-[#0a4038]/60 border-t-2 border-emerald-400/40 font-bold">
+                                    <td className="px-1.5 sm:px-2 py-2 sm:py-3 text-emerald-300 uppercase tracking-wider whitespace-nowrap">Total</td>
+                                    {faqirwaliSubTypeFmoMatrix.fmos.map(f => {
                                     const colTotal = faqirwaliSubTypeFmoMatrix.subs.reduce((sum, s) => sum + (faqirwaliSubTypeFmoMatrix.cells.get(s)?.get(f) || 0), 0)
                                     return (
                                       <td key={f} className="px-1 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40">
@@ -1463,11 +1514,14 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
                                       </td>
                                     )
                                   })}
-                                  <td className="px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40">
-                                    <span className="font-extrabold text-emerald-300">{faqirwaliPenalties.length}</span>
-                                  </td>
+                                <td className="px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40">
+                                <span className="font-extrabold text-emerald-300">{faqirwaliPenalties.length}</span>
+                                </td>
+                                <td className="px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-red-400/40">
+                                <span className="font-extrabold text-red-300">{faqirwaliSubTypeFmoMatrix.subs.reduce((sum, s) => sum + (faqirwaliSubTypeFmoMatrix.subUnresolved.get(s) || 0), 0)}</span>
+                                </td>
                                 </tr>
-                              </tbody>
+                                </tbody>
                             </table>
                           </div>
                         </div>
@@ -1546,64 +1600,71 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
                             <path d="m2 12 10 5 10-5" />
                           </svg>
                         </span>
-                        <span className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Penalty Types </span>
-                        <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Statistics</span>
-                      </h2>
-                      {subTypeFmoMatrix.subs.length === 0 ? (
-                        <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-center text-xs text-white/40">{loading ? 'Loading…' : 'No data available'}</div>
-                      ) : (
-                        <div className="rounded-xl border border-white/10 overflow-hidden">
-                          {/* ✅ Mobile horizontal scroll wrapper */}
-                          <div className="overflow-x-auto [-ms-overflow-style:none] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-emerald-500/30 [&::-webkit-scrollbar-thumb]:rounded-full">
-                            <table className="min-w-[500px] w-full table-fixed text-[8px] sm:text-[10px] md:text-xs">
-                              <thead>
-                                <tr className="text-left font-bold tracking-wider text-emerald-200/90 bg-[#0a4038] border-b border-emerald-400/20">
-                                  <th className="w-[18%] sm:w-[20%] px-1.5 sm:px-2 py-2 sm:py-3 uppercase whitespace-nowrap">Sub Type</th>
-                                  {subTypeFmoMatrix.fmos.map(f => (
-                                    <th key={f} title={titleCase(f)} className="px-1 sm:px-2 py-2 sm:py-3 text-center border-l border-white/10">
-                                      <span className="block leading-tight break-words md:[overflow-wrap:normal] text-[6px] lg:text-[7px] xl:text-[8px] 2xl:text-[10px]">{titleCase(f)}</span>
-                                    </th>
-                                  ))}
-                                  <th className="w-[10%] sm:w-[8%] px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40 uppercase text-emerald-300 whitespace-nowrap">Total</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {subTypeFmoMatrix.subs.map((s, i) => {
-                                  const rowTotal = subTypeFmoMatrix.fmos.reduce((sum, f) => sum + (subTypeFmoMatrix.cells.get(s)?.get(f) || 0), 0)
-                                  return (
-                                    <tr key={s} className="border-b border-white/10 last:border-0 hover:bg-white/5 transition">
-                                      <td className="px-1.5 sm:px-2 py-1.5 sm:py-2.5 font-semibold text-white/85 break-words">
-                                        <span className="text-white/40 font-bold">{i + 1}.</span> {s}
-                                      </td>
-                                      {subTypeFmoMatrix.fmos.map(f => {
-                                        const c = subTypeFmoMatrix.cells.get(s)?.get(f) || 0
-                                        return (
-                                          <td key={f} className="px-1 sm:px-2 py-1.5 sm:py-2.5 text-center border-l border-white/10">
-                                            {c > 0 ? <span className="font-bold text-emerald-300">{c}</span> : <span className="text-white/30 font-bold">-</span>}
-                                          </td>
-                                        )
-                                      })}
-                                      <td className="px-1.5 sm:px-2 py-1.5 sm:py-2.5 text-center border-l border-emerald-400/40">
-                                        <span className="font-extrabold text-amber-300">{rowTotal}</span>
-                                      </td>
-                                    </tr>
-                                  )
-                                })}
-                                <tr className="bg-[#0a4038]/60 border-t-2 border-emerald-400/40 font-bold">
-                                  <td className="px-1.5 sm:px-2 py-2 sm:py-3 text-emerald-300 uppercase tracking-wider whitespace-nowrap">Total</td>
-                                  {subTypeFmoMatrix.fmos.map(f => {
-                                    const colTotal = subTypeFmoMatrix.subs.reduce((sum, s) => sum + (subTypeFmoMatrix.cells.get(s)?.get(f) || 0), 0)
-                                    return (
-                                      <td key={f} className="px-1 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40">
-                                        <span className="font-extrabold text-amber-300">{colTotal}</span>
-                                      </td>
-                                    )
-                                  })}
-                                  <td className="px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40">
-                                    <span className="font-extrabold text-emerald-300">{filteredPenalties.length}</span>
-                                  </td>
-                                </tr>
-                              </tbody>
+                     <span className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Penalty Types </span>
+                     <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Statistics</span>
+                   </h2>
+                   {subTypeFmoMatrix.subs.length === 0 ? (
+                     <div className="rounded-xl border border-white/10 bg-white/5 p-6 text-center text-xs text-white/40">{loading ? 'Loading…' : 'No data available'}</div>
+                   ) : (
+                     <div className="rounded-xl border border-white/10 overflow-hidden">
+                       {/* ✅ Mobile horizontal scroll wrapper */}
+                       <div className="overflow-x-auto [-ms-overflow-style:none] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-emerald-500/30 [&::-webkit-scrollbar-thumb]:rounded-full">
+                         <table className="min-w-[500px] w-full table-fixed text-[8px] sm:text-[10px] md:text-xs">
+                           <thead>
+                             <tr className="text-left font-bold tracking-wider text-emerald-200/90 bg-[#0a4038] border-b border-emerald-400/20">
+                               <th className="w-[18%] sm:w-[20%] px-1.5 sm:px-2 py-2 sm:py-3 uppercase whitespace-nowrap">Sub Type</th>
+                               {subTypeFmoMatrix.fmos.map(f => (
+                                 <th key={f} title={titleCase(f)} className="px-1 sm:px-2 py-2 sm:py-3 text-center border-l border-white/10">
+                                   <span className="block leading-tight break-words md:[overflow-wrap:normal] text-[6px] lg:text-[7px] xl:text-[8px] 2xl:text-[10px]">{titleCase(f)}</span>
+                                 </th>
+                               ))}
+                               <th className="w-[10%] sm:w-[8%] px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40 uppercase text-emerald-300 whitespace-nowrap">Total</th>
+                               <th className="w-[10%] sm:w-[8%] px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-red-400/40 uppercase text-red-300 whitespace-nowrap">Unresolved</th>
+                             </tr>
+                           </thead>
+                           <tbody>
+                             {subTypeFmoMatrix.subs.map((s, i) => {
+                               const rowTotal = subTypeFmoMatrix.fmos.reduce((sum, f) => sum + (subTypeFmoMatrix.cells.get(s)?.get(f) || 0), 0)
+                               return (
+                                 <tr key={s} className="border-b border-white/10 last:border-0 hover:bg-white/5 transition">
+                                   <td className="px-1.5 sm:px-2 py-1.5 sm:py-2.5 font-semibold text-white/85 break-words">
+                                     <span className="text-white/40 font-bold">{i + 1}.</span> {s}
+                                   </td>
+                                   {subTypeFmoMatrix.fmos.map(f => {
+                                     const c = subTypeFmoMatrix.cells.get(s)?.get(f) || 0
+                                     return (
+                                       <td key={f} className="px-1 sm:px-2 py-1.5 sm:py-2.5 text-center border-l border-white/10">
+                                         {c > 0 ? <span className="font-bold text-emerald-300">{c}</span> : <span className="text-white/30 font-bold">-</span>}
+                                       </td>
+                                     )
+                                   })}
+                                   <td className="px-1.5 sm:px-2 py-1.5 sm:py-2.5 text-center border-l border-emerald-400/40">
+                                     <span className="font-extrabold text-amber-300">{rowTotal}</span>
+                                   </td>
+                                   <td className="px-1.5 sm:px-2 py-1.5 sm:py-2.5 text-center border-l border-red-400/40">
+                                     <span className="font-extrabold text-red-300">{subTypeFmoMatrix.subUnresolved.get(s) || 0}</span>
+                                   </td>
+                                 </tr>
+                               )
+                             })}
+                             <tr className="bg-[#0a4038]/60 border-t-2 border-emerald-400/40 font-bold">
+                               <td className="px-1.5 sm:px-2 py-2 sm:py-3 text-emerald-300 uppercase tracking-wider whitespace-nowrap">Total</td>
+                               {subTypeFmoMatrix.fmos.map(f => {
+                                 const colTotal = subTypeFmoMatrix.subs.reduce((sum, s) => sum + (subTypeFmoMatrix.cells.get(s)?.get(f) || 0), 0)
+                                 return (
+                                   <td key={f} className="px-1 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40">
+                                     <span className="font-extrabold text-amber-300">{colTotal}</span>
+                                   </td>
+                                 )
+                               })}
+                               <td className="px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-emerald-400/40">
+                                 <span className="font-extrabold text-emerald-300">{filteredPenalties.length}</span>
+                               </td>
+                               <td className="px-1.5 sm:px-2 py-2 sm:py-3 text-center border-l border-red-400/40">
+                                 <span className="font-extrabold text-red-300">{subTypeFmoMatrix.subs.reduce((sum, s) => sum + (subTypeFmoMatrix.subUnresolved.get(s) || 0), 0)}</span>
+                               </td>
+                             </tr>
+                           </tbody>
                             </table>
                           </div>
                         </div>
@@ -1612,6 +1673,46 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
                   </>
                 )}
               </>
+            )}
+
+            {/* ✅ Supervisor Statistics — end cards (office-filtered data) */}
+            {supervisorStats.length > 0 && (
+              <div className="flex flex-col gap-4">
+                <h2 className="text-sm sm:text-base md:text-lg lg:text-xl font-extrabold flex items-center gap-2 sm:gap-3">
+                  <span className="flex h-7 w-7 sm:h-8 sm:w-8 md:h-9 md:w-9 items-center justify-center rounded-lg sm:rounded-xl border border-cyan-400/30 bg-cyan-500/10 text-cyan-300">
+                    <svg className="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0z" />
+                      <path d="M12 14a7 7 0 0 0-7 7h14a7 7 0 0 0-7-7z" />
+                    </svg>
+                  </span>
+                  <span className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Supervisor </span>
+                  <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Statistics</span>
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {supervisorStats.map(s => (
+                    <div key={`${s.name}-${s.uc_ward}`} className={`${cardCls} p-4 sm:p-5 flex flex-col gap-2.5`}>
+                      <div className="min-w-0 text-center">
+                        <div className="text-sm sm:text-base font-extrabold text-white truncate" title={s.name}>{s.name}</div>
+                        <div className="text-[10px] sm:text-xs font-semibold text-white/50 truncate" title={s.uc_ward}>{s.uc_ward}</div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+                        <div className="flex flex-col items-center gap-0.5 rounded-xl border border-amber-400/25 bg-amber-500/10 px-1 py-2">
+                          <span className="text-[8px] sm:text-[9px] font-bold tracking-wider text-white/60 uppercase">Total</span>
+                          <span className="text-base sm:text-lg font-extrabold bg-[linear-gradient(180deg,#f59e0b,#fbbf24,#fde68a,#fbbf24,#f59e0b)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">{s.total}</span>
+                        </div>
+                        <div className="flex flex-col items-center gap-0.5 rounded-xl border border-emerald-400/25 bg-emerald-500/10 px-1 py-2">
+                          <span className="text-[8px] sm:text-[9px] font-bold tracking-wider text-white/60 uppercase">Resolved</span>
+                          <span className="text-base sm:text-lg font-extrabold bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">{s.resolved}</span>
+                        </div>
+                        <div className="flex flex-col items-center gap-0.5 rounded-xl border border-red-400/25 bg-red-500/10 px-1 py-2">
+                          <span className="text-[8px] sm:text-[9px] font-bold tracking-wider text-white/60 uppercase">UnResolved</span>
+                          <span className="text-base sm:text-lg font-extrabold bg-[linear-gradient(180deg,#ef4444,#f87171,#fca5a5,#f87171,#ef4444)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">{s.unresolved}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         )}
