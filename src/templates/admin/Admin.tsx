@@ -12,6 +12,7 @@ import ContainersFetchLogs from './ContainersFetchLogs'
 import PenaltiesFetchLogs from './PenaltiesFetchLogs'
 import ContainersLocations from './ContainersLocations'
 import PenaltiesFMODetails from './PenaltiesFMODetails'
+import { deviceFingerprint } from '../../lib/deviceInfo'
 type Tab = 'dashboard' | 'employees' | 'supervisors' | 'employees-staff' | 'supervisors-staff' | 'base-values' | 'containers-locations' | 'fmo-details' | 'fetching-logs' | 'containers-logs' | 'penalties-logs'
 
 type AdminProps = {
@@ -47,6 +48,10 @@ export default function Admin({ onHomeClick }: AdminProps) {
   }, [tab])
 
   async function handleLogout() {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) await supabase.rpc('track_device_logout', { p_user_id: user.id, p_device_id: deviceFingerprint() })
+    } catch {}
     await supabase.auth.signOut()
   }
 

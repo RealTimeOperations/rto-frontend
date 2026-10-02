@@ -220,22 +220,43 @@ export default function Login({ kickReason, onKicked, onLoginStart, onLoginSucce
       setLoading(false)
       return
     } 
-    // ✅ Supervisor: device bind + session start + GPS location record
-    if (role === 'supervisor') {
-      let location = 'Unknown'
-      if (gps) {
-        const addr = await reverseGeocode(gps.lat, gps.lon)
-        location = `${addr} (GPS: ${gps.lat.toFixed(4)}, ${gps.lon.toFixed(4)})`
-      } else {
-        location = await fetchLocation()
-      }
-      await supabase.rpc('bind_supervisor_device', {
-        p_device_id: deviceId,
-        p_device_name: deviceLabel(),
-        p_location: location,
-        p_coordinates: gps ? `${gps.lat.toFixed(6)}, ${gps.lon.toFixed(6)}` : null,
-      })
-    }
+  // ✅ Location resolve: supervisor = GPS (mandatory), baqi roles = IP best-effort
+  let location = 'Unknown'
+  let coordinates: string | null = null
+  if (gps) {
+    const addr = await reverseGeocode(gps.lat, gps.lon)
+    location = `${addr} (GPS: ${gps.lat.toFixed(4)}, ${gps.lon.toFixed(4)})`
+    coordinates = `${gps.lat.toFixed(6)}, ${gps.lon.toFixed(6)}`
+  } else {
+    location = await fetchLocation()
+  }
+
+  // ✅ Supervisor: device bind + session start + GPS location record
+  if (role === 'supervisor') {
+    await supabase.rpc('bind_supervisor_device', {
+      p_device_id: deviceId,
+      p_device_name: deviceLabel(),
+      p_location: location,
+      p_coordinates: coordinates,
+    })
+  }
+
+  // ✅ DEVICE HISTORY (sab roles): device record + blocked device enforcement
+  const { data: blocked } = await supabase.rpc('track_device_login', {
+    p_user_id: data.user.id,
+    p_device_id: deviceId,
+    p_device_name: deviceLabel(),
+    p_user_agent: navigator.userAgent,
+    p_location: location,
+    p_coordinates: coordinates,
+  })
+  if (blocked === true) {
+    await supabase.auth.signOut()
+    onLoginFail()
+    setError('This device is blocked. Please contact administrator.')
+    setLoading(false)
+    return
+  }
 
     localStorage.setItem('rto_role_' + data.user.id, role)
     onLoginSuccess()

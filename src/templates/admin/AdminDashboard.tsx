@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase'
 import type { Profile } from './types'
 import PasswordChangeModal from './PasswordChangeModal'
 import { resetMonitoringTabs } from '../../lib/resetTabs'
-import { trackDeviceLogout } from '../../lib/deviceInfo'
+import { deviceFingerprint } from '../../lib/deviceInfo'
 
 export default function AdminDashboard() {
   const [users, setUsers] = useState<Profile[]>([])
@@ -49,7 +49,10 @@ export default function AdminDashboard() {
 
   async function handleLogout() {
     resetMonitoringTabs()
-    await trackDeviceLogout(currentUser?.id)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) await supabase.rpc('track_device_logout', { p_user_id: user.id, p_device_id: deviceFingerprint() })
+    } catch {}
     await supabase.auth.signOut()
   }
 
