@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import AttendanceLogs from './AttendanceLogs'
@@ -15,8 +15,18 @@ function parseLocal(s: string): Date {
   return isNaN(d.getTime()) ? new Date(s) : d
 }
 
+// ✅ UC/Ward normalize + key (limited access matching ke liye — format farq handle karta hai)
+function normUc(s: any) {
+  return String(s ?? '').toLowerCase().replace(/\s+/g, ' ').trim()
+}
+function ucKey(s: any) {
+  const t = String(s ?? '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+  const m = t.match(/\buc\s*[0-9]+[a-z]?\b/) || t.match(/\bward\s*[0-9]+[a-z]?\b/)
+  return m ? m[0].replace(/\s+/g, ' ') : t
+}
+
 type Props = {
-  onHomeClick?: () => void
+onHomeClick?: () => void
 }
 
 type Row = Record<string, any>
@@ -138,7 +148,39 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
     return () => { alive = false }
   }, [])
 
-  // ✅ Update HR: backend ka /sync/employees trigger karo (employees_sync.py)
+  // ✅ Current user profile — limited access (allowed_uc_wards) ke liye
+const [myProfile, setMyProfile] = useState<{ role: string; allowed_uc_wards?: string[] | null } | null>(null)
+useEffect(() => {
+  let alive = true
+  ;(async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return
+    const { data } = await supabase
+      .from('profiles')
+      .select('role, allowed_uc_wards')
+      .eq('id', session.user.id)
+      .maybeSingle()
+    if (alive) setMyProfile((data as any) ?? null)
+  })()
+  return () => { alive = false }
+}, [])
+
+// ✅ UC/Ward restriction matcher (admin ya khali list = koi restriction nahi → sab data)
+const ucMatcher = useMemo(() => {
+  if (!myProfile) return null
+  if (myProfile.role === 'admin') return null
+  const list = (myProfile.allowed_uc_wards ?? []).map(v => String(v ?? '').trim()).filter(Boolean)
+  if (!list.length) return null
+  const norms = new Set(list.map(normUc))
+  const keys = new Set(list.map(ucKey))
+  return (v: any) => norms.has(normUc(v)) || keys.has(ucKey(v))
+}, [myProfile])
+
+// ✅ Restricted rows — Dashboard / Logs / HR / Report SAB mein yahi use honge
+const attRows = useMemo(() => (ucMatcher ? attendance.filter(r => ucMatcher(r.uc_ward)) : attendance), [attendance, ucMatcher])
+const empRows = useMemo(() => (ucMatcher ? employees.filter(e => ucMatcher(e.uc_ward)) : employees), [employees, ucMatcher])
+
+// ✅ Update HR: backend ka /sync/employees trigger karo (employees_sync.py)
   async function runHrSync() {
     setHrSync({ stage: 'loading' })
     try {
@@ -677,10 +719,10 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
 
       {/* ===== Content ===== */}
       <main className="pt-32 lg:pt-24 pb-4 px-4 sm:px-6 max-w-[1750px] mx-auto flex flex-col">
-        {view === 'dashboard' && <StatsView attendance={attendance} employees={employees} baseValues={baseValues} loading={loading} />}
-        {view === 'attendance' && <AttendanceLogs rows={attendance} loading={loading} />}
-        {view === 'hr' && <TotalHR rows={employees} loading={loading} onRefresh={load} />}
-        {view === 'report' && <AttendanceReport rows={attendance} employees={employees} loading={loading} />}
+        {view === 'dashboard' && <StatsView attendance={attRows} employees={empRows} baseValues={baseValues} loading={loading} />}
+        {view === 'attendance' && <AttendanceLogs rows={attRows} loading={loading} />}
+        {view === 'hr' && <TotalHR rows={empRows} loading={loading} onRefresh={load} />}
+        {view === 'report' && <AttendanceReport rows={attRows} employees={empRows} loading={loading} />}
       </main>
     </div>
   )

@@ -22,6 +22,8 @@ export type Profile = {
   can_penalties?: boolean
   penalties_hnd_office?: boolean         
   penalties_faqirwali_office?: boolean
+  allowed_uc_wards?: string[]
+  allowed_supervisors?: string[]
 }
 
 // Permission set for the currently logged-in user
@@ -33,6 +35,8 @@ export type Permissions = {
   penalties_hnd: boolean      
   penalties_faqirwali: boolean
   isAdmin: boolean 
+  attendance_uc_wards: string[]
+  containers_supervisors: string[]
 }
 
 export type ModalState =

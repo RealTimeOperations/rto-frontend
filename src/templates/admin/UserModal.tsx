@@ -47,6 +47,12 @@ export default function UserModal({ state, onClose, onSaved, lockRole }: Props) 
   const [permContainers, setPermContainers] = useState(editing?.can_containers ?? false)
   const [permPenalties, setPermPenalties] = useState(editing?.can_penalties ?? false)
   const [permPenaltiesHnd, setPermPenaltiesHnd] = useState(editing?.penalties_hnd_office ?? false)
+  const [ucWardOptions, setUcWardOptions] = useState<string[]>([])
+  const [supervisorOptions, setSupervisorOptions] = useState<string[]>([])
+  const [selectedUcWards, setSelectedUcWards] = useState<string[]>(editing?.allowed_uc_wards ?? [])
+  const [selectedSupervisors, setSelectedSupervisors] = useState<string[]>(editing?.allowed_supervisors ?? [])
+  const [showUcPanel, setShowUcPanel] = useState(false)
+  const [showSupPanel, setShowSupPanel] = useState(false)
   const [permPenaltiesFaqirwali, setPermPenaltiesFaqirwali] = useState(editing?.penalties_faqirwali_office ?? false)
   
   const [loadedPassword, setLoadedPassword] = useState('')
@@ -54,6 +60,24 @@ export default function UserModal({ state, onClose, onSaved, lockRole }: Props) 
   const [saving, setSaving] = useState(false)
   
   const typedUsername = useRef(false)
+  // ✅ Fetch UC/Wards and Supervisors for multi-select dropdowns
+  useEffect(() => {
+    async function loadOptions() {
+      // 1. UC/Wards (assigned_supervisors ya assigned_employees se)
+      const { data: ucRows } = await supabase.from('assigned_supervisors').select('uc_ward')
+      if (ucRows) {
+        const ucs = [...new Set(ucRows.map((u: any) => u.uc_ward).filter(Boolean))] as string[]
+        setUcWardOptions(ucs.sort())
+      }
+      // 2. Supervisors (contanerlocations table se)
+      const { data: contLocs } = await supabase.from('contanerlocations').select('supervisor')
+      if (contLocs) {
+        const sups = [...new Set(contLocs.map((c: any) => c.supervisor).filter(Boolean))] as string[]
+        setSupervisorOptions(sups.sort())
+      }
+    }
+    loadOptions()
+  }, [])
   const typedPassword = useRef(false)
   const typedEmail = useRef(false)
 
@@ -64,7 +88,7 @@ export default function UserModal({ state, onClose, onSaved, lockRole }: Props) 
     ;(async () => {
       const { data } = await supabase
         .from('profiles')
-        .select('cnic, email, can_attendance, can_vehicles, can_containers, can_penalties, penalties_hnd_office, penalties_faqirwali_office, password_plain')
+        .select('cnic, email, can_attendance, can_vehicles, can_containers, can_penalties, penalties_hnd_office, penalties_faqirwali_office, password_plain, allowed_uc_wards, allowed_supervisors')
         .eq('id', target.id)
         .maybeSingle()
       if (!alive) return
@@ -80,6 +104,8 @@ export default function UserModal({ state, onClose, onSaved, lockRole }: Props) 
         setPermContainers(Boolean(data.can_containers))
         setPermPenalties(Boolean(data.can_penalties))
         setPermPenaltiesHnd(Boolean(data.penalties_hnd_office))
+        setSelectedUcWards(data.allowed_uc_wards || [])
+        setSelectedSupervisors(data.allowed_supervisors || [])
         setPermPenaltiesFaqirwali(Boolean(data.penalties_faqirwali_office))
       }
     })()
@@ -195,6 +221,8 @@ export default function UserModal({ state, onClose, onSaved, lockRole }: Props) 
           upd.can_containers = permContainers
           upd.can_penalties = permPenalties
           upd.penalties_hnd_office = permPenaltiesHnd
+          upd.allowed_uc_wards = selectedUcWards
+          upd.allowed_supervisors = selectedSupervisors
           upd.penalties_faqirwali_office = permPenaltiesFaqirwali
         }
         await supabase.from('profiles').update(upd).eq('id', created.id)
@@ -225,6 +253,8 @@ export default function UserModal({ state, onClose, onSaved, lockRole }: Props) 
         upd.can_containers = permContainers
         upd.can_penalties = permPenalties
         upd.penalties_hnd_office = permPenaltiesHnd
+        upd.allowed_uc_wards = selectedUcWards
+        upd.allowed_supervisors = selectedSupervisors
         upd.penalties_faqirwali_office = permPenaltiesFaqirwali
       }
       await supabase.from('profiles').update(upd).eq('id', editing.id)
@@ -309,6 +339,114 @@ export default function UserModal({ state, onClose, onSaved, lockRole }: Props) 
                 </select>
               </div>
             </div>
+
+            {/* ✅ Data Access Assignment — sirf edit mode, Status ke baad.
+                 Default: sirf chips (info). Dropdown sirf jab + Assign / Edit dabayein. OK se band. */}
+            {state.mode === 'edit' && (permAttendance || permContainers) && (
+              <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
+                <div className="text-xs font-bold tracking-widest text-white/60 uppercase">Data Access Assignment</div>
+
+                {permAttendance && (
+                  <div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-white/70 font-semibold">Attendance — UC/Wards</span>
+                      <button
+                        type="button"
+                        onClick={() => setShowUcPanel(v => !v)}
+                        className="px-2.5 py-1 rounded-lg text-[10px] font-bold border border-sky-400/40 bg-sky-500/10 text-sky-300 hover:bg-sky-500/25 transition"
+                      >
+                        {showUcPanel ? 'Close' : selectedUcWards.length ? 'Edit' : '+ Assign'}
+                      </button>
+                    </div>
+                    {!showUcPanel && selectedUcWards.length > 0 && (
+                      <div className="mt-1.5 flex flex-wrap gap-1">
+                        {selectedUcWards.map(uc => (
+                          <span key={uc} className="px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-300 border border-sky-500/40 text-[10px] font-bold">{uc}</span>
+                        ))}
+                      </div>
+                    )}
+                    {showUcPanel && (
+                      <div className="mt-2 rounded-lg border border-white/10 bg-black/20 p-2">
+                        <div className="max-h-32 overflow-y-auto space-y-1">
+                          {ucWardOptions.length === 0 ? (
+                            <div className="text-[10px] text-white/40">No UC/Wards found in DB</div>
+                          ) : (
+                            ucWardOptions.map(uc => (
+                              <label key={uc} className="flex items-center gap-2 text-[11px] text-white/80 cursor-pointer hover:bg-white/5 px-2 py-1 rounded">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedUcWards.includes(uc)}
+                                  onChange={e => {
+                                    if (e.target.checked) setSelectedUcWards(prev => [...prev, uc])
+                                    else setSelectedUcWards(prev => prev.filter(u => u !== uc))
+                                  }}
+                                  className="accent-sky-500 h-3.5 w-3.5"
+                                />
+                                <span className="truncate">{uc}</span>
+                              </label>
+                            ))
+                          )}
+                        </div>
+                        <div className="flex gap-2 mt-2 pt-2 border-t border-white/10">
+                          <button type="button" onClick={() => setShowUcPanel(false)} className="flex-1 py-1.5 rounded-lg text-[11px] font-bold bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 hover:bg-emerald-500/30 transition">OK</button>
+                          <button type="button" onClick={() => setSelectedUcWards([])} className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white/5 border border-white/15 text-white/60 hover:bg-white/10 transition">Clear (All Access)</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {permContainers && (
+                  <div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-white/70 font-semibold">Containers — Supervisors</span>
+                      <button
+                        type="button"
+                        onClick={() => setShowSupPanel(v => !v)}
+                        className="px-2.5 py-1 rounded-lg text-[10px] font-bold border border-lime-400/40 bg-lime-500/10 text-lime-300 hover:bg-lime-500/25 transition"
+                      >
+                        {showSupPanel ? 'Close' : selectedSupervisors.length ? 'Edit' : '+ Assign'}
+                      </button>
+                    </div>
+                    {!showSupPanel && selectedSupervisors.length > 0 && (
+                      <div className="mt-1.5 flex flex-wrap gap-1">
+                        {selectedSupervisors.map(sup => (
+                          <span key={sup} className="px-2 py-0.5 rounded-full bg-lime-500/15 text-lime-300 border border-lime-500/40 text-[10px] font-bold">{sup}</span>
+                        ))}
+                      </div>
+                    )}
+                    {showSupPanel && (
+                      <div className="mt-2 rounded-lg border border-white/10 bg-black/20 p-2">
+                        <div className="max-h-32 overflow-y-auto space-y-1">
+                          {supervisorOptions.length === 0 ? (
+                            <div className="text-[10px] text-white/40">No Supervisors found in DB</div>
+                          ) : (
+                            supervisorOptions.map(sup => (
+                              <label key={sup} className="flex items-center gap-2 text-[11px] text-white/80 cursor-pointer hover:bg-white/5 px-2 py-1 rounded">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedSupervisors.includes(sup)}
+                                  onChange={e => {
+                                    if (e.target.checked) setSelectedSupervisors(prev => [...prev, sup])
+                                    else setSelectedSupervisors(prev => prev.filter(s => s !== sup))
+                                  }}
+                                  className="accent-lime-500 h-3.5 w-3.5"
+                                />
+                                <span className="truncate">{sup}</span>
+                              </label>
+                            ))
+                          )}
+                        </div>
+                        <div className="flex gap-2 mt-2 pt-2 border-t border-white/10">
+                          <button type="button" onClick={() => setShowSupPanel(false)} className="flex-1 py-1.5 rounded-lg text-[11px] font-bold bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 hover:bg-emerald-500/30 transition">OK</button>
+                          <button type="button" onClick={() => setSelectedSupervisors([])} className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-white/5 border border-white/15 text-white/60 hover:bg-white/10 transition">Clear (All Access)</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
             
             {((finalRole === 'employee' || finalRole === 'supervisor') && state.mode === 'edit') && (
               <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
@@ -326,7 +464,6 @@ export default function UserModal({ state, onClose, onSaved, lockRole }: Props) 
                     </button>
                   </label>
                 ))}
-                
                 {permPenalties && (
                   <div className="ml-4 mt-2 space-y-2 border-l-2 border-amber-400/30 pl-3">
                     <label className="flex items-center justify-between cursor-pointer group">
