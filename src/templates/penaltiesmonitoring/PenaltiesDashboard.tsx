@@ -915,6 +915,33 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
           </div>
 
           <div className="relative pointer-events-auto">
+            {/* ✅ Mobile LIVE pill — header row ke ANDAR, Home aur Bell ke center mein (sirf mobile) */}
+            {lastUpdated && (
+              <div className="md:hidden flex items-center gap-[3px] rounded-full border border-emerald-400/40 bg-[#021b16] px-1.5 py-[2px] pointer-events-none">
+                {serverStatus === 'live' ? (
+                  <span className="relative flex h-1 w-1">
+                    <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60 animate-ping" />
+                    <span className="relative inline-flex h-1 w-1 rounded-full bg-emerald-400 shadow-[0_0_4px_rgba(52,211,153,0.9)]" />
+                  </span>
+                ) : (
+                  <span className="relative flex h-1 w-1">
+                    <span className="relative inline-flex h-1 w-1 rounded-full bg-red-500 shadow-[0_0_4px_rgba(239,68,68,0.9)] animate-pulse" />
+                  </span>
+                )}
+                <span className={`text-[5px] font-bold tracking-[0.06em] ${serverStatus === 'live' ? 'text-emerald-300' : 'text-red-300'}`}>
+                  {serverStatus === 'live' ? 'LIVE' : 'ERROR'}
+                </span>
+                <div className="h-1.5 w-px bg-white/15" />
+                <span className="text-[5px] font-bold tracking-[0.04em] text-white/45 whitespace-nowrap">LAST UPDATED</span>
+                <span className={`text-[6px] font-bold bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite] whitespace-nowrap ${
+                  serverStatus === 'live'
+                    ? 'bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)]'
+                    : 'bg-[linear-gradient(180deg,#ef4444,#f87171,#fca5a5,#f87171,#ef4444)]'
+                }`}>
+                  {lastUpdated.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
+                </span>
+              </div>
+            )}
             {menuOpen && (
               <>
                 <div className="fixed inset-0 z-30" onClick={() => setMenuOpen(false)} />
@@ -1078,9 +1105,9 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
           </div>
         </div>
 
-        {/* ✅ Mobile: compact LIVE pill — header ke ANDAR alag row (koi overlap nahi) */}
+        {/* ✅ Tablet (md–lg): LIVE pill — alag row; mobile par ye row ab nahi dikhe gi */}
         {lastUpdated && (
-          <div className="lg:hidden flex justify-center pb-1.5 pointer-events-none">
+        <div className="hidden md:flex lg:hidden justify-center pb-1.5 pointer-events-none">
           <div className="flex items-center gap-1 rounded-full border border-emerald-400/40 bg-[#021b16] px-2 py-[3px]">
             {serverStatus === 'live' ? (
               <span className="relative flex h-1.5 w-1.5">
@@ -1111,7 +1138,7 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
       </header>
 
       {/* ===== Content ===== */}
-      <main className="px-4 sm:px-6 max-w-[1750px] mx-auto flex flex-col gap-6 pt-32 lg:pt-24 pb-6">
+      <main className="px-4 sm:px-6 max-w-[1750px] mx-auto flex flex-col gap-6 pt-24 md:pt-32 lg:pt-24 pb-6">
         {view === 'dashboard' && (
           <div className="flex flex-col gap-4">
             {/* ✅ No Access Message */}

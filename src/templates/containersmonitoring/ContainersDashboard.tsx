@@ -475,6 +475,33 @@ function notifyDataUpdated(at?: Date) {
 
           {/* Center: tabs */}
           <div className="relative pointer-events-auto">
+            {/* ✅ Mobile LIVE pill — header row ke ANDAR, Home aur Bell ke center mein (sirf mobile) */}
+            {lastUpdated && (
+              <div className="md:hidden flex items-center gap-1 rounded-full border border-emerald-400/40 bg-[#021b16] px-1.5 py-[2px] pointer-events-none">
+                {serverStatus === 'live' ? (
+                  <span className="relative flex h-1 w-1">
+                    <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60 animate-ping" />
+                    <span className="relative inline-flex h-1 w-1 rounded-full bg-emerald-400 shadow-[0_0_4px_rgba(52,211,153,0.9)]" />
+                  </span>
+                ) : (
+                  <span className="relative flex h-1 w-1">
+                    <span className="relative inline-flex h-1 w-1 rounded-full bg-red-500 shadow-[0_0_4px_rgba(239,68,68,0.9)] animate-pulse" />
+                  </span>
+                )}
+                <span className={`text-[5px] font-bold tracking-[0.06em] ${serverStatus === 'live' ? 'text-emerald-300' : 'text-red-300'}`}>
+                  {serverStatus === 'live' ? 'LIVE' : 'ERROR'}
+                </span>
+                <div className="h-1.5 w-px bg-white/15" />
+                <span className="text-[5px] font-bold tracking-[0.04em] text-white/45 whitespace-nowrap">LAST UPDATED</span>
+                <span className={`text-[6px] font-bold bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite] whitespace-nowrap ${
+                  serverStatus === 'live'
+                    ? 'bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)]'
+                    : 'bg-[linear-gradient(180deg,#ef4444,#f87171,#fca5a5,#f87171,#ef4444)]'
+                }`}>
+                  {lastUpdated.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
+                </span>
+              </div>
+            )}
             {menuOpen && (
               <>
                 <div className="fixed inset-0 z-30" onClick={() => setMenuOpen(false)} />
@@ -647,9 +674,9 @@ function notifyDataUpdated(at?: Date) {
           </div>
 
         </div>
-      {/* ✅ Mobile: LIVE pill — header ke ANDAR alag row (koi overlap nahi) */}
+      {/* ✅ Tablet (md–lg): LIVE pill — alag row; mobile par ye row ab nahi dikhe gi */}
       {lastUpdated && (
-        <div className="lg:hidden flex justify-center pb-1.5 pointer-events-none">
+        <div className="hidden md:flex lg:hidden justify-center pb-1.5 pointer-events-none">
         <div className="flex items-center gap-1 rounded-full border border-emerald-400/40 bg-[#021b16] px-2 py-[3px]">
           {serverStatus === 'live' ? (
             <span className="relative flex h-1.5 w-1.5">
@@ -683,11 +710,11 @@ function notifyDataUpdated(at?: Date) {
       {view === 'map' && <ContainersMap containers={containers} />}
 
       {view !== 'map' && (
-      <main className={`px-4 sm:px-6 max-w-[1750px] mx-auto flex flex-col ${view === 'report' ? 'pt-32 lg:pt-24 pb-4 h-dvh overflow-hidden' : 'pt-32 lg:pt-24 pb-6'}`}>
+      <main className={`px-4 sm:px-6 max-w-[1750px] mx-auto flex flex-col ${view === 'report' ? 'pt-24 md:pt-32 lg:pt-24 pb-4 h-dvh overflow-hidden' : 'pt-24 md:pt-32 lg:pt-24 pb-6'}`}>
         {view === 'stats' && (
           <div className="flex flex-col gap-6">
             {/* ===== Sticky heading block — scroll par cards is ke PEECHE se guzarti hain ===== */}
-            <div className="sticky top-[82px] sm:top-[90px] lg:top-[64px] z-30 -mx-4 sm:-mx-6 -mt-4 sm:-mt-6 px-4 sm:px-6 pt-3 sm:pt-4 pb-0 bg-[#021b16]">
+            <div className="sticky top-[56px] sm:top-[68px] md:top-[94px] lg:top-[64px] z-30 -mx-4 sm:-mx-6 -mt-4 sm:-mt-6 px-4 sm:px-6 pt-3 sm:pt-4 pb-0 bg-[#021b16]">
               <h1 className="text-center text-lg sm:text-xl md:text-2xl font-extrabold tracking-tight leading-none">
                 <span className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Containers </span>
                 <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Dashboard</span>

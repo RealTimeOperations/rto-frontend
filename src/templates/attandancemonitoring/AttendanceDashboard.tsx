@@ -15,6 +15,12 @@ function parseLocal(s: string): Date {
   return isNaN(d.getTime()) ? new Date(s) : d
 }
 
+// ✅ Local (PKT) date string — UTC date raat ke waqt galat din return karti thi
+function localToday() {
+  const n = new Date()
+  return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`
+}
+
 // ✅ UC/Ward normalize + key (limited access matching ke liye — format farq handle karta hai)
 function normUc(s: any) {
   return String(s ?? '').toLowerCase().replace(/\s+/g, ' ').trim()
@@ -53,8 +59,17 @@ export default function AttendanceDashboard({ onHomeClick }: Props) {
   const [slider, setSlider] = useState({ left: 0, width: 0 })
   const [menuOpen, setMenuOpen] = useState(false)
 
-  // ✅ Last sync time (Penalties jaisa pattern — null start, load() set karega)
-  const [lastSync, setLastSync] = useState<Date | null>(null)
+  // ✅ Last sync time — localStorage se foran initialize karo taake pill mount par foran dikhe
+  const [lastSync, setLastSync] = useState<Date | null>(() => {
+    try {
+      const t = localStorage.getItem('rto_last_data_update')
+      if (t) {
+        const d = new Date(t)
+        return isNaN(d.getTime()) ? null : d
+      }
+    } catch {}
+    return null
+  })
   // ✅ lastSync ka ms mirror (ref) — closure stale nahi hota, refresh par localStorage se compare
   const lastSyncMsRef = useRef<number>((() => {
     try {
@@ -231,6 +246,8 @@ const empRows = useMemo(() => (ucMatcher ? employees.filter(e => ucMatcher(e.uc_
   }
   const lastLogIdRef = useRef<string | null>(null)
   const aliveRef = useRef(true)
+  // ✅ Cache signature — sirf data change hone par localStorage write hota hai
+  const cacheSigRef = useRef<string>('')
   // ✅ Heartbeat event key (updated_at) — har event sirf EK dafa notify hota hai
   const lastHbKeyRef = useRef<string>((() => {
     try { return localStorage.getItem('rto_last_hb_key') || '' } catch { return '' }
@@ -253,24 +270,39 @@ const empRows = useMemo(() => (ucMatcher ? employees.filter(e => ucMatcher(e.uc_
     return () => { aliveRef.current = false }
   }, [])
 
-  // ✅ Paginated fetch — Supabase ek request mein max 1000 rows deta hai
-  async function fetchAll(table: string) {
-    let all: Row[] = []
-    let from = 0
-    const PAGE = 1000
-    while (true) {
-      const { data, error } = await supabase
-        .from(table)
-        .select('*')
-        .order('id', { ascending: true })
-        .range(from, from + PAGE - 1)
-      if (error) throw error
-      const rows = data ?? []
-      all = all.concat(rows)
-      if (rows.length < PAGE) break
-      from += PAGE
-    }
-    return all
+  // ✅ Sirf AAJ ka data fetch karo — historical data skip karo (FAST)
+  async function fetchTodayAttendance() {
+  const today = localToday()   // ✅ PKT local date (UTC nahi)
+  let all: Row[] = []
+  let from = 0
+  const PAGE = 1000
+
+  while (true) {
+  const { data, error } = await supabase
+  .from('attendance_logs')
+  .select('*')
+  .eq('date', today) // ✅ Sirf aaj ka data
+  .order('id', { ascending: true })
+  .range(from, from + PAGE - 1)
+
+  if (error) throw error
+  const rows = data ?? []
+  all = all.concat(rows)
+  if (rows.length < PAGE) break
+  from += PAGE
+  }
+  return all
+  }
+
+  // ✅ Employees bhi optimized — sirf active employees
+  async function fetchActiveEmployees() {
+  const { data, error } = await supabase
+  .from('assigned_employees')
+  .select('*')
+  .order('id', { ascending: true })
+
+  if (error) throw error
+  return data ?? []
   }
 
   // ✅ Sirf FMO / staff exclude (khali CNIC ya FMO/Weighbridge/Manager designation)
@@ -290,16 +322,18 @@ const empRows = useMemo(() => (ucMatcher ? employees.filter(e => ucMatcher(e.uc_
     if (!silent) setLoading(true)
     try {
       const [att, emp, bv, hb] = await Promise.all([
-        fetchAll('attendance_logs'),
-        fetchAll('assigned_employees'),
-        supabase.from('base_values').select('label, value, sort_order, type, present_target').order('sort_order', { ascending: true }),
-        supabase.from('system_heartbeat').select('status, message, updated_at').eq('id', 1).maybeSingle(),
+      fetchTodayAttendance(), // ✅ Sirf aaj ka attendance
+      fetchActiveEmployees(), // ✅ Sirf active employees
+      supabase.from('base_values').select('label, value, sort_order, type, present_target').order('sort_order', { ascending: true }),
+      supabase.from('system_heartbeat').select('status, message, updated_at').eq('id', 1).maybeSingle(),
       ])
       if (!aliveRef.current) return
 
-      setAttendance(att.filter(r => !isStaff(r)))
+      const attClean = att.filter(r => !isStaff(r))
+      const bvRows = (bv.data ?? []) as { label: string; value: number; sort_order: number; type: string; present_target?: number | null }[]
+      setAttendance(attClean)
       setEmployees(emp)
-      setBaseValues((bv.data ?? []) as { label: string; value: number; sort_order: number; type: string; present_target?: number | null }[])
+      setBaseValues(bvRows)
 
       // ✅ LAST UPDATED ka SINGLE SOURCE: attendance_logs ka sab se naya date_time (portal event time)
       //    (clean schema mein created_at mojood NAHI — isi wajah se pill refresh par jump karti thi)
@@ -313,6 +347,14 @@ const empRows = useMemo(() => (ucMatcher ? employees.filter(e => ucMatcher(e.uc_
       if (maxT > 0) {
         const d = new Date(maxT)
         setLastSync(d)   // ✅ pill hamesha DB time par — refresh par change NAHI hoti
+        // ✅ CACHE WRITE: sirf jab data asal mein change hua ho
+        try {
+          const sig = `${maxT}|${att.length}|${emp.length}`
+          if (sig !== cacheSigRef.current) {
+            cacheSigRef.current = sig
+            localStorage.setItem('rto_att_cache_v1', JSON.stringify({ day: localToday(), att: attClean, emp, bv: bvRows }))
+          }
+        } catch {}
         // ✅ Pill marker (persisted)
         if (maxT !== lastSyncMsRef.current) {
           lastSyncMsRef.current = maxT
@@ -366,7 +408,22 @@ const empRows = useMemo(() => (ucMatcher ? employees.filter(e => ucMatcher(e.uc_
   }, [])
 
   useEffect(() => {
-    load(false)
+    // ✅ CACHE-FIRST: cached data FORAN dikhao (koi loading screen nahi), phir background mein silent refresh
+    let hadCache = false
+    try {
+      const raw = localStorage.getItem('rto_att_cache_v1')
+      if (raw) {
+        const c = JSON.parse(raw)
+        if (c && c.day === localToday() && Array.isArray(c.att) && Array.isArray(c.emp)) {
+          setAttendance(c.att)
+          setEmployees(c.emp)
+          if (Array.isArray(c.bv)) setBaseValues(c.bv)
+          setLoading(false)   // ✅ loading foran khatam
+          hadCache = true
+        }
+      }
+    } catch {}
+    load(hadCache)   // cache tha → silent refresh; nahi tha → normal load
     const t = setInterval(() => load(true), 15_000)
     return () => clearInterval(t)
   }, [load])
@@ -440,6 +497,33 @@ const empRows = useMemo(() => (ucMatcher ? employees.filter(e => ucMatcher(e.uc_
 
           {/* Center: Mobile LIVE pill (center aligned) + Desktop tabs */}
           <div className="relative pointer-events-auto">
+            {/* ✅ Mobile LIVE pill — header row ke ANDAR, Home aur Bell ke center mein (sirf mobile) */}
+            {lastSync && (
+              <div className="md:hidden flex items-center gap-[3px] rounded-full border border-emerald-400/40 bg-[#021b16] px-1.5 py-[2px] pointer-events-none">
+                {serverStatus === 'live' ? (
+                  <span className="relative flex h-1 w-1">
+                    <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60 animate-ping" />
+                    <span className="relative inline-flex h-1 w-1 rounded-full bg-emerald-400 shadow-[0_0_4px_rgba(52,211,153,0.9)]" />
+                  </span>
+                ) : (
+                  <span className="relative flex h-1 w-1">
+                    <span className="relative inline-flex h-1 w-1 rounded-full bg-red-500 shadow-[0_0_4px_rgba(239,68,68,0.9)] animate-pulse" />
+                  </span>
+                )}
+                <span className={`text-[5px] font-bold tracking-[0.06em] ${serverStatus === 'live' ? 'text-emerald-300' : 'text-red-300'}`}>
+                  {serverStatus === 'live' ? 'LIVE' : 'ERROR'}
+                </span>
+                <div className="h-1.5 w-px bg-white/15" />
+                <span className="text-[5px] font-bold tracking-[0.04em] text-white/45 whitespace-nowrap">LAST UPDATED</span>
+                <span className={`text-[6px] font-bold bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite] whitespace-nowrap ${
+                  serverStatus === 'live'
+                    ? 'bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)]'
+                    : 'bg-[linear-gradient(180deg,#ef4444,#f87171,#fca5a5,#f87171,#ef4444)]'
+                }`}>
+                  {lastSync.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })}
+                </span>
+              </div>
+            )}
             {/* ✅ Mobile: Dropdown menu (hamburger se trigger hota hai) */}
             {menuOpen && (
               <>
@@ -685,9 +769,9 @@ const empRows = useMemo(() => (ucMatcher ? employees.filter(e => ucMatcher(e.uc_
           </div>
 
           </div>
-        {/* ✅ Mobile: LIVE pill — header ke ANDAR alag row (koi overlap nahi) */}
+        {/* ✅ Tablet (md–lg): LIVE pill — alag row; mobile par ye row ab nahi dikhe gi */}
         {lastSync && (
-          <div className="lg:hidden flex justify-center pb-1.5 pointer-events-none">
+          <div className="hidden md:flex lg:hidden justify-center pb-1.5 pointer-events-none">
           <div className="flex items-center gap-1 rounded-full border border-emerald-400/40 bg-[#021b16] px-2 py-[3px]">
           {serverStatus === 'live' ? (
             <span className="relative flex h-1.5 w-1.5">
@@ -718,7 +802,7 @@ const empRows = useMemo(() => (ucMatcher ? employees.filter(e => ucMatcher(e.uc_
     </header>
 
       {/* ===== Content ===== */}
-      <main className="pt-32 lg:pt-24 pb-4 px-4 sm:px-6 max-w-[1750px] mx-auto flex flex-col">
+      <main className="pt-24 md:pt-32 lg:pt-24 pb-4 px-4 sm:px-6 max-w-[1750px] mx-auto flex flex-col">
         {view === 'dashboard' && <StatsView attendance={attRows} employees={empRows} baseValues={baseValues} loading={loading} />}
         {view === 'attendance' && <AttendanceLogs rows={attRows} loading={loading} />}
         {view === 'hr' && <TotalHR rows={empRows} loading={loading} onRefresh={load} />}
@@ -900,7 +984,7 @@ function StatsView({ attendance, employees, baseValues, loading }: { attendance:
   return (
     <div>
       {/* ✅ Sticky heading block — scroll par cards is ke PEECHE se guzarti hain */}
-      <div className="sticky top-[60px] sm:top-[64px] z-30 -mx-4 sm:-mx-6 -mt-8 px-4 sm:px-6 pt-6 sm:pt-8 pb-4 bg-[#021b16]">
+      <div className="sticky top-[32px] sm:top-[36px] md:top-[64px] z-30 -mx-4 sm:-mx-6 -mt-8 px-4 sm:px-6 pt-6 sm:pt-8 pb-4 bg-[#021b16]">
         <h1 className="text-center text-lg sm:text-xl md:text-2xl font-extrabold tracking-tight leading-none">
           <span className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Attendance </span>
           <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Dashboard</span>
