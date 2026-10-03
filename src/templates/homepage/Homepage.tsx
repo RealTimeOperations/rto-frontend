@@ -84,14 +84,14 @@ export default function Homepage({ role, permissions, permissionsLoaded = true, 
       <img
         src="/logos/zakwan-logo.png"
         alt="Zakwan Builders & Developers"
-        className="fixed top-4 left-4 sm:absolute sm:top-6 sm:left-6 z-20 h-16 sm:h-20 md:h-24 lg:h-28 xl:h-32 w-auto object-contain drop-shadow-[0_5px_12px_rgba(0,0,0,0.45)] sm:animate-[logo-zoom_4s_ease-in-out_infinite]"
+        className="absolute top-4 left-4 sm:top-6 sm:left-6 z-20 h-16 sm:h-20 md:h-24 lg:h-28 xl:h-32 w-auto object-contain drop-shadow-[0_5px_12px_rgba(0,0,0,0.45)] sm:animate-[logo-zoom_4s_ease-in-out_infinite]"
       />
 
       {/* Top-right: Suthra logo */}
       <img
         src="/logos/suthra-logo.png"
         alt="Suthra Punjab Authority"
-        className="fixed top-4 right-4 sm:absolute sm:top-6 sm:right-6 z-20 h-20 sm:h-24 md:h-32 lg:h-36 xl:h-40 w-auto object-contain -translate-y-2 sm:-translate-y-3 drop-shadow-[0_5px_12px_rgba(0,0,0,0.45)] sm:animate-[logo-zoom_4s_ease-in-out_infinite]"
+        className="absolute top-4 right-4 sm:top-6 sm:right-6 z-20 h-20 sm:h-24 md:h-32 lg:h-36 xl:h-40 w-auto object-contain -translate-y-2 sm:-translate-y-3 drop-shadow-[0_5px_12px_rgba(0,0,0,0.45)] sm:animate-[logo-zoom_4s_ease-in-out_infinite]"
       />
 
       {/* Main content */}
