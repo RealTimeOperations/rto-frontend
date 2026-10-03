@@ -3,11 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import type { Permissions } from '../admin/types'
 import { resetMonitoringTabs } from '../../lib/resetTabs'
+
 type HomepageProps = {
   role: string | null
   permissions: Permissions
   permissionsLoaded?: boolean
-  // ✅ 'penalties' ko bhi add kar diya gaya hai
   onCardClick?: (target: 'attendance' | 'containers' | 'vehicles' | 'penalties') => void
   onAdminClick?: () => void
 }
@@ -15,23 +15,17 @@ type HomepageProps = {
 export default function Homepage({ role, permissions, permissionsLoaded = true, onCardClick, onAdminClick }: HomepageProps) {
   const navigate = useNavigate()
 
-  // ✅ Homepage mount hote hi sab saved tabs (monitoring + admin) default par reset.
-  //    Refresh-safe: jab aap kisi dashboard par refresh karte hain to Homepage mount NAHI hoti,
-  //    is liye wahan tab persistence barqarar rehti hai. Home par aate hi sab clear ho jata hai.
   useEffect(() => {
     resetMonitoringTabs()
   }, [])
 
-  // Sign out (App redirects to /login automatically)
   async function handleLogout() {
     resetMonitoringTabs()
     await supabase.auth.signOut()
   }
 
-  // ✅ Penalties button access: admin hamesha, supervisor/employee sirf permission se
   const canPenalties = role === 'admin' || permissions.penalties
 
-  // Base monitoring cards
   const baseCards = [
     {
       key: 'containers',
@@ -57,29 +51,23 @@ export default function Homepage({ role, permissions, permissionsLoaded = true, 
     },
   ]
 
-  // Filter cards based on permissions (admin/supervisor see all, employee sees only allowed)
   const visibleBaseCards = baseCards.filter(c => {
     if (role === 'admin' || role === 'supervisor') return true
     return permissions[c.permissionKey]
   })
 
-  // ✅ Check if user ONLY has penalties access (and no other monitoring access)
   const hasOnlyPenalties = visibleBaseCards.length === 0 && canPenalties
 
-  // Final cards to render in the grid
   const finalVisibleCards = hasOnlyPenalties
     ? [{ key: 'penalties', title: 'PENALTIES', highlight: 'MONITORING', icon: <PenaltiesIcon /> }]
     : visibleBaseCards
 
-  // Show welcome screen only if NO cards are visible AND no penalties access
   const showWelcome = role === 'employee' && finalVisibleCards.length === 0 && !canPenalties
-
-  // Show bottom button ONLY if they have penalties access AND other access too
   const showBottomPenaltiesButton = canPenalties && !hasOnlyPenalties
 
   return (
-    <div className="home-page relative h-[100dvh] overflow-hidden bg-[#021b16] text-white">
-      {/* Background image — mobile par hide */}
+    <div className="home-page relative min-h-[100dvh] bg-[#021b16] text-white">
+      {/* Background image — mobile par bilkul load mat karo */}
       <div
         aria-hidden="true"
         className="hidden sm:block absolute inset-0 bg-no-repeat pointer-events-none"
@@ -87,52 +75,49 @@ export default function Homepage({ role, permissions, permissionsLoaded = true, 
       />
 
       {/* Dark overlay */}
-      <div aria-hidden="true" className="absolute inset-0 bg-[#021b16]/35" />
+      <div aria-hidden="true" className="absolute inset-0 bg-[#021b16]/35 pointer-events-none" />
 
-      {/* Extra green glow — mobile par hide (GPU heavy) */}
+      {/* Extra green glow — mobile par hide */}
       <div aria-hidden="true" className="hidden sm:block pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_42%,rgba(0,255,170,0.10),transparent_38%)]" />
 
       {/* Top-left: Zakwan logo */}
       <img
         src="/logos/zakwan-logo.png"
         alt="Zakwan Builders & Developers"
-        className="absolute top-4 left-4 sm:top-6 sm:left-6 z-20 h-16 sm:h-20 md:h-24 lg:h-28 xl:h-32 w-auto object-contain drop-shadow-[0_5px_12px_rgba(0,0,0,0.45)] animate-[logo-zoom_4s_ease-in-out_infinite]"
+        className="fixed top-4 left-4 sm:absolute sm:top-6 sm:left-6 z-20 h-16 sm:h-20 md:h-24 lg:h-28 xl:h-32 w-auto object-contain drop-shadow-[0_5px_12px_rgba(0,0,0,0.45)] sm:animate-[logo-zoom_4s_ease-in-out_infinite]"
       />
 
       {/* Top-right: Suthra logo */}
       <img
         src="/logos/suthra-logo.png"
         alt="Suthra Punjab Authority"
-        className="absolute top-4 right-4 sm:top-6 sm:right-6 z-20 h-20 sm:h-24 md:h-32 lg:h-36 xl:h-40 w-auto object-contain -translate-y-2 sm:-translate-y-3 drop-shadow-[0_5px_12px_rgba(0,0,0,0.45)] animate-[logo-zoom_4s_ease-in-out_infinite]"
+        className="fixed top-4 right-4 sm:absolute sm:top-6 sm:right-6 z-20 h-20 sm:h-24 md:h-32 lg:h-36 xl:h-40 w-auto object-contain -translate-y-2 sm:-translate-y-3 drop-shadow-[0_5px_12px_rgba(0,0,0,0.45)] sm:animate-[logo-zoom_4s_ease-in-out_infinite]"
       />
 
       {/* Main content */}
-      <main className="home-main relative z-10 flex h-full flex-col items-center justify-between px-5 pt-14 sm:pt-16 pb-20 sm:pb-28 overflow-hidden"> 
-        {/* ✅ Show loading until permissions are confirmed */}
+      <main className="home-main relative z-10 flex min-h-[100dvh] flex-col items-center justify-between px-5 pt-24 sm:pt-16 pb-28 sm:pb-28 overflow-y-auto overflow-x-hidden"> 
         {role === 'employee' && !permissionsLoaded && (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-white/60 text-sm">Loading your access…</div>
           </div>
         )}
 
-        {/* ✅ Render content only when permissions are loaded (or not employee) */}
         {(role !== 'employee' || permissionsLoaded) && (
           <>
-            <div className="home-top flex flex-col items-center flex-shrink-0">
-              {/* Hero icon */}
+            <div className="home-top flex flex-col items-center flex-shrink-0 mb-6 sm:mb-0">
+              {/* Hero icon - mobile par animation disable */}
               <div className="relative mb-3 sm:mb-5">
                 <div aria-hidden="true" className="hidden sm:block absolute inset-0 scale-125 rounded-full bg-emerald-400/20 blur-2xl" />
                 <img
                   src="/logos/loginform-logo.png"
                   alt="Real Time Operations"
-                  className="home-logo relative h-14 w-14 sm:h-20 sm:w-20 object-contain sm:drop-shadow-[0_0_25px_rgba(0,255,170,0.45)] animate-[logo-pulse_4s_ease-in-out_infinite]"
+                  className="home-logo relative h-14 w-14 sm:h-20 sm:w-20 object-contain sm:drop-shadow-[0_0_25px_rgba(0,255,170,0.45)] sm:animate-[logo-pulse_4s_ease-in-out_infinite]"
                 />
               </div>
 
-              {/* Heading */}
               <h1 className="text-center text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight leading-none whitespace-nowrap">
-                <span className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Real Time </span>
-                <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Operations</span>
+                <span className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent sm:animate-[text-run-vertical_2.5s_linear_infinite]">Real Time </span>
+                <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent sm:animate-[text-run-vertical_2.5s_linear_infinite]">Operations</span>
               </h1>
 
               <p className="hidden sm:block mt-4 mb-6 text-xs sm:text-sm text-white/45">
@@ -140,7 +125,6 @@ export default function Homepage({ role, permissions, permissionsLoaded = true, 
               </p>
             </div>
 
-            {/* ✅ Employee Welcome Screen (no permissions at all) */}
             {showWelcome && (
               <div className="mt-12 sm:mt-14 flex flex-col items-center gap-4 rounded-2xl border border-emerald-400/20 bg-[#073b2d]/40 backdrop-blur-md px-8 py-10 shadow-[0_20px_60px_rgba(0,0,0,0.3)] max-w-md text-center">
                 <div className="flex h-16 w-16 items-center justify-center rounded-full border border-emerald-400/40 bg-emerald-500/15 text-emerald-300">
@@ -156,10 +140,9 @@ export default function Homepage({ role, permissions, permissionsLoaded = true, 
               </div>
             )}
 
-            {/* ✅ Monitoring cards (filtered by permissions, or shows ONLY Penalties if that's the only access) */}
             {!showWelcome && finalVisibleCards.length > 0 && (
               <div
-                className={`home-cards mt-8 sm:mt-14 mx-auto grid w-full items-stretch gap-4 sm:gap-5 lg:gap-7 min-h-0 flex-1 ${
+                className={`home-cards mt-8 sm:mt-14 mx-auto grid w-full items-stretch gap-4 sm:gap-5 lg:gap-7 flex-1 ${
                   finalVisibleCards.length === 1
                     ? 'grid-cols-1 max-w-[400px]'
                     : finalVisibleCards.length === 2
@@ -184,7 +167,6 @@ export default function Homepage({ role, permissions, permissionsLoaded = true, 
                       icon={card.icon}
                       primary={card.key === 'attendance'}
                       onClick={() => {
-                        // ✅ Ab penalties ke liye bhi transition trigger hoga
                         onCardClick?.(card.key as 'attendance' | 'containers' | 'vehicles' | 'penalties')
                         navigate(`/${card.key}`)
                       }}
@@ -194,26 +176,18 @@ export default function Homepage({ role, permissions, permissionsLoaded = true, 
               </div>
             )}
 
-            {/* ✅ Mobile: Penalties Monitoring button — sirf tab jab doosri access bhi ho */}
+            {/* Mobile: Penalties Monitoring button */}
             <div className={showBottomPenaltiesButton ? 'mt-5 sm:hidden flex justify-center w-full flex-shrink-0' : 'hidden'}>
               <button
                 type="button"
                 onClick={() => {
-                  onCardClick?.('penalties') // ✅ Transition trigger
+                  onCardClick?.('penalties')
                   navigate('/penalties')
                 }}
                 aria-label="Open penalties monitoring"
                 className="relative flex items-center rounded-full p-[1.5px] overflow-hidden shadow-[0_10px_30px_rgba(0,0,0,0.35)]"
               >
-                <span
-                  aria-hidden="true"
-                  className="absolute left-[calc(50%-300px)] top-[calc(50%-300px)] h-[600px] w-[600px] bg-[conic-gradient(from_0deg,#059669,#34d399,#7acba4,#34d399,#059669)] opacity-70"
-                />
                 <span className="relative flex items-center gap-2 overflow-hidden rounded-full bg-[#021b16]/85 backdrop-blur-md px-6 py-3 text-sm font-semibold text-white/80">
-                  <span
-                    aria-hidden="true"
-                    className="absolute inset-0 scale-x-0 rounded-full bg-[linear-gradient(90deg,#00764c,#058962)] transition-transform duration-300 ease-out active:scale-x-100"
-                  />
                   <span className="relative flex items-center gap-2">
                     <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
@@ -229,11 +203,11 @@ export default function Homepage({ role, permissions, permissionsLoaded = true, 
         )}
       </main>
 
-      {/* ✅ Penalties Monitoring button (center bottom) — sirf tab jab doosri access bhi ho */}
+      {/* Desktop: Penalties Monitoring button */}
       <button
         type="button"
         onClick={() => {
-          onCardClick?.('penalties') // ✅ Transition trigger
+          onCardClick?.('penalties')
           navigate('/penalties')
         }}
         aria-label="Open penalties monitoring"
@@ -276,7 +250,6 @@ export default function Homepage({ role, permissions, permissionsLoaded = true, 
         </span>
       </button>
 
-      {/* Admin button (admin only) */}
       {role === 'admin' && (
         <button
           type="button"
@@ -298,8 +271,8 @@ export default function Homepage({ role, permissions, permissionsLoaded = true, 
         </button>
       )}
 
-      {/* ✅ Mobile bottom bar — Admin + Penalties + Logout */}
-      <div className="fixed bottom-0 left-0 right-0 z-30 flex items-center gap-2 px-3 py-3 bg-[#021b16]/90 backdrop-blur-md border-t border-white/10 sm:hidden">
+      {/* Mobile bottom bar */}
+      <div className="fixed bottom-0 left-0 right-0 z-30 flex items-center gap-2 px-3 py-3 bg-[#021b16]/95 backdrop-blur-md border-t border-white/10 sm:hidden">
         {role === 'admin' && (
           <button
             type="button"
@@ -323,13 +296,56 @@ export default function Homepage({ role, permissions, permissionsLoaded = true, 
         </button>
       </div>
 
-      {/* ✅ Homepage responsive rules */}
       <style>{`
-        @media (max-width: 640px) {
-          .home-page { height: auto !important; min-height: 100dvh; overflow: visible !important; }
-          .home-main { height: auto !important; min-height: 100dvh; overflow: visible !important; justify-content: flex-start !important; padding-bottom: 96px !important; }
-          .home-cards { flex: 0 0 auto !important; min-height: 0 !important; grid-template-rows: auto !important; }
+        /* Mobile: smooth scrolling aur proper height */
+        .home-page {
+          min-height: 100dvh;
+          overflow: visible;
         }
+        
+        .home-main {
+          min-height: 100dvh;
+          overflow-y: auto;
+          overflow-x: hidden;
+          -webkit-overflow-scrolling: touch;
+          padding-bottom: 120px !important; /* Bottom bar ke liye space */
+        }
+
+        /* Mobile par animations disable - performance boost */
+        @media (max-width: 640px) {
+          .home-page * {
+            animation: none !important;
+            transition: none !important;
+          }
+          
+          .home-logo {
+            animation: none !important;
+          }
+          
+          .home-cards {
+            flex: 0 0 auto !important;
+          }
+          
+          .home-card-inner {
+            min-height: 200px !important;
+          }
+        }
+
+        /* Desktop animations */
+        @media (min-width: 641px) {
+          .home-page {
+            height: 100dvh;
+            overflow: hidden;
+          }
+          
+          .home-main {
+            height: 100dvh;
+            overflow: hidden;
+            padding-bottom: 28px !important;
+          }
+        }
+
+        /* Tablet aur short screens */
         @media (min-width: 640px) and (max-height: 850px) {
           .home-page { height: 100dvh !important; overflow: hidden !important; }
           .home-main { padding-top: clamp(10px, 2vh, 20px) !important; padding-bottom: clamp(56px, 9vh, 90px) !important; justify-content: center !important; gap: clamp(10px, 2vh, 26px) !important; }
@@ -350,6 +366,7 @@ export default function Homepage({ role, permissions, permissionsLoaded = true, 
           .home-card-inner { justify-content: center !important; gap: clamp(12px, 2.4vh, 24px) !important; }
           .home-card-inner > div { margin: 0 !important; }
         }
+        
         @media (min-width: 640px) and (max-height: 700px) {
           .home-main { padding-top: 6px !important; padding-bottom: 44px !important; }
           .home-logo { width: clamp(40px, 6vh, 52px) !important; height: clamp(40px, 6vh, 52px) !important; }
@@ -357,6 +374,7 @@ export default function Homepage({ role, permissions, permissionsLoaded = true, 
           .home-card-inner { height: clamp(220px, 44vh, 380px) !important; }
           .home-card-inner .text-center > div:last-child { font-size: clamp(1rem, 2.4vh, 1.4rem) !important; }
         }
+        
         @media (min-width: 640px) and (min-height: 851px) {
           .home-main { justify-content: flex-start !important; }
           .home-cards { flex: 0 0 auto !important; margin-top: clamp(14px, 2.2vh, 30px) !important; }
@@ -367,10 +385,6 @@ export default function Homepage({ role, permissions, permissionsLoaded = true, 
     </div>
   )
 }
-
-/* =========================================================
-   MONITORING CARD COMPONENT
-========================================================= */
 
 type MonitoringCardProps = {
   title: string
@@ -388,7 +402,7 @@ function MonitoringCard({ title, highlight, icon, primary = false, onClick }: Mo
       className="group relative w-full cursor-pointer select-none touch-manipulation outline-none"
     >
       <div className="relative overflow-hidden rounded-[28px] shadow-[0_6px_20px_rgba(0,0,0,0.35)] sm:shadow-[0_20px_60px_rgba(0,0,0,0.30)] transition-all duration-500 group-hover:-translate-y-2 group-hover:shadow-[0_20px_70px_rgba(0,255,170,0.16)]">
-        <div className="absolute left-[calc(50%-600px)] top-[calc(50%-600px)] h-[1200px] w-[1200px] sm:animate-[border-spin_8s_linear_infinite] bg-[conic-gradient(from_0deg,#059669,#34d399,#7acba4,#34d399,#059669)] opacity-60" />
+        <div className="hidden sm:block absolute left-[calc(50%-600px)] top-[calc(50%-600px)] h-[1200px] w-[1200px] animate-[border-spin_8s_linear_infinite] bg-[conic-gradient(from_0deg,#059669,#34d399,#7acba4,#34d399,#059669)] opacity-60" />
 
         <div
           className={`home-card-inner relative m-0.5 rounded-[26px] bg-linear-to-b from-[#073b2d] to-[#021d17] flex flex-col items-center justify-center px-5 py-6 sm:py-7 h-full ${
@@ -414,14 +428,14 @@ function MonitoringCard({ title, highlight, icon, primary = false, onClick }: Mo
           </div>
 
           <div className="text-center">
-            <div className="text-base sm:text-xl md:text-[21px] font-bold tracking-wide bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">{title}</div>
-            <div className="mt-1 text-xl sm:text-3xl font-extrabold tracking-wide bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent drop-shadow-[0_0_12px_rgba(16,185,129,0.18)] animate-[text-run-vertical_2.5s_linear_infinite]">
+            <div className="text-base sm:text-xl md:text-[21px] font-bold tracking-wide bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent sm:animate-[text-run-vertical_2.5s_linear_infinite]">{title}</div>
+            <div className="mt-1 text-xl sm:text-3xl font-extrabold tracking-wide bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent drop-shadow-[0_0_12px_rgba(16,185,129,0.18)] sm:animate-[text-run-vertical_2.5s_linear_infinite]">
               {highlight}
             </div>
           </div>
 
           <div className="relative mt-4 sm:mt-7 h-9 w-9 sm:h-11 sm:w-11 overflow-hidden rounded-full transition-all duration-300 group-hover:scale-110 group-hover:shadow-[0_0_25px_rgba(0,255,170,0.4)]">
-            <div className="absolute left-[calc(50%-250px)] top-[calc(50%-250px)] h-125 w-125 sm:animate-[border-spin_8s_linear_infinite] bg-[conic-gradient(from_0deg,#059669,#34d399,#7acba4,#34d399,#059669)] opacity-70" />
+            <div className="hidden sm:block absolute left-[calc(50%-250px)] top-[calc(50%-250px)] h-125 w-125 animate-[border-spin_8s_linear_infinite] bg-[conic-gradient(from_0deg,#059669,#34d399,#7acba4,#34d399,#059669)] opacity-70" />
             <div className="absolute inset-[1.5px] rounded-full bg-[#021d17] flex items-center justify-center">
               <ArrowIcon />
             </div>
@@ -431,10 +445,6 @@ function MonitoringCard({ title, highlight, icon, primary = false, onClick }: Mo
     </button>
   )
 }
-
-/* =========================================================
-   ICONS
-========================================================= */
 
 function PenaltiesIcon() {
   return (
@@ -538,7 +548,7 @@ function ArrowIcon() {
       strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
-      className="text-emerald-300 animate-[stroke-run_2.5s_linear_infinite]"
+      className="text-emerald-300 sm:animate-[stroke-run_2.5s_linear_infinite]"
     >
       <path d="M5 12h14" />
       <path d="m13 6 6 6-6 6" />
