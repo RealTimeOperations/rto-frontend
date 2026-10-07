@@ -410,15 +410,24 @@ export default function PEDDashboard({ onHomeClick }: Props) {
 
       {/* ===== Content ===== */}
       <main className="px-4 sm:px-6 max-w-[1750px] mx-auto flex flex-col h-full pt-24 md:pt-28 lg:pt-24 pb-3 overflow-hidden">
-        {/* Center heading */}
+        {/* Center heading — PED Monthly par "PED Dashboard", TMO Score par "TMO Score" */}
         <div className="flex flex-col items-center -mb-1">
-          <h1 className="text-center text-lg sm:text-xl md:text-2xl font-extrabold tracking-tight leading-none whitespace-nowrap">
-            <span className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">PED </span>
-            <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Dashboard</span>
-          </h1>
-          <p className="mt-1.5 sm:mt-2 text-center text-[10px] sm:text-xs font-semibold tracking-[0.08em] text-white/40 whitespace-nowrap">
-            PED -- {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-          </p>
+          {view === 'ped-monthly' ? (
+            <>
+              <h1 className="text-center text-lg sm:text-xl md:text-2xl font-extrabold tracking-tight leading-none whitespace-nowrap">
+                <span className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">PED </span>
+                <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Dashboard</span>
+              </h1>
+              <p className="mt-1.5 sm:mt-2 text-center text-[10px] sm:text-xs font-semibold tracking-[0.08em] text-white/40 whitespace-nowrap">
+                PED -- {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+              </p>
+            </>
+          ) : (
+            <h1 className="text-center text-lg sm:text-xl md:text-2xl font-extrabold tracking-tight leading-none whitespace-nowrap">
+              <span className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">TMO </span>
+              <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Score</span>
+            </h1>
+          )}
         </div>
 
         {/* ===== VIEW: PED Monthly ===== */}
@@ -483,7 +492,7 @@ export default function PEDDashboard({ onHomeClick }: Props) {
                     const isCurrentMonth = selectedMonth === currentMonth
                     const isViewingSelected = selectedMonth === activeMonth
 
-                    let buttonText = 'Update PED Data'
+                    let buttonText = 'Update'
                     let buttonAction = handleSync
                     let buttonColorClass = 'border-sky-400/40 bg-sky-500/15 text-sky-300 hover:bg-sky-500/25'
                     let buttonIcon = (
