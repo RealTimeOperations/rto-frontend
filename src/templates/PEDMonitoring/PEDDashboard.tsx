@@ -11,8 +11,16 @@ type Props = {
 type View = 'ped-monthly' | 'tmo-score'
 type Row = Record<string, any>
 
-// ✅ API base — local/LAN par direct backend
-const API_BASE = 'http://localhost:8000'
+// ✅ API base — Local vs Live detection
+// Agar frontend localhost par hai → local backend (http://localhost:8000)
+// Agar frontend live hai → ngrok tunnel (https://provable-pulp-leotard.ngrok-free.dev)
+const API_BASE = (() => {
+  const host = window.location.hostname
+  if (host === 'localhost' || host === '127.0.0.1') {
+    return 'http://localhost:8000'
+  }
+  return 'https://provable-pulp-leotard.ngrok-free.dev'
+})()
 
 // ✅ Number formatter (3,992,041 jaisa)
 function fmtNum(v: any): string {
