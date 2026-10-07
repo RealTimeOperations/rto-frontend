@@ -22,6 +22,13 @@ const API_BASE = (() => {
   return 'https://provable-pulp-leotard.ngrok-free.dev'
 })()
 
+// ✅ Ngrok free-tier ka browser-warning interstitial bypass karne ke liye header —
+//    warna simple GET requests interstitial par atak kar CORS error deti hain
+const API_HEADERS: Record<string, string> = {
+  Accept: 'application/json',
+  'ngrok-skip-browser-warning': 'rto-web',
+}
+
 // ✅ Number formatter (3,992,041 jaisa)
 function fmtNum(v: any): string {
   const n = Number(v ?? 0)
@@ -151,7 +158,7 @@ export default function PEDDashboard({ onHomeClick }: Props) {
   // ✅ Load available months from DB (for history reference)
   const loadMonths = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/ped/months`)
+      const res = await fetch(`${API_BASE}/ped/months`, { headers: API_HEADERS })
       if (res.ok) {
         const json = await res.json()
         setMonths(json.months || [])
@@ -169,7 +176,7 @@ export default function PEDDashboard({ onHomeClick }: Props) {
       const url = `${API_BASE}/ped/data?month=${month}`
       console.log('📥 Fetching data from:', url)
       
-      const res = await fetch(url)
+      const res = await fetch(url, { headers: API_HEADERS })
       
       if (!res.ok) {
         const errorText = await res.text()
@@ -210,7 +217,7 @@ export default function PEDDashboard({ onHomeClick }: Props) {
       
       const res = await fetch(`${API_BASE}/ped/sync`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...API_HEADERS },
         body: JSON.stringify({ month: selectedMonth }),
       })
       
@@ -258,7 +265,7 @@ async function handleSearch() {
     
     const sr = await fetch(`${API_BASE}/ped/sync`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...API_HEADERS },
       body: JSON.stringify({ month: selectedMonth }),
     })
     
