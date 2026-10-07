@@ -166,16 +166,25 @@ export default function PEDDashboard({ onHomeClick }: Props) {
     if (!month) return
     setLoading(true)
     try {
-      const res = await fetch(`${API_BASE}/ped/data?month=${month}`)
-      if (res.ok) {
-        const json = await res.json()
-        setMeta(json.meta || null)
-        setRows(json.rows || [])
-      } else {
+      const url = `${API_BASE}/ped/data?month=${month}`
+      console.log('📥 Fetching data from:', url)
+      
+      const res = await fetch(url)
+      
+      if (!res.ok) {
+        const errorText = await res.text()
+        console.error('❌ Data fetch failed:', res.status, errorText)
         setMeta(null)
         setRows([])
+        return
       }
-    } catch {
+      
+      const json = await res.json()
+      console.log('✅ Data loaded:', json.rows?.length || 0, 'rows')
+      setMeta(json.meta || null)
+      setRows(json.rows || [])
+    } catch (err) {
+      console.error('❌ Data fetch exception:', err)
       setMeta(null)
       setRows([])
     } finally {
@@ -197,26 +206,42 @@ export default function PEDDashboard({ onHomeClick }: Props) {
     setSyncing(true)
     clearMsg()
     try {
+      console.log('🔄 Syncing month:', selectedMonth, 'API_BASE:', API_BASE)
+      
       const res = await fetch(`${API_BASE}/ped/sync`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ month: selectedMonth }),
       })
-      const json = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(json.detail || 'Sync failed')
-
+      
+      if (!res.ok) {
+        const errorText = await res.text()
+        throw new Error(`HTTP ${res.status}: ${errorText}`)
+      }
+      
+      const json = await res.json()
+      console.log('✅ Sync response:', json)
+      
       if (json.status === 'updated') {
         flashMsg('success', 'Successfully Updated')
         await loadMonths()
-        loadMonthData(selectedMonth)
+        // ✅ Wait for data to load
+        await loadMonthData(selectedMonth)
+        
+        // ✅ Verify data actually loaded
+        if (rows.length === 0) {
+          console.warn('⚠️ Sync succeeded but no rows in table')
+          flashMsg('error', 'Data synced but failed to load in table')
+        }
       } else if (json.status === 'empty') {
         flashMsg('error', 'No data found on portal for this month')
       } else {
         flashMsg('success', 'Successfully Updated')
         await loadMonths()
-        loadMonthData(selectedMonth)
+        await loadMonthData(selectedMonth)
       }
     } catch (e: any) {
+      console.error('❌ Sync error:', e)
       flashMsg('error', e?.message || 'Sync failed')
     } finally {
       setSyncing(false)
@@ -224,32 +249,44 @@ export default function PEDDashboard({ onHomeClick }: Props) {
   }
 
 // ✅ Search Old Month Data: PORTAL se fresh fetch + DB overwrite
-//    (purana galat saved data upsert se replace ho jata hai)
 async function handleSearch() {
   if (!selectedMonth) return
   setSyncing(true)
-  setSyncMsg(null)
+  clearMsg()
   try {
+    console.log('🔍 Searching month:', selectedMonth, 'API_BASE:', API_BASE)
+    
     const sr = await fetch(`${API_BASE}/ped/sync`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ month: selectedMonth }),
     })
-    const sj = await sr.json().catch(() => ({}))
-    if (!sr.ok) throw new Error(sj.detail || 'Sync failed')
+    
+    if (!sr.ok) {
+      const errorText = await sr.text()
+      throw new Error(`HTTP ${sr.status}: ${errorText}`)
+    }
+    
+    const sj = await sr.json()
+    console.log('✅ Search sync response:', sj)
+    
     await loadMonths()
     setActiveMonth(selectedMonth)
     await loadMonthData(selectedMonth)
+    
     if (sj.status === 'updated') {
-      setSyncMsg({ type: 'success', text: 'Successfully Updated' })
+      flashMsg('success', 'Successfully Updated')
+      if (rows.length === 0) {
+        console.warn('⚠️ Search succeeded but no rows in table')
+      }
     } else {
-      setSyncMsg({ type: 'error', text: `⚠ No data found on portal for ${monthLabel(selectedMonth)}` })
+      flashMsg('error', `No data found on portal for ${monthLabel(selectedMonth)}`)
     }
   } catch (e: any) {
-    setSyncMsg({ type: 'error', text: `❌ ${e?.message || 'Search failed'}` })
+    console.error('❌ Search error:', e)
+    flashMsg('error', e?.message || 'Search failed')
   } finally {
     setSyncing(false)
-    setTimeout(() => setSyncMsg(null), 2500)
   }
 }
 
