@@ -8,7 +8,7 @@ type HomepageProps = {
   role: string | null
   permissions: Permissions
   permissionsLoaded?: boolean
-  onCardClick?: (target: 'attendance' | 'containers' | 'vehicles' | 'penalties') => void
+  onCardClick?: (target: 'attendance' | 'containers' | 'vehicles' | 'penalties' | 'ped') => void
   onAdminClick?: () => void
 }
 
@@ -233,6 +233,39 @@ export default function Homepage({ role, permissions, permissionsLoaded = true, 
         </span>
       </button>
 
+      {/* ✅ PED Monitoring button — sirf admin ko dikhega, Penalties ke RIGHT side par */}
+      {role === 'admin' && (
+        <button
+          type="button"
+          onClick={() => {
+            onCardClick?.('ped')
+            navigate('/ped')
+          }}
+          aria-label="Open PED monitoring"
+          className="group fixed bottom-6 left-[calc(50%+180px)] z-30 hidden sm:flex items-center rounded-full p-[1.5px] overflow-hidden shadow-[0_10px_30px_rgba(0,0,0,0.35)] transition-all duration-300 hover:scale-105 hover:shadow-[0_0_30px_rgba(0,255,170,0.25)]"
+        >
+          <span
+            aria-hidden="true"
+            className="absolute left-[calc(50%-300px)] top-[calc(50%-300px)] h-[600px] w-[600px] sm:animate-[border-spin_8s_linear_infinite] bg-[conic-gradient(from_0deg,#059669,#34d399,#7acba4,#34d399,#059669)] opacity-70"
+          />
+          <span className="relative flex items-center gap-2 overflow-hidden rounded-full bg-[#021b16]/85 backdrop-blur-md px-6 py-3 text-sm font-semibold text-white/80 transition-colors duration-300 group-hover:text-white">
+            <span
+              aria-hidden="true"
+              className="absolute inset-0 scale-x-0 rounded-full bg-[linear-gradient(90deg,#00764c,#058962)] transition-transform duration-300 ease-out group-hover:scale-x-100"
+            />
+            <span className="relative flex items-center gap-2">
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <polyline points="14 2 14 8 20 8" />
+                <line x1="16" y1="13" x2="8" y2="13" />
+                <line x1="16" y1="17" x2="8" y2="17" />
+              </svg>
+              PED Monitoring
+            </span>
+          </span>
+        </button>
+      )}
+
       {/* Logout button */}
       <button
         type="button"
@@ -273,6 +306,24 @@ export default function Homepage({ role, permissions, permissionsLoaded = true, 
 
       {/* Mobile bottom bar */}
       <div className="fixed bottom-0 left-0 right-0 z-30 flex items-center gap-2 px-3 py-3 bg-[#021b16]/95 backdrop-blur-md border-t border-white/10 sm:hidden">
+        {role === 'admin' && (
+          <button
+            type="button"
+            onClick={() => {
+              onCardClick?.('ped')
+              navigate('/ped')
+            }}
+            className="flex-1 flex items-center justify-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-2.5 text-[10px] font-bold text-emerald-300"
+          >
+            <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+            </svg>
+            PED
+          </button>
+        )}
         {role === 'admin' && (
           <button
             type="button"
