@@ -199,109 +199,92 @@ export default function PEDDashboard({ onHomeClick }: Props) {
     }
   }, [])
 
-  // ✅ Initial load — persisted month ho to wo, warna current month
-  useEffect(() => {
-    loadMonths()
-    loadMonthData(initialMonth)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ❌ REMOVED: Auto-fetch on selectedMonth change (Ab manual search/reset karega)
-
-  // ✅ Sync (Update PED Data) — calls /ped/sync for the current month
-  async function handleSync() {
-    if (!selectedMonth) return
+  // ✅ SYNC + LOAD helper — portal se fetch, DB rewrite, phir table load
+  async function syncAndLoad(month: string) {
     setSyncing(true)
-    clearMsg()
     try {
-      console.log('🔄 Syncing month:', selectedMonth, 'API_BASE:', API_BASE)
-      
       const res = await fetch(`${API_BASE}/ped/sync`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...API_HEADERS },
-        body: JSON.stringify({ month: selectedMonth }),
+        body: JSON.stringify({ month }),
       })
-      
-      if (!res.ok) {
-        const errorText = await res.text()
-        throw new Error(`HTTP ${res.status}: ${errorText}`)
-      }
-      
-      const json = await res.json()
-      console.log('✅ Sync response:', json)
-      
-      if (json.status === 'updated') {
-        flashMsg('success', 'Successfully Updated')
-        await loadMonths()
-        // ✅ Wait for data to load
-        await loadMonthData(selectedMonth)
-        
-        // ✅ Verify data actually loaded
-        if (rows.length === 0) {
-          console.warn('⚠️ Sync succeeded but no rows in table')
-          flashMsg('error', 'Data synced but failed to load in table')
-        }
-      } else if (json.status === 'empty') {
-        flashMsg('error', 'No data found on portal for this month')
-      } else {
-        flashMsg('success', 'Successfully Updated')
-        await loadMonths()
-        await loadMonthData(selectedMonth)
-      }
-    } catch (e: any) {
+      const json = await res.json().catch(() => ({}))
+      await loadMonths()
+      await loadMonthData(month)
+      return json
+    } catch (e) {
       console.error('❌ Sync error:', e)
-      flashMsg('error', e?.message || 'Sync failed')
+      setLoading(false)
+      return null
     } finally {
       setSyncing(false)
     }
   }
 
-// ✅ Search Old Month Data: PORTAL se fresh fetch + DB overwrite
-async function handleSearch() {
-  if (!selectedMonth) return
-  setSyncing(true)
-  clearMsg()
-  try {
-    console.log('🔍 Searching month:', selectedMonth, 'API_BASE:', API_BASE)
-    
-    const sr = await fetch(`${API_BASE}/ped/sync`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...API_HEADERS },
-      body: JSON.stringify({ month: selectedMonth }),
-    })
-    
-    if (!sr.ok) {
-      const errorText = await sr.text()
-      throw new Error(`HTTP ${sr.status}: ${errorText}`)
-    }
-    
-    const sj = await sr.json()
-    console.log('✅ Search sync response:', sj)
-    
-    await loadMonths()
-    setActiveMonth(selectedMonth)
-    await loadMonthData(selectedMonth)
-    
-    if (sj.status === 'updated') {
-      flashMsg('success', 'Successfully Updated')
-      if (rows.length === 0) {
-        console.warn('⚠️ Search succeeded but no rows in table')
+  // ✅ Initial load — DB mein persisted month ka data ho to wo show karo,
+  //    warna (DB khali / rewrite ho chuka) current month sync kar ke layo
+  useEffect(() => {
+    ;(async () => {
+      await loadMonths()
+      const res = await fetch(`${API_BASE}/ped/data?month=${initialMonth}`, { headers: API_HEADERS })
+      const json = res.ok ? await res.json().catch(() => null) : null
+      if (json && json.rows && json.rows.length > 0) {
+        setMeta(json.meta || null)
+        setRows(json.rows)
+        setLoading(false)
+      } else {
+        setSelectedMonth(currentMonth)
+        setActiveMonth(currentMonth)
+        rememberMonth(currentMonth)
+        await syncAndLoad(currentMonth)
       }
+    })()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ❌ REMOVED: Auto-fetch on selectedMonth change (Ab manual search/reset karega)
+
+  // ✅ Sync (Update PED Data) — calls /ped/sync for the current month
+  // ✅ Sync (Update PED Data) — portal se fetch + DB rewrite + table load
+  async function handleSync() {
+    if (!selectedMonth) return
+    clearMsg()
+    const json = await syncAndLoad(selectedMonth)
+    if (!json) {
+      flashMsg('error', 'Sync failed')
+    } else if (json.status === 'updated') {
+      flashMsg('success', 'Successfully Updated')
+    } else if (json.status === 'empty') {
+      flashMsg('error', 'No data found on portal for this month')
+    } else {
+      flashMsg('success', 'Successfully Updated')
+    }
+  }
+
+// ✅ Search Old Month Data: PORTAL se fresh fetch + DB overwrite
+  // ✅ Search Old Month — portal se fetch, DB ka purana data DELETE kar ke yeh month store
+  async function handleSearch() {
+    if (!selectedMonth) return
+    clearMsg()
+    setActiveMonth(selectedMonth)
+    const sj = await syncAndLoad(selectedMonth)
+    if (!sj) {
+      flashMsg('error', 'Search failed')
+    } else if (sj.status === 'updated') {
+      flashMsg('success', 'Successfully Updated')
     } else {
       flashMsg('error', `No data found on portal for ${monthLabel(selectedMonth)}`)
     }
-  } catch (e: any) {
-    console.error('❌ Search error:', e)
-    flashMsg('error', e?.message || 'Search failed')
-  } finally {
-    setSyncing(false)
   }
-}
 
   // ✅ Reset to Current Month (Jab Reset par click kare)
+  // ✅ Reset — current month dobara sync karo (DB se old month delete, current store)
   async function handleReset() {
+    clearMsg()
     setSelectedMonth(currentMonth)
     setActiveMonth(currentMonth)
-    await loadMonthData(currentMonth)
+    rememberMonth(currentMonth)
+    const json = await syncAndLoad(currentMonth)
+    if (json && json.status === 'updated') flashMsg('success', 'Successfully Updated')
   }
 
   // ✅ Totals calculation
