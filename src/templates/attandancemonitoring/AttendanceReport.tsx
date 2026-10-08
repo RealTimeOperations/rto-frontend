@@ -459,8 +459,8 @@ export default function AttendanceReport({ rows, employees, loading }: Props) {
             <option value="no">8 Hours: No</option>
           </select>
 
-          {/* 2. UC/Ward Searchable Dropdown (Same as TotalHR) */}
-          <div className="relative flex-1 min-w-[45%] order-4 sm:order-none sm:flex-none sm:min-w-0 sm:w-64 uc-dropdown-container">
+          {/* 2. UC/Ward Searchable Dropdown (Width reduced to sm:w-48) */}
+          <div className="relative flex-1 min-w-[40%] order-4 sm:order-none sm:flex-none sm:min-w-0 sm:w-48 uc-dropdown-container">
             <button
               type="button"
               onClick={() => setIsUcDropdownOpen(!isUcDropdownOpen)}
@@ -524,12 +524,12 @@ export default function AttendanceReport({ rows, employees, loading }: Props) {
             )}
           </div>
 
-          {/* 3. Search Bar with Cross Button */}
-          <div className="relative flex-1 min-w-[45%] order-2 sm:order-none sm:flex-none sm:min-w-0 sm:w-64">
+          {/* 3. Search Bar with Cross Button (Width reduced to sm:w-48) */}
+          <div className="relative flex-1 min-w-[40%] order-2 sm:order-none sm:flex-none sm:min-w-0 sm:w-48">
             <input
               value={search}
               onChange={e => { setSearch(e.target.value) }}
-              placeholder="Search CNIC, Name, UC/Ward…"
+              placeholder="Search CNIC, Name…"
               className="w-full h-9 rounded-full border border-white/15 bg-[#071b15] pl-9 pr-8 text-xs sm:text-sm text-white/80 placeholder-white/35 outline-none focus:border-emerald-400/60"
             />
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
