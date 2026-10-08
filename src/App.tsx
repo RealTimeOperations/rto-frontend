@@ -66,6 +66,7 @@ export default function App() {
         penalties:  true,
         penalties_hnd: true,
         penalties_faqirwali: true,
+        can_imposed_report: true, // ✅ Admin ko hamesha full access
         isAdmin: true,
         attendance_uc_wards: [],
         containers_supervisors: [],
@@ -75,7 +76,7 @@ export default function App() {
     // Other users: permissions from profiles table
     const { data: prof } = await supabase
       .from('profiles')
-      .select('can_attendance, can_vehicles, can_containers, can_penalties, penalties_hnd_office, penalties_faqirwali_office, allowed_uc_wards, allowed_supervisors')
+      .select('can_attendance, can_vehicles, can_containers, can_penalties, penalties_hnd_office, penalties_faqirwali_office, can_imposed_report, allowed_uc_wards, allowed_supervisors')
       .eq('id', userId)
       .maybeSingle()
     setPermissions({
@@ -85,6 +86,7 @@ export default function App() {
       penalties:  Boolean(prof?.can_penalties),
       penalties_hnd: Boolean(prof?.penalties_hnd_office),
       penalties_faqirwali: Boolean(prof?.penalties_faqirwali_office),
+      can_imposed_report: Boolean(prof?.can_imposed_report), // ✅ Employee ka toggle yahan se load hoga
       isAdmin: false,
       attendance_uc_wards: (prof?.allowed_uc_wards as string[]) || [],
       containers_supervisors: (prof?.allowed_supervisors as string[]) || [],
@@ -234,6 +236,7 @@ export default function App() {
                   penalties: false, 
                   penalties_hnd: false, 
                   penalties_faqirwali: false, 
+                  can_imposed_report: false,
                   isAdmin: false,
                   attendance_uc_wards: [],
                   containers_supervisors: []

@@ -69,7 +69,7 @@ export default function FMOStatistics({ penalties, loading = false, permissions 
     })
   }, [penalties, fmoAssignments, allowedOffices])
 
-  const showImposedReport = permissions?.isAdmin === true
+  const showImposedReport = permissions?.isAdmin === true || permissions?.can_imposed_report === true
 
   const reportRows = histRows ?? filteredPenalties
   const isHist = histRows !== null

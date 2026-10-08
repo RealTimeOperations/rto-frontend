@@ -54,6 +54,7 @@ export default function UserModal({ state, onClose, onSaved, lockRole }: Props) 
   const [showUcPanel, setShowUcPanel] = useState(false)
   const [showSupPanel, setShowSupPanel] = useState(false)
   const [permPenaltiesFaqirwali, setPermPenaltiesFaqirwali] = useState(editing?.penalties_faqirwali_office ?? false)
+  const [permImposedReport, setPermImposedReport] = useState(editing?.can_imposed_report ?? false)
   
   const [loadedPassword, setLoadedPassword] = useState('')
   const [error, setError] = useState('')
@@ -88,8 +89,7 @@ export default function UserModal({ state, onClose, onSaved, lockRole }: Props) 
     ;(async () => {
       const { data } = await supabase
         .from('profiles')
-        .select('cnic, email, can_attendance, can_vehicles, can_containers, can_penalties, penalties_hnd_office, penalties_faqirwali_office, password_plain, allowed_uc_wards, allowed_supervisors')
-        .eq('id', target.id)
+        .select('cnic, email, can_attendance, can_vehicles, can_containers, can_penalties, penalties_hnd_office, penalties_faqirwali_office, can_imposed_report, password_plain, allowed_uc_wards, allowed_supervisors')        .eq('id', target.id)
         .maybeSingle()
       if (!alive) return
       if (data?.cnic) setCnic(data.cnic)
@@ -107,6 +107,7 @@ export default function UserModal({ state, onClose, onSaved, lockRole }: Props) 
         setSelectedUcWards(data.allowed_uc_wards || [])
         setSelectedSupervisors(data.allowed_supervisors || [])
         setPermPenaltiesFaqirwali(Boolean(data.penalties_faqirwali_office))
+        setPermImposedReport(Boolean(data.can_imposed_report))
       }
     })()
     return () => { alive = false }
@@ -120,6 +121,7 @@ export default function UserModal({ state, onClose, onSaved, lockRole }: Props) 
       setPermPenalties(false)
       setPermPenaltiesHnd(false)
       setPermPenaltiesFaqirwali(false)
+      setPermImposedReport(false)
     }
   }, [state.mode, lockRole])
 
@@ -224,6 +226,7 @@ export default function UserModal({ state, onClose, onSaved, lockRole }: Props) 
           upd.allowed_uc_wards = selectedUcWards
           upd.allowed_supervisors = selectedSupervisors
           upd.penalties_faqirwali_office = permPenaltiesFaqirwali
+          upd.can_imposed_report = permImposedReport
         }
         await supabase.from('profiles').update(upd).eq('id', created.id)
       }
@@ -256,6 +259,7 @@ export default function UserModal({ state, onClose, onSaved, lockRole }: Props) 
         upd.allowed_uc_wards = selectedUcWards
         upd.allowed_supervisors = selectedSupervisors
         upd.penalties_faqirwali_office = permPenaltiesFaqirwali
+        upd.can_imposed_report = permImposedReport
       }
       await supabase.from('profiles').update(upd).eq('id', editing.id)
       setPassword('')
@@ -287,7 +291,9 @@ export default function UserModal({ state, onClose, onSaved, lockRole }: Props) 
         ) : (
           <form onSubmit={handleSubmit} autoComplete="off" autoCapitalize="off" autoCorrect="off" spellCheck="false" className="space-y-3 sm:space-y-4">
             <input type="text" name="hf_username" autoComplete="username" tabIndex={-1} aria-hidden="true" className="absolute -left-248 h-0 w-0 opacity-0" />
-            <input type="password" name="hf_password" autoComplete="current-password" tabIndex={-1} aria-hidden="true" className="absolute -left-248 h-0 w-0 opacity-0" />  
+            <input type="password" name="hf_password" autoComplete="current-password" tabIndex={-1} aria-hidden="true" className="absolute -left-248 h-0 w-0 opacity-0" />
+            {/* ✅ Dummy email field to catch browser autofill */}
+            <input type="email" name="hf_email" autoComplete="email" tabIndex={-1} aria-hidden="true" className="absolute -left-248 h-0 w-0 opacity-0" />
             {error && (
               <div className="bg-red-500/10 border border-red-500/40 text-red-300 text-sm p-3 rounded-xl text-center">{error}</div>
             )}
@@ -299,7 +305,17 @@ export default function UserModal({ state, onClose, onSaved, lockRole }: Props) 
             {finalRole === 'employee' && (
               <div>
                 <label className="block text-xs font-semibold text-white/70 mb-1.5">Email <span className="text-red-300">*</span> <span className="text-white/40">(used for login)</span></label>
-                <input type="email" required value={email} onChange={e => { typedEmail.current = true; setEmail(e.target.value) }} placeholder="e.g. ali@gmail.com" autoComplete="off" className={inputClass} />
+                <input 
+                  type="email" 
+                  required 
+                  value={email} 
+                  onChange={e => { typedEmail.current = true; setEmail(e.target.value) }} 
+                  placeholder="e.g. ali@gmail.com" 
+                  autoComplete="new-email" 
+                  readOnly
+                  onFocus={e => e.target.removeAttribute('readOnly')}
+                  className={inputClass} 
+                />
               </div>
             )}
             {finalRole === 'supervisor' && (
@@ -472,14 +488,21 @@ export default function UserModal({ state, onClose, onSaved, lockRole }: Props) 
                         <span className={`inline-block h-4 w-4 rounded-full shadow transition-transform duration-200 ${permPenaltiesHnd ? 'translate-x-4 bg-amber-300' : 'translate-x-0.5 bg-white/70'}`} />
                       </button>
                     </label>
-                    <label className="flex items-center justify-between cursor-pointer group">
-                      <span className="text-xs text-white/60 font-medium">FaqirWali Office Access</span>
-                      <button type="button" onClick={() => setPermPenaltiesFaqirwali(!permPenaltiesFaqirwali)} className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors duration-200 ${permPenaltiesFaqirwali ? 'bg-amber-500/30 border-amber-400/60' : 'bg-white/10 border-white/20'}`}>
-                        <span className={`inline-block h-4 w-4 rounded-full shadow transition-transform duration-200 ${permPenaltiesFaqirwali ? 'translate-x-4 bg-amber-300' : 'translate-x-0.5 bg-white/70'}`} />
-                      </button>
-                    </label>
-                  </div>
-                )}
+                <label className="flex items-center justify-between cursor-pointer group">
+                  <span className="text-xs text-white/60 font-medium">FaqirWali Office Access</span>
+                  <button type="button" onClick={() => setPermPenaltiesFaqirwali(!permPenaltiesFaqirwali)} className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors duration-200 ${permPenaltiesFaqirwali ? 'bg-amber-500/30 border-amber-400/60' : 'bg-white/10 border-white/20'}`}>
+                    <span className={`inline-block h-4 w-4 rounded-full shadow transition-transform duration-200 ${permPenaltiesFaqirwali ? 'translate-x-4 bg-amber-300' : 'translate-x-0.5 bg-white/70'}`} />
+                  </button>
+                </label>
+                  {/* ✅ Imposed Report Access toggle */}
+                  <label className="flex items-center justify-between cursor-pointer group">
+                    <span className="text-xs text-white/60 font-medium">Imposed Report Access</span>
+                    <button type="button" onClick={() => setPermImposedReport(!permImposedReport)} className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full border transition-colors duration-200 ${permImposedReport ? 'bg-amber-500/30 border-amber-400/60' : 'bg-white/10 border-white/20'}`}>
+                      <span className={`inline-block h-4 w-4 rounded-full shadow transition-transform duration-200 ${permImposedReport ? 'translate-x-4 bg-amber-300' : 'translate-x-0.5 bg-white/70'}`} />
+                    </button>
+                  </label>
+                </div>
+              )}
                 <p className="text-[11px] text-white/40">Selected dashboards will be visible to this employee after login.</p>
               </div>
             )}

@@ -22,6 +22,7 @@ export type Profile = {
   can_penalties?: boolean
   penalties_hnd_office?: boolean         
   penalties_faqirwali_office?: boolean
+  can_imposed_report?: boolean
   allowed_uc_wards?: string[]
   allowed_supervisors?: string[]
 }
@@ -34,6 +35,7 @@ export type Permissions = {
   penalties: boolean
   penalties_hnd: boolean      
   penalties_faqirwali: boolean
+  can_imposed_report?: boolean
   isAdmin: boolean 
   attendance_uc_wards: string[]
   containers_supervisors: string[]
