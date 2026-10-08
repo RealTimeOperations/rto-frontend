@@ -37,7 +37,7 @@ export default function FMOStatistics({ penalties, loading = false, permissions 
   const reportRef = useRef<HTMLDivElement>(null)
 
   const [dateFrom, setDateFrom] = useState<string>(todayStr())
-const [dateTo, setDateTo] = useState<string>(todayStr())
+  const [dateTo, setDateTo] = useState<string>(todayStr())
   const [searching, setSearching] = useState(false)
   const [searchError, setSearchError] = useState('')
   const [histRows, setHistRows] = useState<Row[] | null>(null)
@@ -74,54 +74,51 @@ const [dateTo, setDateTo] = useState<string>(todayStr())
 
   const reportRows = histRows ?? filteredPenalties
   const isHist = histRows !== null
-  const reportDateLabel = isHist 
-  ? (dateFrom === dateTo 
-      ? fmtDateLabel(dateFrom) 
-      : `${fmtDateLabel(dateFrom)} → ${fmtDateLabel(dateTo)}`)
-  : fmtDateLabel(todayStr())
+  const rangeLabel = dateFrom === dateTo ? fmtDateLabel(dateFrom) : `${fmtDateLabel(dateFrom)} → ${fmtDateLabel(dateTo)}`
+  const reportDateLabel = isHist ? rangeLabel : fmtDateLabel(todayStr())
 
-async function handleSearchReport() {
-  if (!dateFrom || !dateTo || searching) return
-  if (dateFrom > dateTo) {
-    setSearchError('From date cannot be after To date')
-    return
+  async function handleSearchReport() {
+    if (!dateFrom || !dateTo || searching) return
+    if (dateFrom > dateTo) {
+      setSearchError('From date To date se pehle honi chahiye')
+      return
+    }
+    if (dateTo > todayStr()) {
+      setSearchError('Future date is not allowed')
+      return
+    }
+    setSearching(true)
+    setSearchError('')
+    try {
+      const res = await fetch(`${API}/penalties/imposed-report`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1' },
+        body: JSON.stringify({ date_from: dateFrom, date_to: dateTo }),
+      })
+      const json = await res.json().catch(() => ({}))
+      if (!res.ok || !json.ok) throw new Error(json.message || `Server error: ${res.status}`)
+      setHistRows(json.rows ?? [])
+    } catch (e: any) {
+      setSearchError(e?.message || 'Fetch failed')
+    } finally {
+      setSearching(false)
+    }
   }
-  if (dateTo > todayStr()) {
-    setSearchError('Future date is not allowed')
-    return
-  }
-  setSearching(true)
-  setSearchError('')
-  try {
-    const res = await fetch(`${API}/penalties/imposed-report`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': '1' },
-      body: JSON.stringify({ date_from: dateFrom, date_to: dateTo }),
-    })
-    const json = await res.json().catch(() => ({}))
-    if (!res.ok || !json.ok) throw new Error(json.message || `Server error: ${res.status}`)
-    setHistRows(json.rows ?? [])
-  } catch (e: any) {
-    setSearchError(e?.message || 'Fetch failed')
-  } finally {
-    setSearching(false)
-  }
-}
 
-function handleBackToToday() {
-  setHistRows(null)
-  setDateFrom(todayStr())
-  setDateTo(todayStr())
-  setSearchError('')
-}
+  function handleBackToToday() {
+    setHistRows(null)
+    setDateFrom(todayStr())
+    setDateTo(todayStr())
+    setSearchError('')
+  }
 
-function closeImposed() {
-  setImposedOpen(false)
-  setHistRows(null)
-  setDateFrom(todayStr())
-  setDateTo(todayStr())
-  setSearchError('')
-}
+  function closeImposed() {
+    setImposedOpen(false)
+    setHistRows(null)
+    setDateFrom(todayStr())
+    setDateTo(todayStr())
+    setSearchError('')
+  }
 
   async function copyReportAsImage() {
     if (!reportRef.current || copying) return
@@ -337,7 +334,7 @@ function closeImposed() {
                   <div className="h-10 w-10 rounded-full border-2 border-emerald-400/20 border-t-emerald-300 animate-spin" />
                   {/* Running gradient text */}
                   <div className="text-xs sm:text-sm font-bold tracking-widest bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
-                    FETCHING REPORT FOR {dateFrom === dateTo ? fmtDateLabel(dateFrom) : `${fmtDateLabel(dateFrom)} → ${fmtDateLabel(dateTo)}`}…
+                    FETCHING REPORT FOR {rangeLabel}…
                   </div>
                   <div className="text-[10px] sm:text-[11px] font-semibold text-white/40">
                     Please wait — fetching data from portal…
@@ -365,26 +362,25 @@ function closeImposed() {
               <div className="p-5 flex flex-col gap-3">
                 {/* ✅ Date search toolbar — Search button only visible after picking non-today date */}
                 <div className="flex flex-wrap items-center gap-2">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="date"
-                      value={dateFrom}
-                      max={todayStr()}
-                      disabled={searching}
-                      onChange={e => setDateFrom(e.target.value)}
-                      className="h-9 px-3 rounded-xl border border-emerald-400/25 bg-[#071b15]/80 backdrop-blur-md text-[11px] sm:text-xs font-medium text-white outline-none focus:ring-2 focus:ring-emerald-400/50 disabled:opacity-50 transition"
-                    />
-                    <span className="text-white/50 text-xs font-bold">to</span>
-                    <input
-                      type="date"
-                      value={dateTo}
-                      max={todayStr()}
-                      min={dateFrom}
-                      disabled={searching}
-                      onChange={e => setDateTo(e.target.value)}
-                      className="h-9 px-3 rounded-xl border border-emerald-400/25 bg-[#071b15]/80 backdrop-blur-md text-[11px] sm:text-xs font-medium text-white outline-none focus:ring-2 focus:ring-emerald-400/50 disabled:opacity-50 transition"
-                    />
-                  </div>
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="date"
+                  value={dateFrom}
+                  max={todayStr()}
+                  disabled={searching}
+                  onChange={e => setDateFrom(e.target.value)}
+                  className="h-9 px-3 rounded-xl border border-emerald-400/25 bg-[#071b15]/80 backdrop-blur-md text-[11px] sm:text-xs font-medium text-white outline-none focus:ring-2 focus:ring-emerald-400/50 disabled:opacity-50 transition"
+                />
+                <span className="text-white/40 text-[10px] font-bold">→</span>
+                <input
+                  type="date"
+                  value={dateTo}
+                  max={todayStr()}
+                  disabled={searching}
+                  onChange={e => setDateTo(e.target.value)}
+                  className="h-9 px-3 rounded-xl border border-emerald-400/25 bg-[#071b15]/80 backdrop-blur-md text-[11px] sm:text-xs font-medium text-white outline-none focus:ring-2 focus:ring-emerald-400/50 disabled:opacity-50 transition"
+                />
+              </div>
                   {showSearchBtn && (
                     <button
                       type="button"
