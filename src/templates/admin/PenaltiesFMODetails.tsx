@@ -25,28 +25,35 @@ export default function PenaltiesFMODetails() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
 
-  // Load FMOs directly from Supabase
-  async function loadFMOs() {
-    setLoading(true)
-    setError('')
-    try {
-      const { data, error: err } = await supabase
-        .from('fmo_office_assignments')
-        .select('*')
-        .order('fmo_name', { ascending: true })
-      
-      if (err) throw err
-      setFmos(data || [])
-    } catch (e: any) {
-      setError(e.message || 'Failed to load FMOs')
-    } finally {
-      setLoading(false)
-    }
+// ✅ Load FMOs directly from Supabase
+async function loadFMOs() {
+  setError('')
+  try {
+    const { data, error: err } = await supabase
+      .from('fmo_office_assignments')
+      .select('*')
+      .order('fmo_name', { ascending: true })
+    if (err) throw err
+    setFmos(data || [])
+  } catch (e: any) {
+    setError(e.message || 'Failed to load FMOs')
+  } finally {
+    setLoading(false)
   }
-
-  useEffect(() => {
-    loadFMOs()
-  }, [])
+}
+useEffect(() => {
+  loadFMOs()
+  // ✅ REALTIME: jab bhi fmo_office_assignments mein koi change ho (admin/employee dono taraf se)
+  const channel = supabase
+    .channel('admin-fmo-changes')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'fmo_office_assignments' },
+      () => { loadFMOs() }
+    )
+    .subscribe()
+  return () => { supabase.removeChannel(channel) }
+}, [])
 
   // Toggle office assignment
   async function toggleOffice(fmoId: string, fmoName: string, office: 'hnd' | 'faqirwali', value: boolean) {

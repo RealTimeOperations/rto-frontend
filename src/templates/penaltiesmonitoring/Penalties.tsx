@@ -150,15 +150,28 @@ export default function Penalties({ penalties, loading = false, permissions }: P
   // ✅ Session memory cache — popup dobara kholne par images instant (koi network nahi)
   const attachCacheRef = useRef<Map<string, { url: string; blob: Blob }[]>>(new Map())
 
-  // ✅ 1. Office-wise FMO assignments
-  const [fmoAssignments, setFmoAssignments] = useState<{ fmo_name: string; hnd_office: boolean; faqirwali_office: boolean }[]>([])
-  useEffect(() => {
-    async function loadAssignments() {
-      const { data } = await supabase.from('fmo_office_assignments').select('fmo_name, hnd_office, faqirwali_office')
-      setFmoAssignments(data || [])
-    }
-    loadAssignments()
-  }, [])
+// ✅ 1. Office-wise FMO assignments — REALTIME
+const [fmoAssignments, setFmoAssignments] = useState<{ fmo_name: string; hnd_office: boolean; faqirwali_office: boolean }[]>([])
+useEffect(() => {
+  let alive = true
+  async function loadAssignments() {
+    const { data } = await supabase.from('fmo_office_assignments').select('fmo_name, hnd_office, faqirwali_office')
+    if (alive) setFmoAssignments(data || [])
+  }
+  loadAssignments()
+  const channel = supabase
+    .channel('penalties-fmo-changes')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'fmo_office_assignments' },
+      () => { loadAssignments() }
+    )
+    .subscribe()
+  return () => {
+    alive = false
+    supabase.removeChannel(channel)
+  }
+}, [])
 
   // ✅ Supervisors (assigned_supervisors) — UC/Ward se penalty match karne ke liye
   const [supervisors, setSupervisors] = useState<{ name: string; uc_ward: string }[]>([])

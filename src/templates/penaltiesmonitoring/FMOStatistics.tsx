@@ -4,6 +4,12 @@ import { supabase } from '../../lib/supabase'
 import { API_BASE } from '../../lib/apiBase'
 
 type Row = Record<string, any>
+type FMO = {
+  id: string
+  fmo_name: string
+  hnd_office: boolean
+  faqirwali_office: boolean
+}
 
 type Props = {
   penalties: Row[]
@@ -27,7 +33,6 @@ function fmtDateLabel(dateStr: string) {
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
-// ✅ Central API base — local/LAN par direct backend, live (pages.dev) par ngrok tunnel
 const API = API_BASE
 
 export default function FMOStatistics({ penalties, loading = false, permissions }: Props) {
@@ -43,13 +48,35 @@ export default function FMOStatistics({ penalties, loading = false, permissions 
   const [histRows, setHistRows] = useState<Row[] | null>(null)
 
   const [fmoAssignments, setFmoAssignments] = useState<{ fmo_name: string; hnd_office: boolean; faqirwali_office: boolean }[]>([])
-  useEffect(() => {
-    async function loadAssignments() {
-      const { data } = await supabase.from('fmo_office_assignments').select('fmo_name, hnd_office, faqirwali_office')
-      setFmoAssignments(data || [])
-    }
-    loadAssignments()
-  }, [])
+
+  // ✅ NEW: FMO Details popup states
+  const [fmoDetailsOpen, setFmoDetailsOpen] = useState(false)
+  const [fmoList, setFmoList] = useState<FMO[]>([])
+  const [fmoLoading, setFmoLoading] = useState(true)
+  const [fmoUpdating, setFmoUpdating] = useState<Set<string>>(new Set())
+  const [fmoError, setFmoError] = useState('')
+
+useEffect(() => {
+  let alive = true
+  async function loadAssignments() {
+    const { data } = await supabase.from('fmo_office_assignments').select('fmo_name, hnd_office, faqirwali_office')
+    if (alive) setFmoAssignments(data || [])
+  }
+  loadAssignments()
+  // ✅ REALTIME: admin/employee koi bhi toggle kare → yahan foran update
+  const channel = supabase
+    .channel('employee-fmo-changes')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'fmo_office_assignments' },
+      () => { loadAssignments() }
+    )
+    .subscribe()
+  return () => {
+    alive = false
+    supabase.removeChannel(channel)
+  }
+}, [])
 
   const allowedOffices = useMemo(() => {
     if (!permissions) return ['hnd', 'faqirwali']
@@ -71,6 +98,9 @@ export default function FMOStatistics({ penalties, loading = false, permissions 
   }, [penalties, fmoAssignments, allowedOffices])
 
   const showImposedReport = permissions?.isAdmin === true || permissions?.can_imposed_report === true
+
+  // ✅ NEW: Check if user has HND access (for FMO details popup)
+  const hasHndAccess = permissions?.penalties_hnd === true || permissions?.isAdmin === true
 
   const reportRows = histRows ?? filteredPenalties
   const isHist = histRows !== null
@@ -143,6 +173,74 @@ export default function FMOStatistics({ penalties, loading = false, permissions 
     }
   }
 
+  // ✅ NEW: Load FMO list for popup
+  async function loadFmoList() {
+    setFmoLoading(true)
+    setFmoError('')
+    try {
+      const { data, error: err } = await supabase
+        .from('fmo_office_assignments')
+        .select('*')
+        .order('fmo_name', { ascending: true })
+      if (err) throw err
+      setFmoList(data || [])
+    } catch (e: any) {
+      setFmoError(e.message || 'Failed to load FMOs')
+    } finally {
+      setFmoLoading(false)
+    }
+  }
+
+  // ✅ NEW: Toggle office assignment (same as admin side)
+  async function toggleFmoOffice(fmoId: string, office: 'hnd' | 'faqirwali', value: boolean) {
+    const key = `${fmoId}-${office}`
+    if (fmoUpdating.has(key)) return
+    setFmoUpdating(prev => new Set(prev).add(key))
+    setFmoError('')
+
+    const fmo = fmoList.find(f => f.id === fmoId)
+    if (!fmo) return
+
+    const payload = {
+      hnd_office: office === 'hnd' ? value : fmo.hnd_office,
+      faqirwali_office: office === 'faqirwali' ? value : fmo.faqirwali_office,
+    }
+
+    try {
+      const { error: err } = await supabase
+        .from('fmo_office_assignments')
+        .update(payload)
+        .eq('id', fmoId)
+      if (err) throw err
+
+      // Update local state
+      setFmoList(prev => prev.map(f => f.id === fmoId ? { ...f, ...payload } : f))
+      // Also update fmoAssignments for main page
+      setFmoAssignments(prev => prev.map(f => f.fmo_name === fmo.fmo_name ? { ...f, ...payload } : f))
+    } catch (e: any) {
+      setFmoError(e.message || 'Failed to update')
+    } finally {
+      setFmoUpdating(prev => {
+        const next = new Set(prev)
+        next.delete(key)
+        return next
+      })
+    }
+  }
+
+  // ✅ NEW: Open FMO details popup
+  function openFmoDetails() {
+    setFmoDetailsOpen(true)
+    loadFmoList()
+  }
+
+  // ✅ NEW: Close FMO details popup
+  function closeFmoDetails() {
+    setFmoDetailsOpen(false)
+    setFmoList([])
+    setFmoError('')
+  }
+
   const imposedMatrix = useMemo(() => {
     const fmoTotals = new Map<string, number>()
     const subTotals = new Map<string, number>()
@@ -201,7 +299,6 @@ export default function FMOStatistics({ penalties, loading = false, permissions 
   const modalWidthCls = ucCount <= 1 ? 'max-w-lg' : ucCount === 2 ? 'max-w-4xl' : 'max-w-7xl'
   const ucGridCls = ucCount <= 1 ? 'grid-cols-1' : ucCount === 2 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3'
 
-  // ✅ Search button sirf tab show ho jab user ne purani date pick ki ho (today se alag)
   const showSearchBtn = dateFrom !== todayStr() || dateTo !== todayStr()
 
   return (
@@ -209,19 +306,41 @@ export default function FMOStatistics({ penalties, loading = false, permissions 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg sm:text-xl md:text-2xl font-extrabold flex flex-wrap items-center gap-3">
           <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-emerald-400/30 bg-emerald-500/10 text-emerald-300">
-            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
           </span>
-          <span className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">FMO </span>
-          <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Statistics</span>
+          <>
+            {/* ✅ Sirf "FMO" text par double-click — cursor default arrow rahega (koi pointer nahi) */}
+            <span
+              className="select-none"
+              onDoubleClick={hasHndAccess ? openFmoDetails : undefined}
+              title={hasHndAccess ? "Double-click to manage FMO offices" : undefined}
+            >
+              <span className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">FMO </span>
+            </span>
+            <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Statistics</span>
+          </>
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-emerald-400/40 bg-emerald-500/10 text-emerald-300 text-[10px] sm:text-xs font-bold whitespace-nowrap">
-            <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
+            <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+            </svg>
             {dateLabel}
           </span>
         </h2>
 
         {showImposedReport && (
           <button type="button" onClick={() => setImposedOpen(true)} className="h-9 sm:h-10 px-4 rounded-xl border border-emerald-400/40 bg-emerald-500/15 text-emerald-300 text-[11px] sm:text-xs font-bold hover:bg-emerald-500/25 hover:text-white transition flex items-center gap-2 whitespace-nowrap">
-            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+            </svg>
             Imposed Report
           </button>
         )}
@@ -247,7 +366,10 @@ export default function FMOStatistics({ penalties, loading = false, permissions 
                 <span className="px-2 py-0.5 rounded-full bg-red-500/15 border border-red-400/40 text-red-300 text-[10px] font-bold whitespace-nowrap">Unresolved: {s.unresolved}</span>
               </div>
               <button type="button" onClick={() => setDetailFmo(name)} className="w-full h-9 rounded-xl border border-emerald-400/40 bg-emerald-500/10 text-emerald-300 text-[11px] sm:text-xs font-bold hover:bg-emerald-500/25 hover:text-white transition flex items-center justify-center gap-2">
-                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
+                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
                 Details
               </button>
             </div>
@@ -269,7 +391,10 @@ export default function FMOStatistics({ penalties, loading = false, permissions 
                   </div>
                 </div>
                 <button type="button" onClick={() => setDetailFmo(null)} aria-label="Close details" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/5 text-white/70 hover:bg-red-500/15 hover:border-red-400/40 hover:text-red-300 transition">
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
                 </button>
               </div>
               <div className="p-5 flex flex-col gap-4">
@@ -283,7 +408,10 @@ export default function FMOStatistics({ penalties, loading = false, permissions 
                   {[...detail[1].ucs.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([uc, u]) => (
                     <div key={uc} className="rounded-xl border border-white/10 bg-white/5 p-3.5 flex flex-col gap-2">
                       <div className="flex items-start gap-1.5">
-                        <svg className="h-3.5 w-3.5 text-emerald-300 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" /><circle cx="12" cy="10" r="3" /></svg>
+                        <svg className="h-3.5 w-3.5 text-emerald-300 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+                          <circle cx="12" cy="10" r="3" />
+                        </svg>
                         <span className="text-[11px] font-bold text-white/90 leading-snug">{uc}</span>
                       </div>
                       <div className="flex flex-wrap gap-1.5">
@@ -318,10 +446,8 @@ export default function FMOStatistics({ penalties, loading = false, permissions 
           <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" onClick={closeImposed} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
             <div className={`pointer-events-auto relative w-full max-w-7xl max-h-[92vh] rounded-2xl border border-emerald-400/30 bg-[#04231c] shadow-[0_30px_80px_rgba(0,0,0,0.6)] [scrollbar-width:thin] [scrollbar-color:rgba(16,185,129,0.4)_transparent] ${searching ? 'overflow-hidden' : 'overflow-y-auto'}`}>
-              {/* ✅ Full-popup loading overlay — report ke andar nahi, pooray popup par */}
               {searching && (
                 <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-4 sm:gap-5 rounded-2xl bg-[#04231c]/90 backdrop-blur-md select-none">
-                  {/* Pulsing logo with glow */}
                   <div className="relative h-16 w-16 sm:h-20 sm:w-20">
                     <div aria-hidden="true" className="absolute inset-0 scale-125 rounded-full bg-emerald-400/20 blur-2xl" />
                     <img
@@ -330,9 +456,7 @@ export default function FMOStatistics({ penalties, loading = false, permissions 
                       className="relative h-16 w-16 sm:h-20 sm:w-20 object-contain drop-shadow-[0_0_25px_rgba(0,255,170,0.45)] animate-[logo-pulse_4s_ease-in-out_infinite]"
                     />
                   </div>
-                  {/* Spinner ring */}
                   <div className="h-10 w-10 rounded-full border-2 border-emerald-400/20 border-t-emerald-300 animate-spin" />
-                  {/* Running gradient text */}
                   <div className="text-xs sm:text-sm font-bold tracking-widest bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">
                     FETCHING REPORT FOR {rangeLabel}…
                   </div>
@@ -344,43 +468,50 @@ export default function FMOStatistics({ penalties, loading = false, permissions 
               <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-white/10 bg-[#04231c]">
                 <div className="flex flex-wrap items-center gap-3">
                   <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-emerald-400/30 bg-emerald-500/10 text-emerald-300">
-                    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>
+                    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="12" y1="1" x2="12" y2="23" />
+                      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                    </svg>
                   </span>
                   <div className="text-sm sm:text-base font-extrabold text-white">Penalties Imposed Report</div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <button type="button" onClick={copyReportAsImage} disabled={copying} className="h-9 px-3 rounded-xl border border-emerald-400/40 bg-emerald-500/10 text-emerald-300 text-[10px] sm:text-xs font-bold hover:bg-emerald-500/25 hover:text-white transition flex items-center gap-1.5 whitespace-nowrap disabled:opacity-50">
-                    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+                    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                    </svg>
                     {copying ? 'Copying…' : 'Copy as Image'}
                   </button>
                   <button type="button" onClick={closeImposed} aria-label="Close imposed report" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/15 bg-white/5 text-white/70 hover:bg-red-500/15 hover:border-red-400/40 hover:text-red-300 transition">
-                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
                   </button>
                 </div>
               </div>
-
               <div className="p-5 flex flex-col gap-3">
-                {/* ✅ Date search toolbar — Search button only visible after picking non-today date */}
                 <div className="flex flex-wrap items-center gap-2">
-              <div className="flex items-center gap-1.5">
-                <input
-                  type="date"
-                  value={dateFrom}
-                  max={todayStr()}
-                  disabled={searching}
-                  onChange={e => setDateFrom(e.target.value)}
-                  className="h-9 px-3 rounded-xl border border-emerald-400/25 bg-[#071b15]/80 backdrop-blur-md text-[11px] sm:text-xs font-medium text-white outline-none focus:ring-2 focus:ring-emerald-400/50 disabled:opacity-50 transition"
-                />
-                <span className="text-white/40 text-[10px] font-bold">→</span>
-                <input
-                  type="date"
-                  value={dateTo}
-                  max={todayStr()}
-                  disabled={searching}
-                  onChange={e => setDateTo(e.target.value)}
-                  className="h-9 px-3 rounded-xl border border-emerald-400/25 bg-[#071b15]/80 backdrop-blur-md text-[11px] sm:text-xs font-medium text-white outline-none focus:ring-2 focus:ring-emerald-400/50 disabled:opacity-50 transition"
-                />
-              </div>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="date"
+                      value={dateFrom}
+                      max={todayStr()}
+                      disabled={searching}
+                      onChange={e => setDateFrom(e.target.value)}
+                      className="h-9 px-3 rounded-xl border border-emerald-400/25 bg-[#071b15]/80 backdrop-blur-md text-[11px] sm:text-xs font-medium text-white outline-none focus:ring-2 focus:ring-emerald-400/50 disabled:opacity-50 transition"
+                    />
+                    <span className="text-white/40 text-[10px] font-bold">→</span>
+                    <input
+                      type="date"
+                      value={dateTo}
+                      max={todayStr()}
+                      disabled={searching}
+                      onChange={e => setDateTo(e.target.value)}
+                      className="h-9 px-3 rounded-xl border border-emerald-400/25 bg-[#071b15]/80 backdrop-blur-md text-[11px] sm:text-xs font-medium text-white outline-none focus:ring-2 focus:ring-emerald-400/50 disabled:opacity-50 transition"
+                    />
+                  </div>
                   {showSearchBtn && (
                     <button
                       type="button"
@@ -408,7 +539,6 @@ export default function FMOStatistics({ penalties, loading = false, permissions 
                     <span className="text-[10px] sm:text-[11px] font-bold text-red-300 whitespace-nowrap">⚠ {searchError}</span>
                   )}
                 </div>
-
                 {imposedMatrix.subs.length === 0 ? (
                   <div className="rounded-xl border border-white/10 bg-white/5 p-8 text-center text-xs text-white/40">No TM imposed penalties found for {reportDateLabel}</div>
                 ) : (
@@ -476,6 +606,114 @@ export default function FMOStatistics({ penalties, loading = false, permissions 
           </div>
         </>
       )}
+
+      {/* ✅ NEW: FMO Details Popup — sirf HND access walon ke liye */}
+      {fmoDetailsOpen && (
+        <>
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" onClick={closeFmoDetails} />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+            <div className="pointer-events-auto w-full max-w-4xl max-h-[85vh] rounded-2xl border border-emerald-400/30 bg-[#04231c] shadow-[0_30px_80px_rgba(0,0,0,0.6)] flex flex-col">
+              <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-white/10">
+                <div className="flex items-center gap-2">
+                  <svg className="h-5 w-5 text-emerald-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+                  <h3 className="text-sm sm:text-base font-extrabold text-white">
+                    <span className="bg-[linear-gradient(180deg,#94a3b8,#cbd5e1,#e2e8f0,#cbd5e1,#94a3b8)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Penalties FMO </span>
+                    <span className="bg-[linear-gradient(180deg,#10b981,#34d399,#6ee7b7,#34d399,#10b981)] bg-[length:100%_200%] bg-clip-text text-transparent animate-[text-run-vertical_2.5s_linear_infinite]">Office Details</span>
+                  </h3>
+                </div>
+                <button onClick={closeFmoDetails} className="p-1.5 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition" aria-label="Close">
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
+
+              {fmoError && (
+                <div className="mx-5 mt-3 bg-red-500/10 border border-red-500/40 text-red-300 text-sm p-3 rounded-xl flex items-center justify-between">
+                  <span>{fmoError}</span>
+                  <button onClick={() => setFmoError('')} className="text-red-300 hover:text-red-200 text-lg font-bold leading-none">✕</button>
+                </div>
+              )}
+
+              <div className="p-5 overflow-y-auto">
+                {fmoLoading ? (
+                  <div className="text-white/60 text-sm text-center py-8">Loading FMO data…</div>
+                ) : fmoList.length === 0 ? (
+                  <div className="text-white/60 text-sm text-center py-8">No FMO data available.</div>
+                ) : (
+                  <div className="rounded-2xl border border-emerald-400/25 bg-[#04231c]/60 overflow-hidden shadow-[0_15px_40px_rgba(0,0,0,0.35)]">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-[#0a4038]">
+                          <tr className="text-left text-[10px] sm:text-xs font-bold tracking-wider text-emerald-200/90 uppercase border-b border-emerald-400/20">
+                            <th className="px-4 py-3">#</th>
+                            <th className="px-4 py-3">FMO Name</th>
+                            <th className="px-4 py-3 text-center">HND Office</th>
+                            <th className="px-4 py-3 text-center">FaqirWali Office</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {fmoList.map((fmo, i) => (
+                            <tr key={fmo.id} className="border-b border-white/5 last:border-0 hover:bg-white/5 transition">
+                              <td className="px-4 py-3 text-white/40 text-[10px] font-bold">{i + 1}</td>
+                              <td className="px-4 py-3">
+                                <span className="text-[11px] sm:text-xs font-semibold text-white/90">{fmo.fmo_name}</span>
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <Toggle
+                                  enabled={fmo.hnd_office}
+                                  onChange={(v) => toggleFmoOffice(fmo.id, 'hnd', v)}
+                                  disabled={fmoUpdating.has(`${fmo.id}-hnd`)}
+                                  label="HND"
+                                />
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <Toggle
+                                  enabled={fmo.faqirwali_office}
+                                  onChange={(v) => toggleFmoOffice(fmo.id, 'faqirwali', v)}
+                                  disabled={fmoUpdating.has(`${fmo.id}-faqirwali`)}
+                                  label="FaqirWali"
+                                />
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
+  )
+}
+
+// ✅ Reusable Toggle Component (same as admin side)
+function Toggle({ enabled, onChange, disabled, label }: {
+  enabled: boolean
+  onChange: (v: boolean) => void
+  disabled: boolean
+  label: string
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!enabled)}
+      disabled={disabled}
+      className={`relative inline-flex h-6 w-12 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-400/50 disabled:opacity-50 ${enabled ? 'bg-emerald-500' : 'bg-white/10'}`}
+      title={`${label} Office ${enabled ? 'ON' : 'OFF'}`}
+    >
+      <span className="sr-only">{label}</span>
+      <span
+        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${enabled ? 'translate-x-7' : 'translate-x-1'}`}
+      />
+    </button>
   )
 }

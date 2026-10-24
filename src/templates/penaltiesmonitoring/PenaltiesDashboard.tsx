@@ -686,18 +686,30 @@ export default function PenaltiesDashboard({ onHomeClick, permissions }: Props) 
     { key: 'fmo', label: 'FMO Statistics' },
   ]
 
-  // ---- Office-wise FMO assignments (Supabase se)
-  const [fmoAssignments, setFmoAssignments] = useState<{ fmo_name: string; hnd_office: boolean; faqirwali_office: boolean }[]>([])
-
-  useEffect(() => {
-    async function loadAssignments() {
-      const { data } = await supabase
-        .from('fmo_office_assignments')
-        .select('fmo_name, hnd_office, faqirwali_office')
-      setFmoAssignments(data || [])
-    }
-    loadAssignments()
-  }, [])
+// ---- Office-wise FMO assignments (Supabase se) — REALTIME
+const [fmoAssignments, setFmoAssignments] = useState<{ fmo_name: string; hnd_office: boolean; faqirwali_office: boolean }[]>([])
+useEffect(() => {
+  let alive = true
+  async function loadAssignments() {
+    const { data } = await supabase
+      .from('fmo_office_assignments')
+      .select('fmo_name, hnd_office, faqirwali_office')
+    if (alive) setFmoAssignments(data || [])
+  }
+  loadAssignments()
+  const channel = supabase
+    .channel('dashboard-fmo-changes')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'fmo_office_assignments' },
+      () => { loadAssignments() }
+    )
+    .subscribe()
+  return () => {
+    alive = false
+    supabase.removeChannel(channel)
+  }
+}, [])
 
   // ✅ 1. Employee ki allowed offices check karein
   const allowedOffices = useMemo(() => {
