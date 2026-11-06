@@ -275,22 +275,47 @@ export default function ContainersReport({ locations, portal }: { locations: Row
       ctx.drawImage(img, 0, 0)
       URL.revokeObjectURL(url)
       const pngBlob = await new Promise<Blob | null>(res => canvas.toBlob(res, 'image/png'))
-      if (pngBlob && navigator.clipboard && typeof (navigator.clipboard as any).write === 'function') {
-        // ✅ Image + auto caption (text) dono clipboard mein
+    if (pngBlob && navigator.clipboard && typeof (navigator.clipboard as any).write === 'function') {
+      const captionText = WA_CAPTIONS[filter]
+      const textBlob = new Blob([captionText], { type: 'text/plain' })
+      const htmlBlob = new Blob([captionText], { type: 'text/html' })
+      let done = false
+
+      // ✅ Strategy 1: TEXT representations PEHLE (WhatsApp naya reader pehli representation se caption uthata hai)
+      try {
+        await (navigator.clipboard as any).write([
+          new ClipboardItem({
+            'text/plain': textBlob,
+            'text/html': htmlBlob,
+            'image/png': pngBlob,
+          }),
+        ])
+        done = true
+      } catch {}
+
+      // ✅ Strategy 2: purana order (image pehle) — agar strategy 1 browser support na kare
+      if (!done) {
         try {
           await (navigator.clipboard as any).write([
             new ClipboardItem({
               'image/png': pngBlob,
-              'text/plain': new Blob([WA_CAPTIONS[filter]], { type: 'text/plain' }),
+              'text/plain': textBlob,
+              'text/html': htmlBlob,
             }),
           ])
-        } catch {
-          await (navigator.clipboard as any).write([new ClipboardItem({ 'image/png': pngBlob })])
-        }
-        showToast('success', 'Copied! Successfully.')
-      } else {
-        throw new Error('Clipboard not supported')
+          done = true
+        } catch {}
       }
+
+      // ✅ Strategy 3: sirf image (last fallback — copy kabhi fail na ho)
+      if (!done) {
+        await (navigator.clipboard as any).write([new ClipboardItem({ 'image/png': pngBlob })])
+      }
+
+      showToast('success', 'Copied! Successfully.')
+    } else {
+      throw new Error('Clipboard not supported')
+    }
     } catch {
       showToast('error', 'Copied! Failed Error in copying')
     } finally {
